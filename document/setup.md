@@ -29,60 +29,11 @@ cd to_do_list_mip/Backend_To_Do_List
 composer install
 ```
 
-### 3. Buat File Environment
+### 3. ENV
 
-```bash
-cp .env.example .env
-```
+Taruh env di folder root, yang sudah di kasih di group
 
-### 4. Generate Application Key
-
-```bash
-php artisan key:generate
-```
-
-### 5. Konfigurasi Database (Supabase)
-
-Buka file `.env` dan isi bagian database berikut:
-
-```env
-DB_CONNECTION=pgsql
-DB_HOST=db.syvvhzdstzdcnehkzbik.supabase.co
-DB_PORT=5432
-DB_DATABASE=postgres
-DB_USERNAME=postgres
-DB_PASSWORD=isi_dengan_password_supabase
-DB_SSLMODE=require
-```
-
-> Password Supabase bisa dilihat di: Supabase Dashboard > Settings > Database > Database password
-
-### 6. Generate JWT Secret
-
-```bash
-php artisan jwt:secret
-```
-
-Perintah ini akan otomatis menambahkan `JWT_SECRET` ke file `.env`.
-
-### 7. Jalankan Migration
-
-```bash
-php artisan migrate
-```
-
-Perintah ini akan membuat semua tabel yang dibutuhkan langsung di database Supabase.
-
-### 8. Aktifkan Ekstensi PHP PostgreSQL
-
-Pastikan ekstensi `pdo_pgsql` dan `pgsql` aktif di `php.ini`. Cari baris `extension_dir` lalu tambahkan:
-
-```ini
-extension=pgsql
-extension=pdo_pgsql
-```
-
-### 9. Jalankan Server
+### 4. Jalankan Server
 
 ```bash
 php artisan serve
