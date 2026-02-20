@@ -1,6 +1,6 @@
 # Sistem Database
 
-Dokumentasi ini menjelaskan sistem database yang digunakan beserta alur pengelolaan tabel dan data.
+Dokumentasi ini menjelaskan sistem database yang digunakan, tabel-tabel yang ada, serta konfigurasi koneksi ke Supabase.
 
 ---
 
@@ -10,130 +10,112 @@ Dokumentasi ini menjelaskan sistem database yang digunakan beserta alur pengelol
 |-------------|---------------------------------|
 | Provider    | Supabase                        |
 | Engine      | PostgreSQL 17.6                 |
-| Driver PHP  | pdo_pgsql                       |
-| Koneksi     | SSL (sslmode=require)           |
-| Host        | db.syvvhzdstzdcnehkzbik.supabase.co |
+| Driver PHP  | `pdo_pgsql`                     |
+| Koneksi     | **Session Pooler** (IPv4 Supported) |
+| Host        | `aws-1-ap-southeast-1.pooler.supabase.com` |
+| Port        | `5432` (Session Mode)           |
 
 ---
 
-## Konfigurasi Koneksi
+## Konfigurasi Koneksi Penting
 
-Konfigurasi database disimpan di file `.env`:
+Karena Supabase menggunakan IPv6 untuk *Direct Connection*, sedangkan banyak ISP (termasuk di lokal) hanya mendukung IPv4, kita **wajib** menggunakan **Supabase Connection Pooler**.
+
+**Konfigurasi `.env` yang Benar:**
 
 ```env
 DB_CONNECTION=pgsql
-DB_HOST=db.syvvhzdstzdcnehkzbik.supabase.co
+DB_HOST=aws-1-ap-southeast-1.pooler.supabase.com
 DB_PORT=5432
 DB_DATABASE=postgres
-DB_USERNAME=postgres
-DB_PASSWORD=...
+DB_USERNAME=postgres.syvvhzdstzdcnehkzbik
+DB_PASSWORD=[password_kamu]
 DB_SSLMODE=require
 ```
 
-Driver yang digunakan di `config/database.php` adalah `pgsql`.
+> **Catatan:** Jangan gunakan host `db.syvvhzdstzdcnehkzbik.supabase.co` kecuali jaringanmu support full IPv6. Gunakan host pooler `aws-1-...` seperti di atas.
 
 ---
 
-## Tabel yang Ada
+## Struktur Tabel (Schema)
 
-| Tabel               | Keterangan                              |
-|---------------------|-----------------------------------------|
-| users               | Data akun pengguna                      |
-| migrations          | Riwayat migration yang sudah dijalankan |
-| cache               | Data cache aplikasi                     |
-| cache_locks         | Lock mekanisme untuk cache              |
-| sessions            | Data sesi pengguna                      |
-| jobs                | Antrian job background                  |
-| job_batches         | Batch antrian job                       |
-| failed_jobs         | Job yang gagal dijalankan               |
-| password_reset_tokens | Token untuk reset password            |
+Berikut adalah daftar tabel utama dalam aplikasi To-Do List & Daily Report ini:
+
+### 1. `shifts`
+Menyimpan data shift kerja (A, B, C).
+- `id` (PK)
+- `nama_shift` (String: "A", "B", "C")
+
+### 2. `users`
+Menyimpan data pegawai dan admin.
+- `id` (PK)
+- `shift_id` (FK -> `shifts.id`)
+- `name` (String: default Laravel)
+- `nama_lengkap` (String: nama lengkap pegawai)
+- `username` (String: unik)
+- `email` (String: unik, untuk login)
+- `password` (String: hashed)
+- `role` (Enum: 'admin', 'pegawai')
+
+### 3. `master_templates`
+Menyimpan daftar tugas rutin yang "di-saved" oleh admin untuk setiap shift. Data ini akan disalin ke `daily_tasks` setiap hari.
+- `id` (PK)
+- `shift_id` (FK -> `shifts.id`)
+- `nama_kegiatan` (String: nama tugas rutin)
+- `estimasi_waktu` (Time: perkiraan durasi)
+
+### 4. `daily_tasks`
+Menyimpan tugas harian untuk setiap user pada tanggal tertentu.
+- `id` (PK)
+- `user_id` (FK -> `users.id`)
+- `tanggal` (Date)
+- `nama_kegiatan` (String)
+- `waktu_checklist` (Time: kapan user mengerjakan/conteng)
+- `status` (Enum: 'pending', 'selesai')
+- `catatan` (Text: opsional)
+
+### 5. `off_schedules`
+Menyimpan jadwal libur pegawai. Digunakan untuk menandai "OFF" di laporan harian.
+- `id` (PK)
+- `user_id` (FK -> `users.id`)
+- `tanggal_off` (Date)
 
 ---
 
-## Cara Menambah Tabel Baru
+## Relasi & Alur Data
 
-### 1. Buat file migration
+1.  **Shift & Tugas Rutin**: Setiap `shift` memiliki banyak `master_templates`. Pegawai di shift tersebut akan mendapatkan tugas rutin ini.
+2.  **User & Shift**: Setiap `user` (pegawai) terhubung ke satu `shift`.
+3.  **Generasi Tugas Harian**: (Logic di Backend) Saat user login/hari berganti, sistem mengambil tugas dari `master_templates` sesuai shift user, lalu menyalinnya ke `daily_tasks`.
+4.  **Laporan**: Laporan harian mengambil data dari `daily_tasks`. Jika tanggal tersebut ada di `off_schedules` untuk user tersebut, laporan akan menampilkan status "OFF".
 
+---
+
+## Manajemen Database (Migration)
+
+Semua perubahan struktur tabel dilakukan melalui Laravel Migrations.
+
+### Membuat Tabel Baru
 ```bash
 php artisan make:migration create_nama_tabel_table
 ```
 
-File migration akan dibuat di folder `database/migrations/`.
-
-### 2. Edit file migration
-
-Contoh:
-
-```php
-public function up(): void
-{
-    Schema::create('todos', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-        $table->string('title');
-        $table->boolean('is_done')->default(false);
-        $table->timestamps();
-    });
-}
-
-public function down(): void
-{
-    Schema::dropIfExists('todos');
-}
-```
-
-### 3. Jalankan migration
-
-```bash
-php artisan migrate
-```
-
-Tabel akan otomatis dibuat di database Supabase.
-
----
-
-## Cara Mengubah Kolom yang Sudah Ada
-
-Buat migration baru, jangan ubah file migration lama:
-
+### Mengubah Tabel (Tambah Kolom)
 ```bash
 php artisan make:migration add_kolom_baru_to_nama_tabel_table
 ```
 
-Contoh isi migration:
-
-```php
-public function up(): void
-{
-    Schema::table('todos', function (Blueprint $table) {
-        $table->text('description')->nullable()->after('title');
-    });
-}
-
-public function down(): void
-{
-    Schema::table('todos', function (Blueprint $table) {
-        $table->dropColumn('description');
-    });
-}
+### Menjalankan Perubahan ke Supabase
+```bash
+php artisan migrate
 ```
 
----
-
-## Aturan Penting
-
-- **Dilarang** menggunakan `php artisan migrate:fresh` karena akan menghapus semua data.
-- Selalu buat **migration baru** untuk perubahan skema, jangan edit migration lama yang sudah pernah dijalankan.
-- Gunakan `php artisan migrate:status` untuk melihat status migration yang sudah dijalankan.
+> **PERINGATAN KERAS:** Jangan pernah menjalan `php artisan migrate:fresh` karena akan **MENGHAPUS SELURUH DATA** di Supabase.
 
 ---
 
-## Perintah Berguna
+## Troubleshooting
 
-| Perintah                        | Fungsi                                  |
-|---------------------------------|-----------------------------------------|
-| `php artisan migrate`           | Jalankan migration yang belum dijalankan |
-| `php artisan migrate:status`    | Lihat status semua migration            |
-| `php artisan migrate:rollback`  | Batalkan migration terakhir             |
-| `php artisan make:migration`    | Buat file migration baru                |
-| `php artisan make:model`        | Buat model Eloquent baru                |
+Jika muncul error: `SQLSTATE[08006] [7] could not translate host name...`
+- **Penyebab**: DNS tidak bisa connect ke host Supabase.
+- **Solusi**: Pastikan `DB_HOST` di `.env` menggunakan alamat pooler (`aws-1-ap-...`) dan **bukan** alamat direct (`db.syvvh...`). Ganti DNS PC ke Google DNS (8.8.8.8) jika masih bermasalah.
