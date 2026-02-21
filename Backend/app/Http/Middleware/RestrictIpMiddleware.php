@@ -19,16 +19,23 @@ class RestrictIpMiddleware
         $allowedIpsStr = env('ALLOWED_IPS', '127.0.0.1');
         $allowedIps = array_map('trim', explode(',', $allowedIpsStr));
 
-        // Debug Log (Cek di storage/logs/laravel.log)
+        // Jika ALLOWED_IPS adalah '*', maka izinkan semua (untuk testing)
+        if (in_array('*', $allowedIps)) {
+            return $next($request);
+        }
+
+        $clientIp = $request->ip();
+
+        // Debug Log (Cek di tab Log Zeabur untuk melihat IP asli kamu)
         \Log::info('IP Access Attempt:', [
-            'ip' => $request->ip(), 
+            'ip' => $clientIp, 
             'allowed' => $allowedIps
         ]);
 
         // Cek apakah IP pengakses ada di dalam whitelist
-        if (!in_array($request->ip(), $allowedIps)) {
+        if (!in_array($clientIp, $allowedIps)) {
             return response()->json([
-                'message' => 'Akses ditolak. IP Anda (' . $request->ip() . ') tidak terdaftar di WiFi MCC.',
+                'message' => 'Akses ditolak. IP Anda (' . $clientIp . ') tidak terdaftar di WiFi MCC.',
             ], 403);
         }
 
