@@ -15,6 +15,11 @@ class RestrictIpMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Izinkan preflight request (CORS) tanpa cek IP
+        if ($request->isMethod('OPTIONS')) {
+            return $next($request);
+        }
+
         // Ambil daftar IP yang diizinkan dari .env, dipisahkan koma
         $allowedIpsStr = env('ALLOWED_IPS', '127.0.0.1');
         $allowedIps = array_map('trim', explode(',', $allowedIpsStr));
