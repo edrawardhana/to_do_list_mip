@@ -26,12 +26,6 @@ class RestrictIpMiddleware
 
         $clientIp = $request->ip();
 
-        // Debug Log (Cek di tab Log Zeabur untuk melihat IP asli kamu)
-        \Log::info('IP Access Attempt:', [
-            'ip' => $clientIp, 
-            'allowed' => $allowedIps
-        ]);
-
         // Cek apakah IP pengakses ada di dalam whitelist
         if (!in_array($clientIp, $allowedIps)) {
             return response()->json([
