@@ -32,6 +32,5 @@ RUN composer install --no-dev --optimize-autoloader
 # Set permissions
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 
-# Expose port 8000 and start php-fpm server
-EXPOSE 8000
-CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000
+# Expose port and start server
+CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=$PORT
