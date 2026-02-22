@@ -6,6 +6,13 @@ use Illuminate\Support\Facades\Route;
 // Endpoint login, tidak perlu autentikasi
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/test-api', function() { return response()->json(['status' => 'OK']); });
+Route::get('/check-ip', function(\Illuminate\Http\Request $request) { 
+    return response()->json([
+        'detected_ip' => $request->ip(),
+        'all_ips' => $request->ips(),
+        'header_x_forwarded' => $request->header('X-Forwarded-For')
+    ]); 
+});
 
 // Endpoint yang memerlukan JWT token
 Route::middleware('auth:api')->group(function () {
