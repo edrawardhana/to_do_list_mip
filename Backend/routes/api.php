@@ -7,11 +7,9 @@ use Illuminate\Support\Facades\Route;
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/check-ip', function(\Illuminate\Http\Request $request) { 
     return response()->json([
-        'detected_ip' => $request->ip(),
-        'all_ips' => $request->ips(),
-        'x_real_ip' => $request->header('X-Real-IP'),
-        'cf_connecting_ip' => $request->header('CF-Connecting-IP'),
-        'headers' => $request->headers->all(),
+        'detected' => $request->ip(),
+        'x-real' => $request->header('X-Real-IP'),
+        'cf' => $request->header('CF-Connecting-IP'),
     ]); 
 });
 
