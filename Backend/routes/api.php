@@ -5,13 +5,6 @@ use Illuminate\Support\Facades\Route;
 
 // Endpoint login, tidak perlu autentikasi
 Route::post('/login', [AuthController::class, 'login']);
-Route::get('/check-ip', function(\Illuminate\Http\Request $request) { 
-    return response()->json([
-        'detected' => $request->ip(),
-        'x-real' => $request->header('X-Real-IP'),
-        'cf' => $request->header('CF-Connecting-IP'),
-    ]); 
-});
 
 // Endpoint yang memerlukan JWT token
 Route::middleware('auth:api')->group(function () {

@@ -29,22 +29,45 @@ class RestrictIpMiddleware
             return $next($request);
         }
 
-        $clientIp = $request->ip();
-        
-        // Cek header khusus jika ada (X-Real-IP dari Zeabur atau CF-Connecting-IP)
-        // Tambahkan cek X-Public-IP yang dikirim oleh Frontend
-        $realIp = $request->header('X-Real-IP') ?? 
-                  $request->header('CF-Connecting-IP') ?? 
-                  $request->header('X-Public-IP') ?? 
-                  $clientIp;
+        // Kumpulkan semua kandidat IP dari berbagai sumber
+        $candidates = [
+            $request->ip(),
+            $request->header('X-Real-IP'),
+            $request->header('CF-Connecting-IP'),
+            $request->header('X-Public-IP'),
+        ];
 
-        // Cek apakah IP pengakses ada di dalam whitelist
-        if (!in_array($clientIp, $allowedIps) && !in_array($realIp, $allowedIps)) {
+        // Tambahkan IP dari X-Forwarded-For jika ada
+        if ($request->header('X-Forwarded-For')) {
+            $ips = explode(',', $request->header('X-Forwarded-For'));
+            foreach ($ips as $ip) {
+                $candidates[] = trim($ip);
+            }
+        }
+
+        // Bersihkan null dan duplikat
+        $candidates = array_unique(array_filter($candidates));
+
+        // Cek apakah salah satu kandidat ada di dalam whitelist
+        $isAllowed = false;
+        $matchedIp = null;
+        foreach ($candidates as $ip) {
+            if (in_array($ip, $allowedIps)) {
+                $isAllowed = true;
+                $matchedIp = $ip;
+                break;
+            }
+        }
+
+        if (!$isAllowed) {
+            // Gunakan IP publik (jika ada) atau IP terdeteksi pertama untuk pesan error
+            $displayIp = $request->header('X-Public-IP') ?? $request->header('X-Real-IP') ?? $request->ip();
+            
             return response()->json([
-                'message' => 'Akses ditolak. IP Anda (' . $realIp . ') tidak terdaftar di WiFi MCC.',
+                'message' => 'Akses ditolak. IP Anda (' . $displayIp . ') tidak terdaftar di WiFi MCC.',
                 'debug_info' => [
-                    'detected' => $clientIp,
-                    'real' => $realIp,
+                    'all_detected_ips' => $candidates,
+                    'allowed_ips' => $allowedIps
                 ]
             ], 403);
         }
