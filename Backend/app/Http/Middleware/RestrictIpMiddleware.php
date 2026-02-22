@@ -30,11 +30,18 @@ class RestrictIpMiddleware
         }
 
         $clientIp = $request->ip();
+        
+        // Cek header khusus jika ada (X-Real-IP dari Zeabur atau CF-Connecting-IP)
+        $realIp = $request->header('X-Real-IP') ?? $request->header('CF-Connecting-IP') ?? $clientIp;
 
         // Cek apakah IP pengakses ada di dalam whitelist
-        if (!in_array($clientIp, $allowedIps)) {
+        if (!in_array($clientIp, $allowedIps) && !in_array($realIp, $allowedIps)) {
             return response()->json([
-                'message' => 'Akses ditolak. IP Anda (' . $clientIp . ') tidak terdaftar di WiFi MCC.',
+                'message' => 'Akses ditolak. IP Anda (' . $realIp . ') tidak terdaftar di WiFi MCC.',
+                'debug_info' => [
+                    'detected' => $clientIp,
+                    'real' => $realIp
+                ]
             ], 403);
         }
 
