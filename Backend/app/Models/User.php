@@ -2,49 +2,53 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
 class User extends Authenticatable implements JWTSubject
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasUuids;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+    public $timestamps = false;
+
+    const CREATED_AT = 'created_at';
+
     protected $fillable = [
-        'name',
+        'full_name',
         'email',
-        'password',
+        'password_hash',
+        'role',
+        'division_id',
+        'shift_type',
+        'is_locked',
+        'status',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
-        'password',
-        'remember_token',
+        'password_hash',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'is_locked' => 'boolean',
         ];
+    }
+
+    /**
+     * Override kolom password untuk auth Laravel.
+     */
+    public function getAuthPassword()
+    {
+        return $this->password_hash;
+    }
+
+    // Relasi ke division
+    public function division()
+    {
+        return $this->belongsTo(Division::class);
     }
 
     // Mengembalikan identifier unik user untuk JWT
@@ -53,7 +57,7 @@ class User extends Authenticatable implements JWTSubject
         return $this->getKey();
     }
 
-    // Mengembalikan klaim kustom tambahan untuk JWT (kosong by default)
+    // Mengembalikan klaim kustom tambahan untuk JWT
     public function getJWTCustomClaims(): array
     {
         return [];

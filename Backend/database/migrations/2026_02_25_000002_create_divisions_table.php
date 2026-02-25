@@ -7,14 +7,14 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Buat tabel divisions (IT, Media, Marketing, dll).
      */
     public function up(): void
     {
-        Schema::create('shifts', function (Blueprint $table) {
-            $table->id();
-            $table->string('nama_shift'); // A, B, atau C
-            $table->timestamps();
+        Schema::create('divisions', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('name');         // IT, Media, Marketing, etc
+            $table->string('description')->nullable();
         });
     }
 
@@ -23,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('shifts');
+        Schema::dropIfExists('divisions');
     }
 };
