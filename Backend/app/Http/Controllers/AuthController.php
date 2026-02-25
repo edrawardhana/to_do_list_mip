@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use App\Models\User;
 
 class AuthController extends Controller
 {
@@ -17,21 +19,33 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $credentials = $request->only('email', 'password');
+        // Cari user berdasarkan email
+        $user = User::where('email', $request->email)->first();
 
-        if (!$token = Auth::attempt($credentials)) {
+        // Cek apakah user ada dan password cocok
+        if (!$user || !Hash::check($request->password, $user->password_hash)) {
             return response()->json(['message' => 'Email atau password salah.'], 401);
         }
+
+        // Cek apakah akun terkunci
+        if ($user->is_locked) {
+            return response()->json(['message' => 'Akun Anda terkunci. Hubungi admin.'], 403);
+        }
+
+        // Generate JWT token
+        $token = Auth::login($user);
 
         return $this->respondWithToken($token);
     }
 
     /**
-     * Dapatkan data user yang sedang login.
+     * Dapatkan data user yang sedang login beserta divisi.
      */
     public function me()
     {
-        return response()->json(Auth::user());
+        $user = Auth::user()->load('division');
+
+        return response()->json($user);
     }
 
     /**

@@ -3,63 +3,86 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use App\Models\Shift;
-use App\Models\DailyTask;
-use App\Models\MasterTemplate;
+use App\Models\Division;
+use App\Models\TaskMaster;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Carbon\Carbon;
 
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Seed data awal ke database.
      */
     public function run(): void
     {
-        // 1. Buat Shift
-        $shiftA = Shift::firstOrCreate(['nama_shift' => 'Shift A']);
-        Shift::firstOrCreate(['nama_shift' => 'Shift B']);
-        Shift::firstOrCreate(['nama_shift' => 'Shift C']);
+        // 1. Buat Divisions
+        $it = Division::firstOrCreate(
+            ['name' => 'IT'],
+            ['description' => 'Divisi IT dan pengembangan sistem']
+        );
 
-        // 2. Buat User Testing (Pegawai)
-        $user = User::firstOrCreate(
-            ['email' => 'pegawai@mcc.com'],
+        $media = Division::firstOrCreate(
+            ['name' => 'Media'],
+            ['description' => 'Divisi media dan konten']
+        );
+
+        Division::firstOrCreate(
+            ['name' => 'Marketing'],
+            ['description' => 'Divisi marketing dan promosi']
+        );
+
+        // 2. Buat User Admin
+        User::firstOrCreate(
+            ['email' => 'admin@mcc.com'],
             [
-                'name' => 'Pegawai Testing',
-                'nama_lengkap' => 'Budi Santoso',
-                'username' => 'budi_mcc',
-                'password' => Hash::make('password123'),
-                'role' => 'pegawai',
-                'shift_id' => $shiftA->id
+                'full_name'     => 'Admin MCC',
+                'password_hash' => Hash::make('password123'),
+                'role'          => 'SuperAdmin',
+                'division_id'   => $it->id,
+                'shift_type'    => 'Morning',
+                'is_locked'     => false,
+                'status'        => 'Active',
             ]
         );
 
-        // 3. Buat Master Template untuk Shift A
-        $templates = [
-            ['nama_kegiatan' => 'Checklist Kebersihan Ruangan', 'estimasi_waktu' => '00:15:00'],
-            ['nama_kegiatan' => 'Update Laporan Harian', 'estimasi_waktu' => '00:30:00'],
-            ['nama_kegiatan' => 'Evaluasi Kerja Shift', 'estimasi_waktu' => '00:20:00'],
+        // 3. Buat User Intern Testing
+        $intern = User::firstOrCreate(
+            ['email' => 'intern@mcc.com'],
+            [
+                'full_name'     => 'Intern Testing',
+                'password_hash' => Hash::make('password123'),
+                'role'          => 'Intern',
+                'division_id'   => $it->id,
+                'shift_type'    => 'Morning',
+                'is_locked'     => false,
+                'status'        => 'Active',
+            ]
+        );
+
+        // 4. Buat Tasks Master untuk divisi IT
+        $tasks = [
+            ['task_name' => 'Setup VR', 'description' => 'Setup perangkat Virtual Reality'],
+            ['task_name' => 'Maintenance Server', 'description' => 'Cek dan maintenance server'],
+            ['task_name' => 'Update Sistem', 'description' => 'Update aplikasi dan sistem internal'],
         ];
 
-        foreach ($templates as $temp) {
-            MasterTemplate::firstOrCreate(
-                ['shift_id' => $shiftA->id, 'nama_kegiatan' => $temp['nama_kegiatan']],
-                ['estimasi_waktu' => $temp['estimasi_waktu']]
+        foreach ($tasks as $task) {
+            TaskMaster::firstOrCreate(
+                ['division_id' => $it->id, 'task_name' => $task['task_name']],
+                ['description' => $task['description']]
             );
         }
 
-        // 4. Buat Daily Tasks untuk Hari Ini
-        foreach ($templates as $temp) {
-            DailyTask::firstOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'tanggal' => Carbon::today()->toDateString(),
-                    'nama_kegiatan' => $temp['nama_kegiatan']
-                ],
-                [
-                    'status' => 'pending'
-                ]
+        // 5. Buat Tasks Master untuk divisi Media
+        $mediaTasks = [
+            ['task_name' => 'Digisign Update', 'description' => 'Update konten digital signage'],
+            ['task_name' => 'Pembuatan Konten', 'description' => 'Membuat konten sosial media'],
+        ];
+
+        foreach ($mediaTasks as $task) {
+            TaskMaster::firstOrCreate(
+                ['division_id' => $media->id, 'task_name' => $task['task_name']],
+                ['description' => $task['description']]
             );
         }
     }
