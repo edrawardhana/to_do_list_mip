@@ -7,5 +7,3 @@
 # Kalau mau invit Supabase Bilang ke Rikza
 
 # Kalau mau invit repo bilang ke bang edra
-
-
