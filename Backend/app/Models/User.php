@@ -5,9 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Tymon\JWTAuth\Contracts\JWTSubject;
 
-class User extends Authenticatable implements JWTSubject
+class User extends Authenticatable
 {
     use HasFactory, HasUuids;
 
@@ -49,17 +48,5 @@ class User extends Authenticatable implements JWTSubject
     public function division()
     {
         return $this->belongsTo(Division::class);
-    }
-
-    // Mengembalikan identifier unik user untuk JWT
-    public function getJWTIdentifier()
-    {
-        return $this->getKey();
-    }
-
-    // Mengembalikan klaim kustom tambahan untuk JWT
-    public function getJWTCustomClaims(): array
-    {
-        return [];
     }
 }

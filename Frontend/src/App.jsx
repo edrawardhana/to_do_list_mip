@@ -1,37 +1,11 @@
-import { useState, useEffect } from 'react'
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Absen from './pages/Absen'
+import { useState } from 'react'
 import './App.css'
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'))
-  const [currentPage, setCurrentPage] = useState('dashboard') // dashboard | absen
-
-  const handleLoginSuccess = () => {
-    setIsAuthenticated(true)
-    setCurrentPage('dashboard')
-  }
-
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    setIsAuthenticated(false)
-  }
-
-  if (!isAuthenticated) {
-    return <Login onLoginSuccess={handleLoginSuccess} />
-  }
-
   return (
     <div className="app-main">
-      {currentPage === 'dashboard' ? (
-        <Dashboard
-          onLogout={handleLogout}
-          onStartAbsen={() => setCurrentPage('absen')}
-        />
-      ) : (
-        <Absen onBack={() => setCurrentPage('dashboard')} />
-      )}
+      <h1>To-Do List MIP</h1>
+      <p>Selamat datang di To-Do List MIP.</p>
     </div>
   )
 }

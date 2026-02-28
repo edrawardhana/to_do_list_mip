@@ -1,6 +1,6 @@
 # Sistem Database
 
-Dokumentasi ini menjelaskan sistem database yang digunakan, tabel-tabel yang ada, serta konfigurasi koneksi ke Supabase.
+Dokumentasi tentang database yang dipakai di project ini.
 
 ---
 
@@ -9,113 +9,131 @@ Dokumentasi ini menjelaskan sistem database yang digunakan, tabel-tabel yang ada
 | Komponen    | Detail                          |
 |-------------|---------------------------------|
 | Provider    | Supabase                        |
-| Engine      | PostgreSQL 17.6                 |
+| Engine      | PostgreSQL                      |
 | Driver PHP  | `pdo_pgsql`                     |
-| Koneksi     | **Session Pooler** (IPv4 Supported) |
+| Koneksi     | Session Pooler (IPv4)           |
 | Host        | `aws-1-ap-southeast-1.pooler.supabase.com` |
-| Port        | `5432` (Session Mode)           |
+| Port        | `5432`                          |
 
 ---
 
-## Konfigurasi Koneksi Penting
+## Kenapa Pakai Pooler?
 
-Karena Supabase menggunakan IPv6 untuk *Direct Connection*, sedangkan banyak ISP (termasuk di lokal) hanya mendukung IPv4, kita **wajib** menggunakan **Supabase Connection Pooler**.
+Supabase defaultnya pakai IPv6 untuk koneksi langsung, tapi kebanyakan ISP lokal cuma support IPv4. Makanya kita wajib pakai **Supabase Connection Pooler** supaya tetap bisa connect.
 
-**Konfigurasi `.env` yang Benar:**
-
-```env
-DB_CONNECTION=pgsql
-DB_HOST=aws-1-ap-southeast-1.pooler.supabase.com
-DB_PORT=5432
-DB_DATABASE=postgres
-DB_USERNAME=postgres.syvvhzdstzdcnehkzbik
-DB_PASSWORD=[password_kamu]
-DB_SSLMODE=require
-```
-
-> **Catatan:** Jangan gunakan host `db.syvvhzdstzdcnehkzbik.supabase.co` kecuali jaringanmu support full IPv6. Gunakan host pooler `aws-1-...` seperti di atas.
+Jadi pastikan `DB_HOST` di `.env` selalu pakai alamat pooler (`aws-1-...`), **bukan** alamat direct (`db.syvvh...`).
 
 ---
 
-## Struktur Tabel (Schema)
+## Struktur Tabel
 
-Berikut adalah daftar tabel utama dalam aplikasi To-Do List & Daily Report ini:
+Semua tabel pakai **UUID** sebagai Primary Key.
 
-### 1. `shifts`
-Menyimpan data shift kerja (A, B, C).
-- `id` (PK)
-- `nama_shift` (String: "A", "B", "C")
+### 1. `divisions`
+Menyimpan data divisi (IT, Media, Marketing, dll).
+
+| Tipe | Kolom | Keterangan |
+|------|-------|------------|
+| uuid | id | PK |
+| string | name | Nama divisi |
+| string | description | Deskripsi divisi |
 
 ### 2. `users`
-Menyimpan data pegawai dan admin.
-- `id` (PK)
-- `shift_id` (FK -> `shifts.id`)
-- `name` (String: default Laravel)
-- `nama_lengkap` (String: nama lengkap pegawai)
-- `username` (String: unik)
-- `email` (String: unik, untuk login)
-- `password` (String: hashed)
-- `role` (Enum: 'admin', 'pegawai')
+Data semua user (Intern, Admin, SuperAdmin).
 
-### 3. `master_templates`
-Menyimpan daftar tugas rutin yang "di-saved" oleh admin untuk setiap shift. Data ini akan disalin ke `daily_tasks` setiap hari.
-- `id` (PK)
-- `shift_id` (FK -> `shifts.id`)
-- `nama_kegiatan` (String: nama tugas rutin)
-- `estimasi_waktu` (Time: perkiraan durasi)
+| Tipe | Kolom | Keterangan |
+|------|-------|------------|
+| uuid | id | PK |
+| string | full_name | Nama lengkap |
+| string | email | Email (unik) |
+| string | password_hash | Password yang sudah di-hash |
+| string | role | Intern, Admin, atau SuperAdmin |
+| uuid | division_id | FK ke divisions |
+| string | shift_type | Morning atau Afternoon |
+| boolean | is_locked | Fitur kunci akun |
+| string | status | Pending, Active, atau Finished |
+| timestamp | created_at | Waktu dibuat |
 
-### 4. `daily_tasks`
-Menyimpan tugas harian untuk setiap user pada tanggal tertentu.
-- `id` (PK)
-- `user_id` (FK -> `users.id`)
-- `tanggal` (Date)
-- `nama_kegiatan` (String)
-- `waktu_checklist` (Time: kapan user mengerjakan/conteng)
-- `status` (Enum: 'pending', 'selesai')
-- `catatan` (Text: opsional)
+### 3. `tasks_master`
+Template tugas rutin per divisi. Admin yang define, nanti di-assign ke user.
 
-### 5. `off_schedules`
-Menyimpan jadwal libur pegawai. Digunakan untuk menandai "OFF" di laporan harian.
-- `id` (PK)
-- `user_id` (FK -> `users.id`)
-- `tanggal_off` (Date)
+| Tipe | Kolom | Keterangan |
+|------|-------|------------|
+| uuid | id | PK |
+| uuid | division_id | FK ke divisions |
+| string | task_name | Nama tugas |
+| string | description | Deskripsi tugas |
+
+### 4. `whiteboard`
+Konten whiteboard per divisi (Setup VR, Digisign, dll).
+
+| Tipe | Kolom | Keterangan |
+|------|-------|------------|
+| uuid | id | PK |
+| string | title | Judul |
+| text | content | Isi konten |
+| string | category | Kategori (Setup VR, Digisign, dll) |
+| uuid | division_id | FK ke divisions |
+| uuid | created_by | FK ke users (siapa yang buat) |
+| timestamp | updated_at | Terakhir diupdate |
+
+### 5. `logbook_entries`
+Log kegiatan harian user. Setiap user submit logbook tiap hari.
+
+| Tipe | Kolom | Keterangan |
+|------|-------|------------|
+| uuid | id | PK |
+| uuid | user_id | FK ke users |
+| uuid | task_id | FK ke tasks_master |
+| boolean | is_completed | Sudah selesai atau belum |
+| timestamp | completed_at | Waktu selesai |
+| string | proof_image_url | URL bukti foto (metadata validated) |
+
+### 6. `shift_swaps`
+Request tukar shift antar user.
+
+| Tipe | Kolom | Keterangan |
+|------|-------|------------|
+| uuid | id | PK |
+| uuid | requester_id | FK ke users (yang minta tukar) |
+| uuid | target_user_id | FK ke users (target tukar) |
+| date | swap_date | Tanggal tukar shift |
+| string | reason_screenshot_url | URL screenshot alasan |
+| string | status | Pending, Approved, atau Rejected |
+| uuid | approved_by | FK ke users (admin yang approve) |
+
+### 7. `broadcasts`
+Pengumuman dari admin ke divisi tertentu atau ke semua orang.
+
+| Tipe | Kolom | Keterangan |
+|------|-------|------------|
+| uuid | id | PK |
+| uuid | admin_id | FK ke users (admin yang kirim) |
+| uuid | target_division_id | FK ke divisions (null = global) |
+| text | message | Isi pengumuman |
+| timestamp | created_at | Waktu dibuat |
 
 ---
 
-## Relasi & Alur Data
+## Relasi Antar Tabel
 
-1.  **Shift & Tugas Rutin**: Setiap `shift` memiliki banyak `master_templates`. Pegawai di shift tersebut akan mendapatkan tugas rutin ini.
-2.  **User & Shift**: Setiap `user` (pegawai) terhubung ke satu `shift`.
-3.  **Generasi Tugas Harian**: (Logic di Backend) Saat user login/hari berganti, sistem mengambil tugas dari `master_templates` sesuai shift user, lalu menyalinnya ke `daily_tasks`.
-4.  **Laporan**: Laporan harian mengambil data dari `daily_tasks`. Jika tanggal tersebut ada di `off_schedules` untuk user tersebut, laporan akan menampilkan status "OFF".
-
----
-
-## Manajemen Database (Migration)
-
-Semua perubahan struktur tabel dilakukan melalui Laravel Migrations.
-
-### Membuat Tabel Baru
-```bash
-php artisan make:migration create_nama_tabel_table
-```
-
-### Mengubah Tabel (Tambah Kolom)
-```bash
-php artisan make:migration add_kolom_baru_to_nama_tabel_table
-```
-
-### Menjalankan Perubahan ke Supabase
-```bash
-php artisan migrate
-```
-
-> **PERINGATAN KERAS:** Jangan pernah menjalan `php artisan migrate:fresh` karena akan **MENGHAPUS SELURUH DATA** di Supabase.
+- Satu **division** punya banyak **users** dan banyak **tasks_master**
+- Satu **user** bisa punya banyak **logbook_entries** dan bisa request banyak **shift_swaps**
+- **Broadcasts** dikirim oleh admin, bisa ditargetkan ke divisi tertentu atau global (null)
+- **Whiteboard** dibuat oleh user dan dikategorikan per divisi
 
 ---
 
 ## Troubleshooting
 
-Jika muncul error: `SQLSTATE[08006] [7] could not translate host name...`
-- **Penyebab**: DNS tidak bisa connect ke host Supabase.
-- **Solusi**: Pastikan `DB_HOST` di `.env` menggunakan alamat pooler (`aws-1-ap-...`) dan **bukan** alamat direct (`db.syvvh...`). Ganti DNS PC ke Google DNS (8.8.8.8) jika masih bermasalah.
+Kalau muncul error `SQLSTATE[08006] could not translate host name...`:
+- Pastikan `DB_HOST` di `.env` pakai alamat pooler (`aws-1-ap-...`)
+- Coba ganti DNS PC ke Google DNS (8.8.8.8)
+
+---
+
+## Catatan
+
+- **Jangan** jalankan `php artisan migrate:fresh` karena bakal menghapus semua data.
+- Kalau mau tambah tabel baru, pakai `php artisan make:migration`.
+- Semua perubahan schema lewat Laravel Migrations, jangan edit langsung di Supabase.

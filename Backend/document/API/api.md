@@ -1,157 +1,60 @@
-# Cara Menggunakan API
+# API Endpoints
 
-Dokumentasi ini menjelaskan cara menggunakan endpoint API yang tersedia.
+Dokumentasi endpoint API yang tersedia saat ini.
 
 ---
 
 ## Base URL
 
-```
-http://localhost:8000/api
-```
+- **Lokal**: `http://localhost:8000/api`
+- **Production (Zeabur)**: `https://todolist-mip.zeabur.app/api`
 
 ---
 
-## Autentikasi
+## Status
 
-API ini menggunakan **JWT (JSON Web Token)**. Setiap request ke endpoint yang dilindungi harus menyertakan token di header:
-
-```
-Authorization: Bearer {access_token}
-```
-
----
-
-## Endpoint
-
-### Login
-
-Mendapatkan JWT token dengan email dan password.
+Saat ini API masih dalam tahap kosong (clean state). Endpoint yang sudah ada hanya health check bawaan Laravel:
 
 ```
-POST /api/login
+GET /up
 ```
 
-**Request Body:**
+Response kalau server nyala:
 
 ```json
 {
-    "email": "user@example.com",
-    "password": "password123"
-}
-```
-
-**Response Sukses (200):**
-
-```json
-{
-    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-    "token_type": "bearer",
-    "expires_in": 3600
-}
-```
-
-**Response Gagal (401):**
-
-```json
-{
-    "message": "Email atau password salah."
+    "status": "ok"
 }
 ```
 
 ---
 
-### Me
+## Rencana Endpoint
 
-Mendapatkan data user yang sedang login.
+Endpoint-endpoint berikut akan dibuat sesuai kebutuhan fitur:
 
-```
-GET /api/me
-```
+| Fitur | Endpoint (rencana) | Keterangan |
+|-------|-------------------|------------|
+| Auth | `POST /api/login` | Login user |
+| Auth | `POST /api/logout` | Logout user |
+| Auth | `GET /api/me` | Data user yang login |
+| Divisions | `GET /api/divisions` | Daftar divisi |
+| Tasks | `GET /api/tasks` | Daftar tugas per divisi |
+| Logbook | `GET /api/logbook` | Logbook entries user |
+| Logbook | `POST /api/logbook` | Submit logbook baru |
+| Shift Swap | `POST /api/shift-swaps` | Request tukar shift |
+| Whiteboard | `GET /api/whiteboard` | Daftar whiteboard |
+| Broadcasts | `GET /api/broadcasts` | Daftar pengumuman |
 
-**Header:**
-
-```
-Authorization: Bearer {access_token}
-```
-
-**Response Sukses (200):**
-
-```json
-{
-    "id": 1,
-    "name": "Nama User",
-    "email": "user@example.com",
-    "created_at": "2026-02-20T00:00:00.000000Z",
-    "updated_at": "2026-02-20T00:00:00.000000Z"
-}
-```
+> Catatan: Endpoint di atas belum diimplementasi, hanya rencana. Akan ditambahkan seiring pengerjaan fitur.
 
 ---
 
-### Refresh Token
+## Format Response
 
-Mendapatkan token baru sebelum token lama expired.
-
-```
-POST /api/refresh
-```
-
-**Header:**
+Semua response API menggunakan format JSON:
 
 ```
-Authorization: Bearer {access_token}
+Content-Type: application/json
+Accept: application/json
 ```
-
-**Response Sukses (200):**
-
-```json
-{
-    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-    "token_type": "bearer",
-    "expires_in": 3600
-}
-```
-
----
-
-### Logout
-
-Menginvalidasi token yang sedang aktif.
-
-```
-POST /api/logout
-```
-
-**Header:**
-
-```
-Authorization: Bearer {access_token}
-```
-
-**Response Sukses (200):**
-
-```json
-{
-    "message": "Logout berhasil."
-}
-```
-
----
-
-## Ringkasan Endpoint
-
-| Method | Endpoint      | Auth | Keterangan              |
-|--------|---------------|------|-------------------------|
-| POST   | /api/login    | Tidak | Login dan dapat token  |
-| GET    | /api/me       | Ya   | Data user yang login    |
-| POST   | /api/refresh  | Ya   | Perbarui token          |
-| POST   | /api/logout   | Ya   | Logout dan hapus token  |
-
----
-
-## Catatan
-
-- Token berlaku selama **1 jam** (3600 detik) setelah dikeluarkan.
-- Gunakan endpoint `/api/refresh` sebelum token expired untuk mendapatkan token baru tanpa harus login ulang.
-- Token yang sudah di-logout tidak bisa digunakan kembali.
