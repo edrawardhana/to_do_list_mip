@@ -1,14 +1,5 @@
 <?php
 
-use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 
-// Endpoint login, tidak perlu autentikasi
-Route::post('/login', [AuthController::class, 'login']);
-
-// Endpoint yang memerlukan JWT token
-Route::middleware('auth:api')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/refresh', [AuthController::class, 'refresh']);
-    Route::get('/me', [AuthController::class, 'me']);
-});
+// Endpoint API akan ditambahkan di sini
