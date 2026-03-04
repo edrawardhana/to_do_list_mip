@@ -1,0 +1,26 @@
+# Node modules
+node_modules/
+Frontend/node_modules/
+BE/vendor/
+
+# Environment files
+.env
+Frontend/.env
+BE/.env
+
+# Build outputs
+dist/
+Frontend/dist/
+BE/public/build/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
