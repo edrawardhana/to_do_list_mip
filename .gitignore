@@ -1,0 +1,14 @@
+node_modules/ 
+Frontend/node_modules/ 
+BE/vendor/ 
+.env 
+Frontend/.env 
+BE/.env 
+dist/ 
+Frontend/dist/ 
+.vscode/ 
+.idea/ 
+*.log 
+npm-debug.log* 
+.DS_Store 
+Thumbs.db 
