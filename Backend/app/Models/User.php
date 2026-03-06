@@ -10,24 +10,27 @@ class User extends Authenticatable
 {
     use HasFactory, HasUuids;
 
-    public $timestamps = false;
-
-    const CREATED_AT = 'created_at';
+    protected $table = 'profiles'; // Mapped to profiles table
+    public $timestamps = false; // ERD has no created/updated_at for profiles
 
     protected $fillable = [
+        'division_id',
         'full_name',
         'email',
         'password_hash',
         'role',
-        'division_id',
-        'shift_type',
+        'shift',
         'is_locked',
-        'status',
     ];
 
     protected $hidden = [
         'password_hash',
     ];
+
+    public function getAuthPassword()
+    {
+        return $this->password_hash;
+    }
 
     protected function casts(): array
     {
@@ -36,15 +39,6 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Override kolom password untuk auth Laravel.
-     */
-    public function getAuthPassword()
-    {
-        return $this->password_hash;
-    }
-
-    // Relasi ke division
     public function division()
     {
         return $this->belongsTo(Division::class);
