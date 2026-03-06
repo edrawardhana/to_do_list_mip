@@ -13,6 +13,16 @@ Semua endpoint diakses dengan prefix `/api`.
 
 ---
 
+## 🏢 Divisions API
+
+API public untuk mengambil data master divisi.
+
+| Fitur | Method | Endpoint | Link Dokumen |
+|-------|--------|----------|--------------|
+| **Get All Divisions** | `GET` | `/api/divisions` | [Baca Dokumen Divisions](divisions.md) |
+
+---
+
 ## 🔐 Authentication (Auth & JWT)
 
 Kumpulan API yang mengatur fungsi login, daftar, baca profil, dan logout.
