@@ -9,26 +9,17 @@ class Whiteboard extends Model
 {
     use HasUuids;
 
-    const CREATED_AT = null;
-    const UPDATED_AT = 'updated_at';
-
-    protected $table = 'whiteboard';
+    public $timestamps = false;
 
     protected $fillable = [
-        'title',
-        'content',
-        'category',
         'division_id',
-        'created_by',
+        'title',
+        'content_url',
+        'type', // SOP, Tutorial, Asset
     ];
 
     public function division()
     {
         return $this->belongsTo(Division::class);
-    }
-
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
     }
 }
