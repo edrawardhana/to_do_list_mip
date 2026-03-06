@@ -17,6 +17,7 @@ class AuthController extends Controller
         'full_name' => 'required|string|max:255',
         'email' => 'required|email|unique:profiles',
         'password' => 'required|min:6',
+        'division_id' => 'required|uuid|exists:divisions,id',
     ]);
 
     if ($validator->fails()) {
@@ -27,14 +28,14 @@ class AuthController extends Controller
         'full_name' => $request->full_name,
         'email' => $request->email,
         'password_hash' => bcrypt($request->password),
-        'division_id' => null,
+        'division_id' => $request->division_id,
         'role' => 'user',
         'shift' => null,
-        'is_locked' => false
+        'is_locked' => true // Terkunci otomatis, menunggu ACC admin terkait
     ]);
 
     return response()->json([
-        'message' => 'User successfully registered',
+        'message' => 'User successfully registered. Please wait for admin approval.',
         'user' => $user
     ], 201);
 }
