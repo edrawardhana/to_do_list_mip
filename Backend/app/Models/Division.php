@@ -13,16 +13,15 @@ class Division extends Model
 
     protected $fillable = [
         'name',
-        'description',
     ];
 
-    public function users()
+    public function profiles()
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(User::class, 'division_id');
     }
 
-    public function tasksMaster()
+    public function taskTemplates()
     {
-        return $this->hasMany(TaskMaster::class);
+        return $this->hasMany(TaskTemplate::class);
     }
 }
