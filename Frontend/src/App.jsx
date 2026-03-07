@@ -4,6 +4,7 @@ import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute"; // <--- TAMBAHKAN
 import MainLayout from "./components/layout/MainLayout";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Tasks from "./pages/Tasks";
 import Attendance from "./pages/Attendance";
@@ -21,6 +22,7 @@ function App() {
         <Routes>
           {/* Rute publik */}
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
           {/* Rute yang dilindungi */}
           <Route
