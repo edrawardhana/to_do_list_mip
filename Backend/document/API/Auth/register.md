@@ -9,9 +9,11 @@ Akun yang berhasil didaftarkan akan berstatus `is_locked: true` dan harus menung
 ## Body Request (JSON)
 ```json
 {
-    "full_name": "Nama Karyawan",
-    "email": "karyawan@mcc.com",
+    "full_name": "John Doe",
+    "username": "johndoe",
+    "email": "nama@email.com",
     "password": "password123",
+    "password_confirmation": "password123",
     "division_id": "019cc113-... (UUID dari tabel divisions)"
 }
 ```
