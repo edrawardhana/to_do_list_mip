@@ -15,9 +15,10 @@ class AuthController extends Controller
 {
     $validator = Validator::make($request->all(), [
         'full_name' => 'required|string|max:255',
+        'username' => 'required|string|max:255', // Dari UI Frontend
         'email' => 'required|email|unique:profiles',
-        'password' => 'required|min:6',
-        'division_id' => 'required|uuid|exists:divisions,id',
+        'password' => 'required|min:8|confirmed', // Min 8 dan butuh password_confirmation
+        'division_id' => 'required|uuid|exists:divisions,id', // Dropdown divisi
     ]);
 
     if ($validator->fails()) {
@@ -26,12 +27,13 @@ class AuthController extends Controller
 
     $user = User::create([
         'full_name' => $request->full_name,
+        'username' => $request->username,
         'email' => $request->email,
         'password_hash' => bcrypt($request->password),
         'division_id' => $request->division_id,
         'role' => 'user',
         'shift' => null,
-        'is_locked' => true // Terkunci otomatis, menunggu ACC admin terkait
+        'is_locked' => true // Terkunci otomatis, menunggu ACC admin
     ]);
 
     return response()->json([
