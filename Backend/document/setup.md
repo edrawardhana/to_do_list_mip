@@ -78,3 +78,4 @@ https://todolist-mip.zeabur.app
 ```
 
 Konfigurasi deployment ada di file `zeabur.json` dan `Dockerfile` di root Backend. Env variabel di Zeabur diatur langsung di dashboard Zeabur.
+

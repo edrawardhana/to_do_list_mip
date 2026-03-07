@@ -1,6 +1,6 @@
 # Sistem Database
 
-Dokumentasi tentang database yang dipakai di project ini.
+Dokumentasi tentang database yang dipakai di project ini, disesuaikan dengan ERD terbaru.
 
 ---
 
@@ -17,123 +17,108 @@ Dokumentasi tentang database yang dipakai di project ini.
 
 ---
 
-## Kenapa Pakai Pooler?
+## Penjelasan Teknis & Keputusan Desain
 
-Supabase defaultnya pakai IPv6 untuk koneksi langsung, tapi kebanyakan ISP lokal cuma support IPv4. Makanya kita wajib pakai **Supabase Connection Pooler** supaya tetap bisa connect.
+### 1. Kenapa Kolom "Enum" Terbaca Sebagai "Varchar" di Supabase?
+Jika kamu melihat tabel di Supabase Dashboard (misalnya kolom `role` atau `shift` di tabel `profiles`), tipe datanya tertulis sebagai `varchar` dan bukan `enum`. 
 
-Jadi pastikan `DB_HOST` di `.env` selalu pakai alamat pooler (`aws-1-...`), **bukan** alamat direct (`db.syvvh...`).
+**Alasan:**
+Ini adalah cara bawaan (default) Laravel yang paling aman. Ketika kita mendefinisikan `$table->enum()` di file *migration* Laravel, Laravel membuat kolom tersebut bertipe `varchar` (string) namun di balik layar ia menambahkan sebuah **Aturan Batasan (CHECK Constraint)** di fungsionalitas PostgreSQL.
+
+**Bukti:**
+Walaupun bernama `varchar`, jika kamu mencoba memasukkan data di luar pilihan enum (misalnya mengisi role dengan tulisan `manager`), database Supabase akan langsung menolaknya dengan pesan error *violates check constraint*. Ini membuktikan bahwa pembatasan *(enum behavior)* berjalan 100% sempurna tanpa harus menggunakan custom type PostgreSQL yang rawan sulit diubah di masa depan.
+
+### 2. Penggunaan UUID
+Semua Primary Key (PK) dan Foreign Key (FK) di project ini menggunakan **UUID**. Hal ini memastikan keamanan data dan mempermudah penggabungan database tanpa takut terjadi bentrok ID (seperti yang sering terjadi pada tipe Auto-Increment integer).
+
+### 3. Kenapa Pakai Pooler?
+Supabase secara default menggunakan IPv6 untuk koneksi database langsung. Karena banyak *Internet Service Provider* (ISP) lokal di Indonesia hanya mendukung IPv4, kita **wajib** menggunakan Supabase Connection Pooler (`aws-1-ap-...`) sebagai `DB_HOST` agar koneksi tetap berjalan lancar dari komputer developer manapun.
 
 ---
 
-## Struktur Tabel
+## Struktur Tabel (Sesuai ERD Terbaru)
 
-Semua tabel pakai **UUID** sebagai Primary Key.
+Semua tabel menggunakan **UUID** sebagai Primary Key.
 
 ### 1. `divisions`
-Menyimpan data divisi (IT, Media, Marketing, dll).
-
+Data departemen/divisi perusahaan.
 | Tipe | Kolom | Keterangan |
 |------|-------|------------|
 | uuid | id | PK |
-| string | name | Nama divisi |
-| string | description | Deskripsi divisi |
+| string | name | Nama divisi (IT, Media, dll) |
 
-### 2. `users`
-Data semua user (Intern, Admin, SuperAdmin).
-
+### 2. `profiles`
+Data user/staf (menggantikan tabel `users` lama).
 | Tipe | Kolom | Keterangan |
 |------|-------|------------|
 | uuid | id | PK |
+| uuid | division_id | FK ke divisions |
 | string | full_name | Nama lengkap |
 | string | email | Email (unik) |
 | string | password_hash | Password yang sudah di-hash |
-| string | role | Intern, Admin, atau SuperAdmin |
-| uuid | division_id | FK ke divisions |
-| string | shift_type | Morning atau Afternoon |
-| boolean | is_locked | Fitur kunci akun |
-| string | status | Pending, Active, atau Finished |
-| timestamp | created_at | Waktu dibuat |
+| enum | role | 'user', 'admin', 'super_admin', 'developer' (Varchar + Check Constraint) |
+| enum | shift | 'pagi', 'middle', 'siang' (Varchar + Check Constraint) |
+| boolean| is_locked | Fitur kunci akun (Default: false) |
 
-### 3. `tasks_master`
-Template tugas rutin per divisi. Admin yang define, nanti di-assign ke user.
-
+### 3. `task_templates`
+Template/jenis tugas rutin yang di-define berdasarkan divisi.
 | Tipe | Kolom | Keterangan |
 |------|-------|------------|
 | uuid | id | PK |
 | uuid | division_id | FK ke divisions |
 | string | task_name | Nama tugas |
-| string | description | Deskripsi tugas |
 
-### 4. `whiteboard`
-Konten whiteboard per divisi (Setup VR, Digisign, dll).
-
+### 4. `whiteboards`
+Penyimpanan aset, SOP, atau panduan per divisi.
 | Tipe | Kolom | Keterangan |
 |------|-------|------------|
 | uuid | id | PK |
-| string | title | Judul |
-| text | content | Isi konten |
-| string | category | Kategori (Setup VR, Digisign, dll) |
 | uuid | division_id | FK ke divisions |
-| uuid | created_by | FK ke users (siapa yang buat) |
-| timestamp | updated_at | Terakhir diupdate |
+| string | title | Judul |
+| text | content_url | URL menuju file/konten |
+| enum | type | 'SOP', 'Tutorial', 'Asset' |
 
-### 5. `logbook_entries`
-Log kegiatan harian user. Setiap user submit logbook tiap hari.
-
+### 5. `daily_tasks`
+Tugas harian yang di-submit oleh user (Profiles).
 | Tipe | Kolom | Keterangan |
 |------|-------|------------|
 | uuid | id | PK |
-| uuid | user_id | FK ke users |
-| uuid | task_id | FK ke tasks_master |
-| boolean | is_completed | Sudah selesai atau belum |
-| timestamp | completed_at | Waktu selesai |
-| string | proof_image_url | URL bukti foto (metadata validated) |
+| uuid | user_id | FK ke profiles (yang submit) |
+| uuid | division_id | FK ke divisions |
+| uuid | task_template_id | FK ke task_templates |
+| string | task_name | Salinan nama tugas |
+| string | evidence_url | Link bukti tugas |
+| enum | status | 'pending', 'approved', 'rejected' |
+| uuid | first_uploader_id| FK ke profiles (Null jika original) |
+| timestamp| created_at | Waktu dibuat |
 
-### 6. `shift_swaps`
-Request tukar shift antar user.
-
+### 6. `attendance_schedules`
+Pencatatan izin, sakit, libur, atau swap.
 | Tipe | Kolom | Keterangan |
 |------|-------|------------|
 | uuid | id | PK |
-| uuid | requester_id | FK ke users (yang minta tukar) |
-| uuid | target_user_id | FK ke users (target tukar) |
-| date | swap_date | Tanggal tukar shift |
-| string | reason_screenshot_url | URL screenshot alasan |
-| string | status | Pending, Approved, atau Rejected |
-| uuid | approved_by | FK ke users (admin yang approve) |
+| uuid | user_id | FK ke profiles |
+| enum | type | 'Izin', 'Sakit', 'Swap', 'Libur' |
+| date | start_date | Tanggal mulai |
+| date | end_date | Tanggal selesai |
+| string | proof_url | Nullable (bebas kosong jika Libur) |
+| boolean| is_approved | Keputusan izin |
 
-### 7. `broadcasts`
-Pengumuman dari admin ke divisi tertentu atau ke semua orang.
-
+### 7. `audit_logs`
+Sistem pencatatan riwayat (log) pergerakan dan aktivitas.
 | Tipe | Kolom | Keterangan |
 |------|-------|------------|
 | uuid | id | PK |
-| uuid | admin_id | FK ke users (admin yang kirim) |
-| uuid | target_division_id | FK ke divisions (null = global) |
-| text | message | Isi pengumuman |
-| timestamp | created_at | Waktu dibuat |
+| uuid | actor_id | FK ke profiles (pelaku) |
+| uuid | target_id | FK (Universal ID ke item manapun) |
+| string | action_type | Jenis tindakan |
+| text | details | Penjelasan detail |
+| timestamp| created_at | Waktu kejadian |
 
 ---
 
-## Relasi Antar Tabel
+## Catatan Tambahan Penting
 
-- Satu **division** punya banyak **users** dan banyak **tasks_master**
-- Satu **user** bisa punya banyak **logbook_entries** dan bisa request banyak **shift_swaps**
-- **Broadcasts** dikirim oleh admin, bisa ditargetkan ke divisi tertentu atau global (null)
-- **Whiteboard** dibuat oleh user dan dikategorikan per divisi
-
----
-
-## Troubleshooting
-
-Kalau muncul error `SQLSTATE[08006] could not translate host name...`:
-- Pastikan `DB_HOST` di `.env` pakai alamat pooler (`aws-1-ap-...`)
-- Coba ganti DNS PC ke Google DNS (8.8.8.8)
-
----
-
-## Catatan
-
-- **Jangan** jalankan `php artisan migrate:fresh` karena bakal menghapus semua data.
-- Kalau mau tambah tabel baru, pakai `php artisan make:migration`.
-- Semua perubahan schema lewat Laravel Migrations, jangan edit langsung di Supabase.
+- **Dilarang keras memakai command `php artisan migrate:fresh`** karena akan menghapus seluruh data yang sudah ada di production/Supabase.
+- Apabila ingin menambah kolom (*seperti kasus penambahan `password_hash` sebelumnya*), gunakan file *Migration* baru untuk mengelola perubahan (*contoh:* `php artisan make:migration add_kolom_baru_to_tabel`).
+- File `.env` mengatur environment, untuk testing local gunakan `APP_ENV=local` dan `APP_DEBUG=true`, tapi koneksi *database* tetap mengarah ke pooler Supabase yang sama agar sinkron.
