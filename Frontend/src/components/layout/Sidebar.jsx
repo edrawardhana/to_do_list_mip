@@ -22,13 +22,13 @@ const Sidebar = () => {
       roles: ["Intern", "Admin", "SuperAdmin"],
     },
     {
-      path: "/daily-activity",
+      path: "/tasks",
       label: "Daily Activity",
       icon: "fa-list-check",
       roles: ["Intern"],
     },
     {
-      path: "/pengajuan-izin",
+      path: "/attendance",
       label: "Presensi & Izin",
       icon: "fa-calendar-check",
       roles: ["Intern", "Admin", "SuperAdmin"],
@@ -67,7 +67,7 @@ const Sidebar = () => {
 
   // Filter menu berdasarkan role — sama seperti kode lama
   const filteredMenu = menuItems.filter(
-    (item) => user && item.roles.includes(user.role)
+    (item) => user && item.roles.includes(user.role),
   );
 
   // Ambil inisial nama — sama seperti kode lama
@@ -183,7 +183,9 @@ const Sidebar = () => {
                 <p className="text-[11px] font-bold text-white leading-none truncate">
                   {user?.full_name}
                 </p>
-                <p className={`text-[10px] font-semibold mt-0.5 ${roleColor[user?.role] || "text-sky-400"}`}>
+                <p
+                  className={`text-[10px] font-semibold mt-0.5 ${roleColor[user?.role] || "text-sky-400"}`}
+                >
                   {user?.division?.name || "Divisi"} · {user?.role}
                 </p>
               </div>
