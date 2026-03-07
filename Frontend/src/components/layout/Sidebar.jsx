@@ -16,7 +16,7 @@ const Sidebar = () => {
   // roles menentukan siapa yang bisa lihat menu ini
   const menuItems = [
     {
-      path: "/",
+      path: "/", // Ini akan jadi halaman utama untuk SEMUA ROLE
       label: "Dashboard",
       icon: "fa-house-user",
       roles: ["Intern", "Admin", "SuperAdmin"],
@@ -39,12 +39,7 @@ const Sidebar = () => {
       icon: "fa-book-open",
       roles: ["Intern"],
     },
-    {
-      path: "/dashboard",
-      label: "Dashboard",
-      icon: "fa-chart-pie",
-      roles: ["Admin", "SuperAdmin"],
-    },
+    // DASHBOARD ADMIN SUDAH DIHAPUS DARI SINI KARENA SUDAH DIWAKILI OLEH PATH "/"
     {
       path: "/broadcasts",
       label: "Broadcast",
