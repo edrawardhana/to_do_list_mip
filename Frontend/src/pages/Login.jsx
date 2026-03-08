@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -11,15 +12,16 @@ import { useAuth } from "../contexts/AuthContext";
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NANTI JIKA PAKAI AXIOS:
-// import axios from "axios";
-// Ganti isi handleSubmit dengan:
-//
-//   const result = await login(email, password);  ← ini tetap sama
-//
-// Yang perlu diubah adalah di AuthContext.jsx bagian fungsi login():
-//   const response = await axios.post("/api/login", { email, password });
-//   // simpan token: localStorage.setItem("token", response.data.token)
+// LOGIN TERHUBUNG KE BACKEND
+// • pastikan file .env (di root Frontend) berisi
+//     VITE_API_URL=http://localhost:8000/api
+//   (sesuaikan port/backend address). 
+// • AuthContext.login sudah menggunakan fetch ke
+//   `${import.meta.env.VITE_API_URL}/auth/login`.
+//   hasilnya akan disimpan ke localStorage dan response /auth/me
+//   diambil untuk mengisi data user.
+// • handleSubmit tidak perlu diubah; ia memanggil login()
+//   dari context dan menavigasi jika success.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /* Floating particle */
@@ -55,25 +57,41 @@ export default function Login() {
     setError("");
     setIsLoading(true);
 
-    // ── DUMMY: hapus/comment baris ini saat connect ke backend ──
-    const result = await login(email, password);
-    setIsLoading(false);
-    if (result.success) {
-      navigate("/");
-    } else {
-      setError(result.error);
-    }
-    // ────────────────────────────────────────────────────────────
+    // example modeled after registration snippet
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/auth/login`,
+        { email, password },
+        {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-    // ── AXIOS (uncomment saat backend siap, hapus dummy di atas) ──
-    // const result = await login(email, password);
-    // setIsLoading(false);
-    // if (result.success) {
-    //   navigate("/");
-    // } else {
-    //   setError(result.error);
-    // }
-    // ─────────────────────────────────────────────────────────────
+      const token = response.data.access_token || response.data.token;
+      if (token) {
+        localStorage.setItem("token", token);
+        // optionally update context user via login()
+        await login(email, password);
+        navigate("/");
+      } else {
+        setError("Token tidak ditemukan di respons");
+      }
+    } catch (err) {
+      if (err.response && err.response.status === 422) {
+        // validation errors from backend
+        const msgs = Object.values(err.response.data).flat().join(" ");
+        setError(msgs || "Data tidak valid");
+      } else if (err.response) {
+        setError(err.response.data.error || err.response.data.message || "Login gagal");
+      } else {
+        setError(err.message || "Terjadi kesalahan");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
