@@ -1,5 +1,6 @@
 // contexts/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
+import axios from "axios";
 
 const AuthContext = createContext();
 
@@ -38,29 +39,74 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, []);
 
+  // use axios for compact syntax similar to registration example
   const login = async (email, password) => {
-    // Simulasi login (tanpa validasi)
-    // Saat backend siap, ganti dengan fetch ke endpoint login
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        setUser({
-          id: "uuid-user-1",
-          full_name: "Ahmad Subardjo",
-          email: email,
-          role: "SuperAdmin", // Ganti untuk testing role lain Admin,SuperAdmin
-          division_id: "uuid-div-1",
-          division: {
-            name: "UI/UX",
-            description: "Desain antarmuka",
-          },
-          shift_type: "Morning",
-          is_locked: false,
-          status: "Active",
-        });
-        localStorage.setItem("token", "dummy-token");
-        resolve({ success: true });
-      }, 500); // simulasi delay
-    });
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/auth/login`,
+        { email, password },
+        { headers: { Accept: 'application/json' } }
+      );
+
+      const token = response.data.access_token || response.data.token;
+      if (!token) {
+        return { success: false, error: 'No token returned from server' };
+      }
+
+      localStorage.setItem('token', token);
+
+      // load current user
+      const meResponse = await axios.get(
+        `${import.meta.env.VITE_API_URL}/auth/me`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setUser(meResponse.data);
+
+      return { success: true };
+    } catch (err) {
+      if (err.response) {
+        return {
+          success: false,
+          error: err.response.data.error || err.response.data.message || 'Invalid credentials',
+        };
+      }
+      console.error('Login failed', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // register sekarang menerima username + nama lengkap (kita
+  // gunakan satu field untuk kedua tujuan)
+  const register = async (username, divisionId, email, password) => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/auth/register`,
+        {
+          username,
+          full_name: username,
+          division_id: divisionId,
+          email,
+          password,
+          password_confirmation: password, // backend requires confirmation
+        },
+        { headers: { Accept: 'application/json' } }
+      );
+
+      return { success: true, user: response.data.user, message: response.data.message };
+    } catch (err) {
+      if (err.response) {
+        const data = err.response.data;
+        let errorMessage = '';
+        if (typeof data === 'object') {
+          errorMessage = Object.values(data).flat().join(' ');
+        } else {
+          errorMessage = data || 'Pendaftaran gagal';
+        }
+        return { success: false, error: errorMessage };
+      }
+      console.error('Register failed', err);
+      return { success: false, error: err.message };
+    }
   };
 
   const logout = () => {
@@ -69,7 +115,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

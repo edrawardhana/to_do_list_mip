@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+// axios tidak dipakai langsung di halaman ini, fungsi register
+// diambil dari AuthContext yang sudah menggunakan axios di dalamnya.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DUMMY MODE (hapus/comment blok ini saat mau connect ke backend)
@@ -11,17 +13,15 @@ import { useAuth } from "../contexts/AuthContext";
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NANTI JIKA PAKAI AXIOS:
-// import axios from "axios";
-// Yang perlu diubah adalah di AuthContext.jsx bagian fungsi register():
-//   const response = await axios.post("/api/register", {
-//     name, username, email, password
-//   });
-//   // simpan token: localStorage.setItem("token", response.data.token)
-//
-// Di handleSubmit di bawah, ganti bagian DUMMY dengan:
-//   const result = await register(form.name, form.username, form.email, form.password);
-//   if (result.success) { navigate("/"); } else { setError(result.error); }
+// FUNGSI REGISTER TERPADU
+// • register() diambil dari AuthContext, telah mengirim axios ke
+//   `${import.meta.env.VITE_API_URL}/auth/register` menggunakan field
+//   full_name, division_id, email, dan password (disertai konfirmasi). 
+// • handleSubmit pada form sudah memanggil register(
+//     form.username, form.divisi, form.email, form.password
+//   ) dan menampilkan error atau menavigasi.
+// • Anda tidak perlu menulis axios manual di sini, kecuali ingin
+//   logika khusus.
 // ─────────────────────────────────────────────────────────────────────────────
 
 function Particle({ style }) {
@@ -37,10 +37,15 @@ const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
   opacity: Math.random() * 0.25 + 0.05,
 }));
 
+// initially empty list; will be replaced by GET /divisions
+const DIVISI_OPTIONS = []; // populated in useEffect (see below)
+
+
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", username: "", email: "", password: "", confirm: "" });
+  const [form, setForm] = useState({ username: "", divisi: "", email: "", password: "", confirm: "" });
+  const [divisions, setDivisions] = useState([]); // list from backend
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
@@ -49,13 +54,27 @@ export default function Register() {
 
   useEffect(() => { setMounted(true); }, []);
 
+  // ambil daftar divisi dari backend (mengandung id uuid)
+  useEffect(() => {
+    async function loadDivs() {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/divisions`);
+        const json = await res.json();
+        if (Array.isArray(json)) setDivisions(json);
+      } catch (e) {
+        console.error('failed to load divisions', e);
+      }
+    }
+    loadDivs();
+  }, []);
+
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    // Validasi sisi client (tetap dipakai saat backend aktif)
+    // Validasi sisi client
     if (form.password !== form.confirm) {
       setError("Password dan konfirmasi password tidak cocok.");
       return;
@@ -68,25 +87,10 @@ export default function Register() {
     setIsLoading(true);
 
     // ── DUMMY: hapus/comment blok ini saat connect ke backend ──
-    try {
-      await new Promise((r) => setTimeout(r, 900)); // simulasi network delay
-      if (form.username === "admin") throw new Error("Username sudah digunakan.");
-      const result = await register(form.name, form.username, form.email, form.password);
-      setIsLoading(false);
-      if (result.success) {
-        navigate("/");
-      } else {
-        setError(result.error);
-      }
-    } catch (err) {
-      setIsLoading(false);
-      setError(err.message);
-    }
-    // ────────────────────────────────────────────────────────────
-
-    // ── AXIOS (uncomment saat backend siap, hapus dummy di atas) ──
     // try {
-    //   const result = await register(form.name, form.username, form.email, form.password);
+    //   await new Promise((r) => setTimeout(r, 900));
+    //   if (form.username === "admin") throw new Error("Username sudah digunakan.");
+    //   const result = await register(form.username, form.divisi, form.email, form.password);
     //   setIsLoading(false);
     //   if (result.success) {
     //     navigate("/");
@@ -97,6 +101,23 @@ export default function Register() {
     //   setIsLoading(false);
     //   setError(err.message);
     // }
+    // ────────────────────────────────────────────────────────────
+
+    // ── AXIOS (uncomment saat backend siap, hapus dummy di atas) ──
+    try {
+      // `register` sekarang akan menerima username juga; kita
+      // gunakan form.username kedua‑duanya sebagai nama dan username
+      const result = await register(form.username, form.divisi, form.email, form.password);
+      setIsLoading(false);
+      if (result.success) {
+        navigate("/");
+      } else {
+        setError(result.error);
+      }
+    } catch (err) {
+      setIsLoading(false);
+      setError(err.message);
+    }
     // ─────────────────────────────────────────────────────────────
   };
 
@@ -213,16 +234,13 @@ export default function Register() {
         }
         @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 
-        /* 2-column grid for name + username */
-        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
-
         .field { margin-bottom: 0.95rem; }
         .field label { display: block; font-size: 0.7rem; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 7px; padding-left: 2px; }
         .input-wrap { position: relative; display: flex; align-items: center; }
         .input-icon { position: absolute; left: 13px; color: var(--text-dim); pointer-events: none; font-size: 0.85rem; transition: color 0.2s; }
         .input-wrap:focus-within .input-icon { color: var(--sky); }
 
-        .field input {
+        .field input, .field select {
           width: 100%;
           background: rgba(255,255,255,0.05);
           border: 1px solid var(--border);
@@ -233,11 +251,25 @@ export default function Register() {
           padding: 12px 40px 12px 38px;
           outline: none;
           transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+          appearance: none;
+          -webkit-appearance: none;
         }
         .field input::placeholder { color: rgba(255,255,255,0.2); }
-        .field input:focus { border-color: rgba(77,182,247,0.55); background: rgba(255,255,255,0.08); box-shadow: 0 0 0 3px rgba(77,182,247,0.1); }
+        .field input:focus, .field select:focus { border-color: rgba(77,182,247,0.55); background: rgba(255,255,255,0.08); box-shadow: 0 0 0 3px rgba(77,182,247,0.1); }
         .field input.valid { border-color: rgba(77,255,160,0.4); }
         .field input.invalid { border-color: rgba(255,80,80,0.4); }
+
+        /* Select option styling */
+        .field select option { background: #0f2d6b; color: var(--white); }
+        .field select.placeholder-selected { color: rgba(255,255,255,0.2); }
+        .select-arrow {
+          position: absolute;
+          right: 13px;
+          color: var(--text-dim);
+          pointer-events: none;
+          transition: color 0.2s;
+        }
+        .input-wrap:focus-within .select-arrow { color: var(--sky); }
 
         .toggle-pass { position: absolute; right: 12px; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.85rem; padding: 4px; transition: color 0.2s; }
         .toggle-pass:hover { color: var(--sky); }
@@ -317,26 +349,39 @@ export default function Register() {
               </div>
             )}
 
-            {/* Name + Username (2 kolom) */}
-            <div className="field-row">
-              <div className="field">
-                <label htmlFor="name">Nama Lengkap</label>
-                <div className="input-wrap">
-                  <svg className="input-icon" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  <input id="name" type="text" value={form.name} onChange={set("name")} placeholder="John Doe" required />
-                </div>
+            {/* Username */}
+            <div className="field">
+              <label htmlFor="username">Username</label>
+              <div className="input-wrap">
+                <svg className="input-icon" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input id="username" type="text" value={form.username} onChange={set("username")} placeholder="johndoe" required />
               </div>
+            </div>
 
-              <div className="field">
-                <label htmlFor="username">Username</label>
-                <div className="input-wrap">
-                  <svg className="input-icon" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  <input id="username" type="text" value={form.username} onChange={set("username")} placeholder="johndoe" required />
-                </div>
+            {/* Divisi */}
+            <div className="field">
+              <label htmlFor="divisi">Divisi</label>
+              <div className="input-wrap">
+                <svg className="input-icon" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                <select
+                  id="divisi"
+                  value={form.divisi}
+                  onChange={set("divisi")}
+                  required
+                  className={!form.divisi ? "placeholder-selected" : ""}
+                >
+                  <option value="" disabled>Pilih divisi</option>
+                  {divisions.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                <svg className="select-arrow" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
               </div>
             </div>
 
