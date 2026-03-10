@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
-import AdminRoute from "./components/AdminRoute"; // <--- TAMBAHKAN
+import AdminRoute from "./components/AdminRoute";
 import MainLayout from "./components/layout/MainLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -9,10 +9,10 @@ import Home from "./pages/Home";
 import Tasks from "./pages/Tasks";
 import Attendance from "./pages/Attendance";
 import Whiteboard from "./pages/Whiteboard";
-import Dashboard from "./pages/Dashboard"; // <--- TAMBAHKAN
-import Broadcasts from "./pages/Broadcasts"; // <--- TAMBAHKAN
-import Divisions from "./pages/Divisions"; // <--- TAMBAHKAN
-import Users from "./pages/Users"; // <--- TAMBAHKAN
+import Dashboard from "./pages/Dashboard";
+import Broadcasts from "./pages/Broadcasts";
+import Divisions from "./pages/Divisions";
+import Users from "./pages/Users";
 import AuditLog from "./pages/AuditLog";
 
 function App() {
@@ -24,7 +24,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Rute yang dilindungi */}
+          {/* Rute Dashboard Utama dengan Layout */}
           <Route
             path="/"
             element={
@@ -33,11 +33,20 @@ function App() {
               </PrivateRoute>
             }
           >
+            {/* KONTROL INDEX: 
+              Mengarahkan "/" ke halaman yang sesuai berdasarkan role.
+              Ini mencegah user Admin melihat Dashboard kosong milik Intern.
+            */}
             <Route index element={<Home />} />
+
+            {/* Rute Khusus Intern / User Umum */}
             <Route path="tasks" element={<Tasks />} />
             <Route path="attendance" element={<Attendance />} />
             <Route path="whiteboard" element={<Whiteboard />} />
-            {/* Rute admin */}
+
+            {/* RUTE ADMIN & SUPER_ADMIN
+              // Pastikan AdminRoute sudah mendukung role 'SUPER_ADMIN' dari Laravel.
+            */}
             <Route
               path="dashboard"
               element={
@@ -80,7 +89,7 @@ function App() {
             />
           </Route>
 
-          {/* Redirect ke home jika path tidak dikenal */}
+          {/* Catch-all: Kembali ke root jika salah ketik path */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
