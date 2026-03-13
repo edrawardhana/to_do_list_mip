@@ -7,13 +7,9 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        'http://localhost:5173',
-        'http://localhost:3000',
-        // tambahkan domain frontend production nanti
+        env('FRONTEND_URL', 'http://localhost:5173'), // Baca dari .env (otomatis sesuai environment)
+        'http://localhost:3000', // Fallback untuk dev tambahan
     ],
-
-    // atau sementara pakai wildcard buat testing:
-    // 'allowed_origins' => ['*'],
 
     'allowed_origins_patterns' => [],
 
