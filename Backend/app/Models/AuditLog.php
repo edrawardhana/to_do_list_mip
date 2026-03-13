@@ -10,7 +10,6 @@ class AuditLog extends Model
     use HasUuids;
 
     public $timestamps = false;
-    const CREATED_AT = 'created_at';
 
     protected $fillable = [
         'actor_id',
