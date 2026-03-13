@@ -33,8 +33,7 @@ class User extends Authenticatable implements JWTSubject
         'remember_token',
     ];
 
-    // In User.php - add this method
-public function getAuthPasswordName()
+    public function getAuthPasswordName()
 {
     return 'password_hash';
 }
