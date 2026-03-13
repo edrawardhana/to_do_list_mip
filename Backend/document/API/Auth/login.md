@@ -56,7 +56,24 @@ Jika Email dan Password **BENAR**, Backend akan membalas dengan memberikan *"Kun
 
 ---
 
-## ❌ Response Kalau Terjadi Error / Gagal (HTTP 401 Unauthorized)
+## ❌ Response Kalau Belum Di-ACC Admin (HTTP 403 Forbidden)
+
+Jika password sudah benar, tapi akun Karyawan **masih dikunci oleh Admin (is_locked: true)**, Backend akan memblokir login dengan pesan khusus:
+```json
+{
+    "error": "Akun Anda masih dikunci. Hubungi Admin untuk persetujuan."
+}
+```
+
+---
+
+## ❌ Response Kalau Input Kosong (HTTP 422 Unprocessable Entity)
+
+Jika Frontend lupa mengirim email atau password sama sekali, Backend akan membalas error `422` beserta detail mana input yang kurang (sama seperti sifat form API Register).
+
+---
+
+## ❌ Response Kalau Email/Password Salah (HTTP 401 Unauthorized)
 
 Kalau Karyawan **salah ketik password**, ATAU **emailnya belum pernah terdaftar**, Backend akan menolak mentah-mentah dengan pesan `401 Unauthorized`.
 
@@ -66,9 +83,7 @@ Kalau Karyawan **salah ketik password**, ATAU **emailnya belum pernah terdaftar*
 }
 ```
 
-Selain itu, jika akun Karyawan tersebut **masih dikunci oleh Admin (is_locked: true)**, Backend juga mungkin akan memblokir login-nya!
-
-**Saran Untuk Frontend:** Tangkap merespons status `401` di `try-catch` Axios kamu dan munculkan Alert: *"Email atau Password Salah!"*
+**Saran Untuk Frontend:** Tangkap respons error spesifik ini di `try-catch` Axios kamu untuk memberi tahu Karyawan secara akurat (apakah salah password, dikunci admin, atau email kosong).
 
 ---
 
@@ -103,10 +118,12 @@ const handleLoginSubmit = async (formData) => {
     // navigate('/dashboard');
 
   } catch (error) {
-    if (error.response && error.response.status === 401) {
-      alert("Email atau Password salah! Atau akun belum di-ACC Admin.");
+    if (error.response) {
+      if (error.response.status === 401) alert("Email atau Password salah!");
+      else if (error.response.status === 403) alert(error.response.data.error); // "Akun Anda masih dikunci..."
+      else if (error.response.status === 422) alert("Harap isi email dan password dengan benar.");
     } else {
-      alert("Terjadi kesalahan server.");
+      alert("Terjadi kesalahan koneksi server.");
     }
   }
 };

@@ -10,7 +10,6 @@ class DailyTask extends Model
     use HasUuids;
 
     public $timestamps = false;
-    const CREATED_AT = 'created_at';
 
     protected $fillable = [
         'user_id',

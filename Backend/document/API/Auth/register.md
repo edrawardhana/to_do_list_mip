@@ -28,7 +28,7 @@ Frontend harus mengirimkan **5 data** ini ke Backend. Pastikan *penamaan key-nya
 
 ### 📋 Penjelasan & Syarat Wajib Masing-Masing Data (Validation Rules):
 1. **`full_name`**: Wajib diisi (string).
-2. **`username`**: Wajib diisi (string).
+2. **`username`**: Wajib diisi (string) dan **harus unik** (tidak boleh sama dengan username karyawan lain).
 3. **`email`**: Wajib berbentuk email (pakai `@`) dan **harus unik** (belum pernah terdaftar di database). Kalau email sudah dipakai orang lain, Backend akan menolak.
 4. **`password`**: Wajib diisi, dan panjangnya **MINIMAL 8 KARAKTER**. (Tolong tambahkan juga validasi ini di layout Frontend ya!).
 5. **`password_confirmation`**: Kolom ini didapat dari inputan *Ulangi Password*. Isi kolom ini **WAJIB SAMA PERSIS** dengan isi kolom `password`. Kalau tidak sama (typo/salah ketik), Backend akan langsung menolak pendaftaran.
@@ -78,6 +78,15 @@ Contoh jika Frontend mengirim Password cuma 5 huruf:
 {
     "password": [
         "The password must be at least 8 characters."
+    ]
+}
+```
+
+Contoh jika Frontend mengirim Username yang sudah dipakai karyawan lain:
+```json
+{
+    "username": [
+        "The username has already been taken."
     ]
 }
 ```

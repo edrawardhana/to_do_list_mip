@@ -15,7 +15,7 @@ class AuthController extends Controller
 {
     $validator = Validator::make($request->all(), [
         'full_name' => 'required|string|max:255',
-        'username' => 'required|string|max:255', // Dari UI Frontend
+        'username' => 'required|string|max:255|unique:profiles', // Harus unik di database
         'email' => 'required|email|unique:profiles',
         'password' => 'required|min:8|confirmed', // Min 8 dan butuh password_confirmation
         'division_id' => 'required|uuid|exists:divisions,id', // Dropdown divisi
@@ -43,19 +43,35 @@ class AuthController extends Controller
 }
 
     public function login(Request $request)
-{
-    // Map 'password' input to 'password_hash' for JWT attempt
-    $credentials = [
-        'email'         => $request->email,
-        'password'      => $request->password, // JWT uses getAuthPassword() internally
-    ];
+    {
+        // Validasi input dari Frontend
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'password' => 'required|string',
+        ]);
 
-    if (!$token = Auth::guard('api')->attempt($credentials)) {
-        return response()->json(['error' => 'Unauthorized'], 401);
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $credentials = [
+            'email'    => $request->email,
+            'password' => $request->password,
+        ];
+
+        if (!$token = Auth::guard('api')->attempt($credentials)) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        // Cek apakah akun masih dikunci oleh Admin
+        $user = Auth::guard('api')->user();
+        if ($user->is_locked) {
+            Auth::guard('api')->logout(); // Hancurkan token yang baru dibuat
+            return response()->json(['error' => 'Akun Anda masih dikunci. Hubungi Admin untuk persetujuan.'], 403);
+        }
+
+        return $this->respondWithToken($token);
     }
-
-    return $this->respondWithToken($token);
-}
 
     public function me()
     {
