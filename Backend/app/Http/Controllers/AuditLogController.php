@@ -20,7 +20,7 @@ class AuditLogController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Anda tidak berhak mengakses log sistem.'], 403);
         }
 
-        $query = AuditLog::with('actor');
+        $query = AuditLog::with(['actor', 'target']);
 
         if ($user->role === 'admin') {
             // Admin can only see logs where the actor belongs to their division
@@ -29,6 +29,11 @@ class AuditLogController extends Controller
             });
         }
         // super_admin sees everything
+
+        // Filter opsional berdasarkan tipe aksi (misal: ?action_type=Proses Absen)
+        if ($request->has('action_type')) {
+            $query->where('action_type', $request->action_type);
+        }
 
         // Sort by newest
         $logs = $query->orderBy('created_at', 'desc')->get();
