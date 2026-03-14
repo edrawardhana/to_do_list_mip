@@ -14,6 +14,8 @@ import Broadcasts from "./pages/Broadcasts";
 import Divisions from "./pages/Divisions";
 import Users from "./pages/Users";
 import AuditLog from "./pages/AuditLog";
+import ManageAdmin from "./pages/admin/ManageAdmin";
+import Reports from "./pages/Reports";
 
 function App() {
   return (
@@ -33,28 +35,19 @@ function App() {
               </PrivateRoute>
             }
           >
-            {/* KONTROL INDEX: 
-              Mengarahkan "/" ke halaman yang sesuai berdasarkan role.
-              Ini mencegah user Admin melihat Dashboard kosong milik Intern.
-            */}
+            {/* Index: Mengarahkan user ke Home */}
             <Route index element={<Home />} />
 
             {/* Rute Khusus Intern / User Umum */}
             <Route path="tasks" element={<Tasks />} />
             <Route path="attendance" element={<Attendance />} />
             <Route path="whiteboard" element={<Whiteboard />} />
+            <Route path="/reports" element={<Reports />} />
 
-            {/* RUTE ADMIN & SUPER_ADMIN
-              // Pastikan AdminRoute sudah mendukung role 'SUPER_ADMIN' dari Laravel.
-            */}
-            <Route
-              path="dashboard"
-              element={
-                <AdminRoute>
-                  <Dashboard />
-                </AdminRoute>
-              }
-            />
+            {/* RUTE DASHBOARD (Semua user terautentikasi) */}
+            <Route path="dashboard" element={<Dashboard />} />
+
+            {/* RUTE ADMIN & SUPER_ADMIN */}
             <Route
               path="broadcasts"
               element={
@@ -84,6 +77,32 @@ function App() {
               element={
                 <AdminRoute>
                   <AuditLog />
+                </AdminRoute>
+              }
+            />
+
+            {/* Routes yang hanya boleh diakses Admin/Superadmin */}
+            <Route
+              path="manage-admin"
+              element={
+                <AdminRoute>
+                  <ManageAdmin />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="reports"
+              element={
+                <AdminRoute>
+                  <Reports />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="approval"
+              element={
+                <AdminRoute>
+                  <Dashboard />
                 </AdminRoute>
               }
             />
