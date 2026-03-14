@@ -96,10 +96,15 @@ Mengatur daftar tugas *default* yang akan ditarik oleh Cron Job setiap jam 00:00
 
 ---
 
-## 5. Audit Log (Khusus Admin/Superadmin)
-Melihat riwayat aktivitas di dalam sistem.
+## 5. Ghost Audit Log (Khusus Admin/Superadmin)
+Log aktivitas sistem yang **bersifat PERMANEN dan tidak bisa dihapus/diubah oleh siapapun**, termasuk Superadmin. Diproteksi 3 lapis: Database Trigger, RLS Policy, dan Laravel Model Guard.
+
 `GET /api/audit-logs`
 - User biasa ditolak (Status 403). Admin hanya diperlihatkan *log* yang melibatkan user dari divisinya sendiri.
+- Filter opsional: `?action_type=Proses Absen` untuk hanya melihat aksi tertentu.
+- Respons menyertakan data `actor` (Pelaku) dan `target` (Korban/Subjek).
+
+**Catatan Keamanan:** Tabel `audit_logs` tidak memiliki endpoint DELETE atau UPDATE. Setiap percobaan penghapusan/modifikasi akan ditolak di 3 titik penjagaan.
 
 ---
 
