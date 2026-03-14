@@ -37,7 +37,7 @@ class AuthController extends Controller
         'is_locked' => true // Terkunci otomatis, menunggu ACC admin
     ]);
 
-    AuditLog::record($user->id, 'Register', "User baru mendaftar dan menunggu verifikasi Admin");
+    AuditLog::record($user->id, 'Register', "User baru mendaftar dan menunggu verifikasi Admin", $user->id);
 
     return response()->json([
         'message' => 'User successfully registered. Please wait for admin approval.',
@@ -73,7 +73,7 @@ class AuthController extends Controller
             return response()->json(['error' => 'Akun Anda masih dikunci. Hubungi Admin untuk persetujuan.'], 403);
         }
 
-        AuditLog::record($user->id, 'Login Sukses', "User berhasil masuk ke dalam sistem");
+        AuditLog::record($user->id, 'Login Sukses', "User berhasil masuk ke dalam sistem", $user->id);
 
         return $this->respondWithToken($token);
     }
