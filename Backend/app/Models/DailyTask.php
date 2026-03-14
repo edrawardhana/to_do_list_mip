@@ -19,6 +19,11 @@ class DailyTask extends Model
         'evidence_url',
         'status', // pending, approved, rejected
         'first_uploader_id',
+        'confirmed_participants',
+    ];
+
+    protected $casts = [
+        'confirmed_participants' => 'array',
     ];
 
     public function user()
