@@ -15,7 +15,7 @@ import { useAuth } from "../contexts/AuthContext";
 // LOGIN TERHUBUNG KE BACKEND
 // • pastikan file .env (di root Frontend) berisi
 //     VITE_API_URL=http://localhost:8000/api
-//   (sesuaikan port/backend address). 
+//   (sesuaikan port/backend address).
 // • AuthContext.login sudah menggunakan fetch ke
 //   `${import.meta.env.VITE_API_URL}/auth/login`.
 //   hasilnya akan disimpan ke localStorage dan response /auth/me
@@ -67,7 +67,7 @@ export default function Login() {
             Accept: "application/json",
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       const token = response.data.access_token || response.data.token;
@@ -85,7 +85,9 @@ export default function Login() {
         const msgs = Object.values(err.response.data).flat().join(" ");
         setError(msgs || "Data tidak valid");
       } else if (err.response) {
-        setError(err.response.data.error || err.response.data.message || "Login gagal");
+        setError(
+          err.response.data.error || err.response.data.message || "Login gagal",
+        );
       } else {
         setError(err.message || "Terjadi kesalahan");
       }
@@ -434,8 +436,17 @@ export default function Login() {
           <form onSubmit={handleSubmit} autoComplete="off">
             {error && (
               <div className="error-box">
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                <svg
+                  width="14"
+                  height="14"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
                 {error}
               </div>
@@ -445,8 +456,17 @@ export default function Login() {
             <div className="field">
               <label htmlFor="email">Email</label>
               <div className="input-wrap">
-                <svg className="input-icon" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                <svg
+                  className="input-icon"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
                 </svg>
                 <input
                   id="email"
@@ -464,8 +484,17 @@ export default function Login() {
             <div className="field">
               <label htmlFor="password">Password</label>
               <div className="input-wrap">
-                <svg className="input-icon" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                <svg
+                  className="input-icon"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
                 <input
                   id="password"
@@ -480,16 +509,33 @@ export default function Login() {
                   type="button"
                   className="toggle-pass"
                   onClick={() => setShowPass((v) => !v)}
-                  aria-label={showPass ? "Sembunyikan password" : "Tampilkan password"}
+                  aria-label={
+                    showPass ? "Sembunyikan password" : "Tampilkan password"
+                  }
                 >
                   {showPass ? (
-                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    <svg
+                      width="15"
+                      height="15"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
                     </svg>
                   ) : (
-                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                    <svg
+                      width="15"
+                      height="15"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
                     </svg>
                   )}
                 </button>
@@ -505,8 +551,15 @@ export default function Login() {
               ) : (
                 <>
                   Masuk
-                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  <svg
+                    width="16"
+                    height="16"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path d="M5 12h14M12 5l7 7-7 7" />
                   </svg>
                 </>
               )}
