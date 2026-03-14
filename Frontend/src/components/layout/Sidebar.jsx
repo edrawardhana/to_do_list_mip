@@ -24,13 +24,13 @@ const Sidebar = () => {
         path: "/broadcasts",
         label: "Broadcast",
         icon: "fa-tower-broadcast",
-        roles: ["admin", "superadmin"],
+        roles: ["superadmin"],
       },
       {
         path: "/tasks",
-        label: "Daily Activity",
+        label: "Daily Activitation",
         icon: "fa-list-check",
-        roles: ["intern"],
+        roles: ["admin"],
       },
       {
         path: "/attendance",
@@ -42,19 +42,19 @@ const Sidebar = () => {
         path: "/whiteboard",
         label: "Whiteboard",
         icon: "fa-calendar-check",
-        roles: ["intern"],
+        roles: ["intern", "admin"],
       },
       {
         path: "/reports",
-        label: "Laporan",
+        label: "Reports",
         icon: "fa-file-lines",
-        roles: ["intern", "superadmin"],
+        roles: ["intern", "admin", "superadmin"],
       },
       {
-        title: "Approval",
         path: "/approval",
+        label: "Approval",
         icon: "fa-solid fa-check-to-slot",
-        roles: ["admin", "superadmin"], // Sesuai desain untuk Admin
+        roles: ["admin"], // Sesuai desain untuk Admin
       },
     ],
     [],
