@@ -19,9 +19,12 @@ export const AuthProvider = ({ children }) => {
 
     const fetchUser = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/auth/me`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         const data = await response.json();
         if (data.user) {
           setUser(data.user);
@@ -45,20 +48,20 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/auth/login`,
         { email, password },
-        { headers: { Accept: 'application/json' } }
+        { headers: { Accept: "application/json" } },
       );
 
       const token = response.data.access_token || response.data.token;
       if (!token) {
-        return { success: false, error: 'No token returned from server' };
+        return { success: false, error: "No token returned from server" };
       }
 
-      localStorage.setItem('token', token);
+      localStorage.setItem("token", token);
 
       // load current user
       const meResponse = await axios.get(
         `${import.meta.env.VITE_API_URL}/auth/me`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       setUser(meResponse.data);
 
@@ -67,10 +70,13 @@ export const AuthProvider = ({ children }) => {
       if (err.response) {
         return {
           success: false,
-          error: err.response.data.error || err.response.data.message || 'Invalid credentials',
+          error:
+            err.response.data.error ||
+            err.response.data.message ||
+            "Invalid credentials",
         };
       }
-      console.error('Login failed', err);
+      console.error("Login failed", err);
       return { success: false, error: err.message };
     }
   };
@@ -89,22 +95,26 @@ export const AuthProvider = ({ children }) => {
           password,
           password_confirmation: password, // backend requires confirmation
         },
-        { headers: { Accept: 'application/json' } }
+        { headers: { Accept: "application/json" } },
       );
 
-      return { success: true, user: response.data.user, message: response.data.message };
+      return {
+        success: true,
+        user: response.data.user,
+        message: response.data.message,
+      };
     } catch (err) {
       if (err.response) {
         const data = err.response.data;
-        let errorMessage = '';
-        if (typeof data === 'object') {
-          errorMessage = Object.values(data).flat().join(' ');
+        let errorMessage = "";
+        if (typeof data === "object") {
+          errorMessage = Object.values(data).flat().join(" ");
         } else {
-          errorMessage = data || 'Pendaftaran gagal';
+          errorMessage = data || "Pendaftaran gagal";
         }
         return { success: false, error: errorMessage };
       }
-      console.error('Register failed', err);
+      console.error("Register failed", err);
       return { success: false, error: err.message };
     }
   };
