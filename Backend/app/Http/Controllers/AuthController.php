@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
+use App\Models\AuditLog;
 
 class AuthController extends Controller
 {
@@ -35,6 +36,8 @@ class AuthController extends Controller
         'shift' => null,
         'is_locked' => true // Terkunci otomatis, menunggu ACC admin
     ]);
+
+    AuditLog::record($user->id, 'Register', "User baru mendaftar dan menunggu verifikasi Admin");
 
     return response()->json([
         'message' => 'User successfully registered. Please wait for admin approval.',
@@ -69,6 +72,8 @@ class AuthController extends Controller
             Auth::guard('api')->logout(); // Hancurkan token yang baru dibuat
             return response()->json(['error' => 'Akun Anda masih dikunci. Hubungi Admin untuk persetujuan.'], 403);
         }
+
+        AuditLog::record($user->id, 'Login Sukses', "User berhasil masuk ke dalam sistem");
 
         return $this->respondWithToken($token);
     }
