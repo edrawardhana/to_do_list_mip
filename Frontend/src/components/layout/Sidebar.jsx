@@ -2,9 +2,8 @@ import { useState, useMemo } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
-const Sidebar = () => {
+const Sidebar = ({ mobileOpen, setMobileOpen }) => {
   const { user, logout } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   const menuItems = useMemo(
     () => [
@@ -102,14 +101,6 @@ const Sidebar = () => {
           onClick={() => setMobileOpen(false)}
         />
       )}
-
-      {/* Hamburger mobile */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="fixed top-4 left-4 z-[70] lg:hidden w-10 h-10 rounded-xl bg-[#0b1630] border border-white/10 flex items-center justify-center text-white/70 shadow-lg"
-      >
-        <i className="fa-solid fa-bars"></i>
-      </button>
 
       <aside
         className={`
