@@ -38,8 +38,8 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         roles: ["intern"],
       },
       {
-        path: "/whiteboard",
-        label: "Whiteboard",
+        path: "/whitebook",
+        label: "Whitebook",
         icon: "fa-calendar-check",
         roles: ["intern", "admin"],
       },

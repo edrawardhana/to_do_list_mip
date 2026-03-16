@@ -8,7 +8,7 @@ import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Tasks from "./pages/Tasks";
 import Attendance from "./pages/Attendance";
-import Whiteboard from "./pages/Whiteboard";
+import Whiteboard from "./pages/Whitebook";
 import Dashboard from "./pages/Dashboard";
 import Broadcasts from "./pages/Broadcasts";
 import Divisions from "./pages/Divisions";
@@ -16,6 +16,7 @@ import Users from "./pages/Users";
 import AuditLog from "./pages/AuditLog";
 import ManageAdmin from "./pages/admin/ManageAdmin";
 import Reports from "./pages/Reports";
+import Whitebook from "./pages/Whitebook";
 
 function App() {
   return (
@@ -41,8 +42,8 @@ function App() {
             {/* Rute Khusus Intern / User Umum */}
             <Route path="tasks" element={<Tasks />} />
             <Route path="attendance" element={<Attendance />} />
-            <Route path="whiteboard" element={<Whiteboard />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="whitebook" element={<Whitebook />} />
 
             {/* RUTE DASHBOARD (Semua user terautentikasi) */}
             <Route path="dashboard" element={<Dashboard />} />
