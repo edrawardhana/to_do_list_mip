@@ -3,9 +3,9 @@ import { useAuth } from "../contexts/AuthContext";
 
 // Import komponen sesuai struktur folder kamu
 import Approval from "./admin/Approval";
-import DailyActivation from "./admin/DailyActivaation"; // Perhatikan typo di nama file kamu
+import DailyActivation from "./admin/DailyActivaation";
 import ManageAdmin from "./admin/ManageAdmin";
-import Tasks from "./Tasks"; // Digunakan untuk tampilan Intern
+import Tasks from "./Tasks";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -16,12 +16,10 @@ const Dashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Sinkronisasi Role Database
   const isSuperAdmin = user?.role === "super_admin";
   const isAdmin = user?.role === "admin";
   const isIntern = user?.role === "user";
 
-  // Format Waktu sesuai Desain Figma
   const formattedDate = currentTime
     .toLocaleDateString("id-ID", {
       day: "2-digit",
@@ -42,12 +40,9 @@ const Dashboard = () => {
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-black text-[#1b254b] tracking-tight uppercase">
+          <h1 className="text-2xl md:text-3xl font-black text-[#1b254b] tracking-tight uppercase mt-1">
             MCC INTERNSHIP ADMINISTRATION
           </h1>
-          <p className="text-sm font-bold text-slate-400 tracking-widest flex items-center gap-2">
-            {formattedDate} , {formattedTime}
-          </p>
         </div>
 
         <div className="flex items-center gap-4 bg-white/50 p-2 pr-4 rounded-full border border-white shadow-sm">
@@ -73,7 +68,6 @@ const Dashboard = () => {
 
         {isAdmin && (
           <div className="space-y-8">
-            {/* Menggabungkan komponen Approval dan DailyActivation untuk Admin */}
             <Approval />
             <div className="mt-10">
               <DailyActivation />
@@ -82,11 +76,129 @@ const Dashboard = () => {
         )}
 
         {isIntern && (
-          <div className="max-w-4xl mx-auto">
-            <h3 className="text-[#1b254b] font-black uppercase mb-6">
-              My Daily Tasks
-            </h3>
-            <Tasks /> {/* Menggunakan file Tasks.jsx untuk Intern */}
+          <div className="space-y-8">
+            {/* INTEGRASI DESAIN PROFIL & PROGRES INTERN */}
+            <div className="grid grid-cols-12 gap-6">
+              {/* Kolom Kiri: Nama & Progress */}
+              <div className="col-span-12 lg:col-span-5 space-y-6">
+                <div className="bg-white p-8 rounded-[2rem] shadow-sm flex justify-between items-start border border-white">
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-slate-400 font-bold text-[10px] uppercase">
+                        Intern Name
+                      </p>
+                      <h2 className="text-2xl font-black text-[#1b254b] leading-tight">
+                        {user?.full_name || "Nabil P"}
+                      </h2>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 font-bold text-[10px] uppercase">
+                        Division
+                      </p>
+                      <h3 className="text-lg font-bold text-[#1b254b]">
+                        IT Support
+                      </h3>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-slate-400 font-bold text-[10px] uppercase mb-2">
+                      Shift
+                    </p>
+                    <span className="bg-indigo-50 text-indigo-600 px-5 py-1.5 rounded-xl font-black text-xs uppercase italic">
+                      Morning
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-[#0b1437] p-8 rounded-[2rem] text-white flex justify-between items-center relative overflow-hidden shadow-xl shadow-indigo-100">
+                  <div className="z-10">
+                    <p className="text-indigo-200 text-[10px] font-bold uppercase mb-1">
+                      Overall Progress
+                    </p>
+                    <h4 className="text-4xl font-black italic tracking-tighter">
+                      50%{" "}
+                      <span className="text-lg not-italic font-bold ml-1">
+                        Completed
+                      </span>
+                    </h4>
+                  </div>
+                  <div className="z-10 opacity-50">
+                    <i className="fa-solid fa-chart-line text-4xl"></i>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kolom Tengah: Jadwal & Stats */}
+              <div className="col-span-12 lg:col-span-3 space-y-6">
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm text-center border border-white h-full flex flex-col justify-between">
+                  <p className="text-slate-300 font-black text-[10px] uppercase italic mb-4">
+                    Jadwal Anda
+                  </p>
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex-1 flex flex-col items-center justify-center">
+                    <p className="text-[#1b254b] font-black text-[10px] mb-2 uppercase tracking-tighter">
+                      Maret 2026
+                    </p>
+                    <div className="grid grid-cols-7 gap-1 text-[8px] font-bold text-slate-400">
+                      {["S", "M", "T", "W", "T", "F", "S"].map((d) => (
+                        <div key={d} className="w-4">
+                          {d}
+                        </div>
+                      ))}
+                      {Array.from({ length: 21 }, (_, i) => (
+                        <div
+                          key={i}
+                          className={`p-1 ${i + 1 === 9 ? "bg-sky-400 text-white rounded-full" : ""}`}
+                        >
+                          {i + 1}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-3 mt-4">
+                    <div className="flex-1 bg-white p-2 rounded-2xl border-b-4 border-emerald-400 shadow-sm">
+                      <p className="text-[7px] font-black text-slate-300 uppercase">
+                        Selesai
+                      </p>
+                      <p className="text-xl font-black text-emerald-400">01</p>
+                    </div>
+                    <div className="flex-1 bg-white p-2 rounded-2xl border-b-4 border-orange-400 shadow-sm">
+                      <p className="text-[7px] font-black text-slate-300 uppercase">
+                        On Progress
+                      </p>
+                      <p className="text-xl font-black text-orange-400">01</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kolom Kanan: Whitebook */}
+              <div className="col-span-12 lg:col-span-4 bg-white p-8 rounded-[2.5rem] shadow-sm flex flex-col border border-white">
+                <h3 className="text-slate-300 font-black text-[10px] mb-6 uppercase text-center italic">
+                  Whitebook
+                </h3>
+                <div className="flex-1 bg-indigo-50/30 rounded-3xl p-6 border border-indigo-50 relative">
+                  <p className="text-[#1b254b] font-black text-[11px] mb-4 text-center uppercase tracking-tight">
+                    Cara Menghidupkan CPG
+                  </p>
+                  <ul className="text-[9px] text-slate-500 space-y-2 list-decimal pl-4 font-bold italic leading-relaxed">
+                    <li>Buka panel utama di belakang mesin</li>
+                    <li>Tekan tombol power hijau</li>
+                    <li>Tunggu indikator menyala</li>
+                  </ul>
+                  <button className="absolute bottom-4 right-6 text-[8px] font-black text-slate-400 hover:text-indigo-600 underline decoration-slate-200">
+                    Lihat Lebih Lengkap
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* DAFTAR TUGAS */}
+            <div className="pt-4">
+              <h2 className="text-3xl font-black text-slate-400/30 mb-8 uppercase italic tracking-tighter">
+                Tugas harian Saya
+              </h2>
+              <Tasks />
+            </div>
           </div>
         )}
       </div>
@@ -125,7 +237,7 @@ const SuperAdminView = ({ stats }) => (
     </div>
 
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-white">
+      <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-white text-center">
         <h3 className="text-sm font-black text-[#1b254b] mb-6 uppercase tracking-tighter italic text-slate-400">
           Jadwal Intern
         </h3>
