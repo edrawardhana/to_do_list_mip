@@ -10,6 +10,12 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper functions untuk mempermudah pengecekan role di komponen lain
+  const isAdmin = user?.role === "admin";
+  const isSuperAdmin = user?.role === "super_admin";
+  const isIntern = user?.role === "intern";
+  const isAnyAdmin = isAdmin || isSuperAdmin; // Gabungan untuk fitur yang bisa diakses kedua admin
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -19,21 +25,20 @@ export const AuthProvider = ({ children }) => {
 
     const fetchUser = async () => {
       try {
-        const response = await fetch(
+        const response = await axios.get(
           `${import.meta.env.VITE_API_URL}/auth/me`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },
         );
-        const data = await response.json();
-        if (data.user) {
-          setUser(data.user);
-        } else {
-          localStorage.removeItem("token");
-        }
+
+        // Pastikan struktur data sesuai dengan yang dikirim backend (response.data atau response.data.user)
+        const userData = response.data.user || response.data;
+        setUser(userData);
       } catch (error) {
         console.error("Gagal mengambil data user:", error);
         localStorage.removeItem("token");
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -42,7 +47,6 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, []);
 
-  // use axios for compact syntax similar to registration example
   const login = async (email, password) => {
     try {
       const response = await axios.post(
@@ -53,36 +57,34 @@ export const AuthProvider = ({ children }) => {
 
       const token = response.data.access_token || response.data.token;
       if (!token) {
-        return { success: false, error: "No token returned from server" };
+        return { success: false, error: "Token tidak ditemukan" };
       }
 
       localStorage.setItem("token", token);
 
-      // load current user
+      // Ambil data user terbaru setelah login sukses untuk mendapatkan role
       const meResponse = await axios.get(
         `${import.meta.env.VITE_API_URL}/auth/me`,
-        { headers: { Authorization: `Bearer ${token}` } },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
-      setUser(meResponse.data);
 
-      return { success: true };
+      const userData = meResponse.data.user || meResponse.data;
+      setUser(userData);
+
+      return { success: true, role: userData.role };
     } catch (err) {
-      if (err.response) {
-        return {
-          success: false,
-          error:
-            err.response.data.error ||
-            err.response.data.message ||
-            "Invalid credentials",
-        };
-      }
-      console.error("Login failed", err);
-      return { success: false, error: err.message };
+      return {
+        success: false,
+        error:
+          err.response?.data?.error ||
+          err.response?.data?.message ||
+          "Login gagal",
+      };
     }
   };
 
-  // register sekarang menerima username + nama lengkap (kita
-  // gunakan satu field untuk kedua tujuan)
   const register = async (username, divisionId, email, password) => {
     try {
       const response = await axios.post(
@@ -93,7 +95,8 @@ export const AuthProvider = ({ children }) => {
           division_id: divisionId,
           email,
           password,
-          password_confirmation: password, // backend requires confirmation
+          password_confirmation: password,
+          role: "intern", // Default role untuk pendaftaran mandiri biasanya intern
         },
         { headers: { Accept: "application/json" } },
       );
@@ -104,18 +107,12 @@ export const AuthProvider = ({ children }) => {
         message: response.data.message,
       };
     } catch (err) {
-      if (err.response) {
-        const data = err.response.data;
-        let errorMessage = "";
-        if (typeof data === "object") {
-          errorMessage = Object.values(data).flat().join(" ");
-        } else {
-          errorMessage = data || "Pendaftaran gagal";
-        }
-        return { success: false, error: errorMessage };
-      }
-      console.error("Register failed", err);
-      return { success: false, error: err.message };
+      const data = err.response?.data;
+      let errorMessage =
+        typeof data === "object"
+          ? Object.values(data).flat().join(" ")
+          : data || "Pendaftaran gagal";
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -125,7 +122,19 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        logout,
+        isAdmin,
+        isSuperAdmin,
+        isIntern,
+        isAnyAdmin,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
