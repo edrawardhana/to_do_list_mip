@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 
 const DailyActivation = () => {
-  // Data dummy monitoring tugas harian
-  const [internTasks] = useState([
+  // Mengubah ke state agar data bisa bertambah secara dinamis
+  const [internTasks, setInternTasks] = useState([
     {
       id: 1,
       name: "Nabil P",
@@ -32,13 +32,51 @@ const DailyActivation = () => {
     },
   ]);
 
+  // State untuk kontrol Modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newTask, setNewTask] = useState({
+    name: "",
+    task: "",
+    shift: "MORNING",
+    division: "IT Support",
+  });
+
+  // Fungsi Tambah Task
+  const handleSaveTask = (e) => {
+    e.preventDefault();
+    const taskToAdd = {
+      id: Date.now(),
+      ...newTask,
+      progress: 0,
+      status: "In Progress",
+    };
+    setInternTasks([taskToAdd, ...internTasks]);
+    setIsModalOpen(false); // Tutup modal
+    setNewTask({
+      name: "",
+      task: "",
+      shift: "MORNING",
+      division: "IT Support",
+    }); // Reset form
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       {/* Search & Title Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h2 className="text-xl font-black text-[#1b254b] uppercase tracking-tight">
-          Daily Task Monitoring
-        </h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-xl font-black text-[#1b254b] uppercase tracking-tight">
+            Daily Task Monitoring
+          </h2>
+          {/* Tombol Tambah Task */}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-[#1b254b] text-white px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 transition-all active:scale-95 shadow-lg shadow-indigo-100 flex items-center gap-2"
+          >
+            <span>+</span> Tambah Task
+          </button>
+        </div>
+
         <div className="relative">
           <input
             type="text"
@@ -72,12 +110,12 @@ const DailyActivation = () => {
                   <td className="py-6 px-4 text-slate-400">{index + 1}.</td>
                   <td className="py-6 px-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px]">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black">
                         {item.name.substring(0, 2).toUpperCase()}
                       </div>
                       <div>
                         <p className="font-black">{item.name}</p>
-                        <p className="text-[10px] text-slate-400 uppercase tracking-tighter">
+                        <p className="text-[10px] text-slate-400 uppercase tracking-tighter font-bold">
                           {item.division}
                         </p>
                       </div>
@@ -101,7 +139,7 @@ const DailyActivation = () => {
                     <div className="flex items-center gap-3">
                       <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-emerald-400 rounded-full transition-all duration-1000"
+                          className={`h-full rounded-full transition-all duration-1000 ${item.progress === 100 ? "bg-emerald-400" : "bg-amber-400"}`}
                           style={{ width: `${item.progress}%` }}
                         ></div>
                       </div>
@@ -121,6 +159,93 @@ const DailyActivation = () => {
           </table>
         </div>
       </div>
+
+      {/* --- MODAL POPUP TAMBAH TASK --- */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-[#1b254b]/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl animate-in zoom-in duration-300 border border-white">
+            <h2 className="text-2xl font-black text-[#1b254b] uppercase mb-8 tracking-tight">
+              Assign New Task
+            </h2>
+            <form onSubmit={handleSaveTask} className="space-y-5">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  Intern Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newTask.name}
+                  onChange={(e) =>
+                    setNewTask({ ...newTask, name: e.target.value })
+                  }
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  placeholder="e.g. Nabil P"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  Task Description
+                </label>
+                <textarea
+                  required
+                  value={newTask.task}
+                  onChange={(e) =>
+                    setNewTask({ ...newTask, task: e.target.value })
+                  }
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all h-24 resize-none"
+                  placeholder="What needs to be done?"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Shift
+                  </label>
+                  <select
+                    value={newTask.shift}
+                    onChange={(e) =>
+                      setNewTask({ ...newTask, shift: e.target.value })
+                    }
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold outline-none appearance-none"
+                  >
+                    <option value="MORNING">MORNING</option>
+                    <option value="AFTERNOON">AFTERNOON</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Division
+                  </label>
+                  <input
+                    type="text"
+                    value={newTask.division}
+                    onChange={(e) =>
+                      setNewTask({ ...newTask, division: e.target.value })
+                    }
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold outline-none"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-[#1b254b] text-white font-black py-4 rounded-2xl hover:bg-indigo-800 transition-all shadow-lg shadow-indigo-100"
+                >
+                  SAVE TASK
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 bg-slate-50 text-slate-400 font-black py-4 rounded-2xl hover:bg-slate-100 transition-all"
+                >
+                  CANCEL
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

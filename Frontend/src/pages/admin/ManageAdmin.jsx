@@ -1,166 +1,257 @@
 import React, { useState } from "react";
 
-// Data Mock untuk daftar Admin
-const MOCK_ADMINS = [
-  {
-    id: 1,
-    name: "Bagas Satrio",
-    email: "bagas@mcc.com",
-    division: "IT Support",
-    status: "active",
-    lastLogin: "2 jam yang lalu",
-  },
-  {
-    id: 2,
-    name: "Siska Amelia",
-    email: "siska@mcc.com",
-    division: "Human Resources",
-    status: "active",
-    lastLogin: "1 hari yang lalu",
-  },
-  {
-    id: 3,
-    name: "Rizky Fauzi",
-    email: "rizky@mcc.com",
-    division: "Operation",
-    status: "inactive",
-    lastLogin: "5 hari yang lalu",
-  },
-];
-
 const ManageAdmin = () => {
-  const [admins, setAdmins] = useState(MOCK_ADMINS);
-  const [searchTerm, setSearchTerm] = useState("");
+  // 1. State untuk daftar Admin
+  const [admins, setAdmins] = useState([
+    {
+      id: 1,
+      name: "Super User",
+      email: "admin@mip.com",
+      role: "super_admin",
+      division: "IT Center",
+    },
+    {
+      id: 2,
+      name: "Admin IT",
+      email: "staff@mip.com",
+      role: "admin",
+      division: "IT Support",
+    },
+  ]);
+
+  // 2. State untuk Modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentAdmin, setCurrentAdmin] = useState({
+    id: null,
+    name: "",
+    email: "",
+    role: "admin",
+    division: "",
+  });
+
+  // --- HANDLERS ---
+
+  const openModal = (
+    admin = { id: null, name: "", email: "", role: "admin", division: "" },
+  ) => {
+    setCurrentAdmin(admin);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm("Apakah Anda yakin ingin menghapus akses admin ini?")) {
+      setAdmins(admins.filter((a) => a.id !== id));
+    }
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    if (currentAdmin.id) {
+      // Logic Update (Edit)
+      setAdmins(
+        admins.map((a) => (a.id === currentAdmin.id ? currentAdmin : a)),
+      );
+    } else {
+      // Logic Create (Tambah Baru)
+      setAdmins([...admins, { ...currentAdmin, id: Date.now() }]);
+    }
+    setIsModalOpen(false);
+  };
 
   return (
-    <div className="p-4 lg:p-8 bg-[#f8faff] min-h-screen font-sans">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-indigo-950 tracking-tighter uppercase">
-            Manage Admin
-          </h1>
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">
-            Control Center / Admin Management
-          </p>
-        </div>
-
-        <button className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95">
-          <i className="fa-solid fa-plus text-sm"></i>
-          Add New Admin
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-black text-[#1b254b] uppercase tracking-tight">
+          Manage Admin
+        </h2>
+        <button
+          onClick={() => openModal()}
+          className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-black text-xs uppercase hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+        >
+          + Add New Admin
         </button>
       </div>
 
-      {/* Statistics Mini Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-            Total Admin
-          </p>
-          <p className="text-3xl font-black text-indigo-950">{admins.length}</p>
-        </div>
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-            Active Now
-          </p>
-          <p className="text-3xl font-black text-emerald-500">2</p>
-        </div>
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-            Pending Request
-          </p>
-          <p className="text-3xl font-black text-orange-400">0</p>
-        </div>
-      </div>
-
-      {/* Table Section */}
-      <div className="bg-white rounded-[3.5rem] shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
-          <h2 className="text-xl font-black text-slate-800 tracking-tight text-center md:text-left">
-            Admin List
-          </h2>
-          {/* Search Bar */}
-          <div className="relative w-full md:w-72">
-            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
-            <input
-              type="text"
-              placeholder="Search admin name..."
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="overflow-x-auto p-4 md:p-8">
-          <table className="w-full">
+      <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-50">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
             <thead>
-              <tr className="text-slate-300 text-[10px] font-black uppercase tracking-[0.2em] text-left">
-                <th className="pb-6 px-4">Name & Email</th>
-                <th className="pb-6 px-4">Division</th>
-                <th className="pb-6 px-4">Status</th>
-                <th className="pb-6 px-4">Last Login</th>
-                <th className="pb-6 px-4 text-center">Actions</th>
+              <tr className="text-slate-300 text-[10px] font-black uppercase tracking-widest border-b border-slate-50">
+                <th className="pb-4 px-4">Name</th>
+                <th className="pb-4 px-4">Role</th>
+                <th className="pb-4 px-4">Division</th>
+                <th className="pb-4 px-4 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
-              {admins
-                .filter((a) =>
-                  a.name.toLowerCase().includes(searchTerm.toLowerCase()),
-                )
-                .map((admin) => (
-                  <tr
-                    key={admin.id}
-                    className="group hover:bg-slate-50/50 transition-colors"
-                  >
-                    <td className="py-6 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-black text-xs">
-                          {admin.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-black text-slate-800">
-                            {admin.name}
-                          </p>
-                          <p className="text-[10px] font-bold text-slate-400">
-                            {admin.email}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-6 px-4">
-                      <span className="text-[10px] font-black text-slate-600 uppercase bg-slate-100 px-3 py-1.5 rounded-lg">
-                        {admin.division}
-                      </span>
-                    </td>
-                    <td className="py-6 px-4">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full ${admin.status === "active" ? "bg-emerald-500" : "bg-slate-300"}`}
-                        ></div>
-                        <p className="text-[10px] font-black uppercase text-slate-500">
-                          {admin.status}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="py-6 px-4 text-[10px] font-bold text-slate-400 uppercase">
-                      {admin.lastLogin}
-                    </td>
-                    <td className="py-6 px-4">
-                      <div className="flex justify-center gap-2">
-                        <button className="w-9 h-9 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
-                          <i className="fa-solid fa-pen-to-square text-xs"></i>
-                        </button>
-                        <button className="w-9 h-9 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm">
-                          <i className="fa-solid fa-trash-can text-xs"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+            <tbody className="text-[#1b254b] text-sm font-bold">
+              {admins.map((admin) => (
+                <tr
+                  key={admin.id}
+                  className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors"
+                >
+                  <td className="py-5 px-4">
+                    <div>
+                      <p className="font-black">{admin.name}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        {admin.email}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="py-5 px-4">
+                    <span
+                      className={`px-3 py-1 rounded-full text-[9px] font-black ${admin.role === "super_admin" ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"}`}
+                    >
+                      {admin.role.replace("_", " ").toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="py-5 px-4 text-slate-500">{admin.division}</td>
+                  <td className="py-6 px-4 text-center">
+                    <div className="flex justify-center items-center gap-4">
+                      {/* TOMBOL EDIT - BESAR & JELAS */}
+                      <button
+                        onClick={() => openModal(admin)}
+                        className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 active:scale-90 transition-all shadow-xl shadow-blue-200"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-6 w-6"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.5}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                        <span className="text-sm font-black uppercase tracking-widest">
+                          Edit Admin
+                        </span>
+                      </button>
+
+                      {/* TOMBOL DELETE - BESAR & JELAS */}
+                      <button
+                        onClick={() => handleDelete(admin.id)}
+                        className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-red-600 text-white hover:bg-red-700 active:scale-90 transition-all shadow-xl shadow-red-200"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-6 w-6"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.5}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                        <span className="text-sm font-black uppercase tracking-widest">
+                          Hapus
+                        </span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* --- MODAL FORM ADMIN --- */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-[#1b254b]/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl animate-in zoom-in duration-300">
+            <h2 className="text-2xl font-black text-[#1b254b] uppercase mb-8 tracking-tight">
+              {currentAdmin.id ? "Edit Admin" : "Add New Admin"}
+            </h2>
+            <form onSubmit={handleSave} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={currentAdmin.name}
+                  onChange={(e) =>
+                    setCurrentAdmin({ ...currentAdmin, name: e.target.value })
+                  }
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={currentAdmin.email}
+                  onChange={(e) =>
+                    setCurrentAdmin({ ...currentAdmin, email: e.target.value })
+                  }
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
+                    Role
+                  </label>
+                  <select
+                    value={currentAdmin.role}
+                    onChange={(e) =>
+                      setCurrentAdmin({ ...currentAdmin, role: e.target.value })
+                    }
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none"
+                  >
+                    <option value="admin">ADMIN</option>
+                    <option value="super_admin">SUPER ADMIN</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
+                    Division
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={currentAdmin.division}
+                    onChange={(e) =>
+                      setCurrentAdmin({
+                        ...currentAdmin,
+                        division: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-6">
+                <button
+                  type="submit"
+                  className="flex-1 bg-indigo-600 text-white font-black py-4 rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 uppercase text-xs"
+                >
+                  Save Changes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 bg-slate-100 text-slate-400 font-black py-4 rounded-2xl hover:bg-slate-200 transition-all uppercase text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
