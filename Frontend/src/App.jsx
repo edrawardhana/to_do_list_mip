@@ -3,12 +3,12 @@ import { AuthProvider } from "./contexts/AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute";
 import MainLayout from "./components/layout/MainLayout";
+
+// Pages
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import Home from "./pages/Home";
 import Tasks from "./pages/Tasks";
 import Attendance from "./pages/Attendance";
-import Whiteboard from "./pages/Whitebook";
 import Dashboard from "./pages/Dashboard";
 import Broadcasts from "./pages/Broadcasts";
 import Divisions from "./pages/Divisions";
@@ -23,11 +23,11 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Rute publik */}
+          {/* 1. RUTE PUBLIK */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Rute Dashboard Utama dengan Layout */}
+          {/* 2. RUTE TERPROTEKSI (MainLayout) */}
           <Route
             path="/"
             element={
@@ -36,19 +36,18 @@ function App() {
               </PrivateRoute>
             }
           >
-            {/* Index: Mengarahkan user ke Home */}
-            <Route index element={<Home />} />
-
-            {/* Rute Khusus Intern / User Umum */}
-            <Route path="tasks" element={<Tasks />} />
-            <Route path="attendance" element={<Attendance />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="whitebook" element={<Whitebook />} />
-
-            {/* RUTE DASHBOARD (Semua user terautentikasi) */}
+            {/* Arahkan root "/" langsung ke "/dashboard". 
+               Ini memastikan Dashboard.jsx yang menangani pemisahan tampilan Admin/Intern.
+            */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
 
-            {/* RUTE ADMIN & SUPER_ADMIN */}
+            {/* --- RUTE KHUSUS INTERN (ROLE: USER) --- */}
+            <Route path="tasks" element={<Tasks />} />
+            <Route path="attendance" element={<Attendance />} />
+            <Route path="whitebook" element={<Whitebook />} />
+
+            {/* --- RUTE KHUSUS ADMIN & SUPER_ADMIN --- */}
             <Route
               path="broadcasts"
               element={
@@ -81,8 +80,6 @@ function App() {
                 </AdminRoute>
               }
             />
-
-            {/* Routes yang hanya boleh diakses Admin/Superadmin */}
             <Route
               path="manage-admin"
               element={
@@ -99,6 +96,9 @@ function App() {
                 </AdminRoute>
               }
             />
+            {/* Rute Approval mengarah ke Dashboard karena Dashboard.jsx 
+               sudah memiliki komponen <Approval /> di dalamnya untuk role Admin.
+            */}
             <Route
               path="approval"
               element={
@@ -109,7 +109,7 @@ function App() {
             />
           </Route>
 
-          {/* Catch-all: Kembali ke root jika salah ketik path */}
+          {/* 3. CATCH-ALL: Redirect rute tidak dikenal ke root */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
