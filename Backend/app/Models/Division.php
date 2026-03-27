@@ -9,10 +9,17 @@ class Division extends Model
 {
     use HasUuids;
 
-    public $timestamps = false;
+    public $timestamps = true; // Based on ERD, only has created_at
+    const UPDATED_AT = null;
 
     protected $fillable = [
         'name',
+        'description',
+        'created_at',
+    ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
     ];
 
     public function profiles()
