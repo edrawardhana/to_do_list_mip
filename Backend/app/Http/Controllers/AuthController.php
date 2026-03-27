@@ -11,15 +11,6 @@ use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 class AuthController extends Controller
 {
     /**
-     * Create a new AuthController instance.
-     */
-    public function __construct()
-    {
-        // Require auth for all methods except login and register
-        $this->middleware('auth:api', ['except' => ['login', 'register']]);
-    }
-
-    /**
      * Register a new intern User
      */
     public function register(Request $request)
@@ -85,6 +76,7 @@ class AuthController extends Controller
      */
     public function me()
     {
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
         if ($user) {
             $user->load('division');
