@@ -13,6 +13,7 @@ use App\Http\Controllers\BroadcastController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SystemConfigController;
+use App\Http\Controllers\ReportController;
 
 // Endpoint publik (Bisa diakses tanpa login)
 Route::get('/divisions', [DivisionController::class, 'index']);
@@ -61,5 +62,8 @@ Route::middleware('auth:api')->group(function () {
 
     // System Configs (Superadmin/Admin View)
     Route::apiResource('system-configs', SystemConfigController::class)->except(['show']);
+
+    // Reports & Analytics (Sprint 4)
+    Route::get('/reports/monthly', [ReportController::class, 'monthly']);
 });
 
