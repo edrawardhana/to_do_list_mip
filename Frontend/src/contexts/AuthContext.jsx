@@ -1,5 +1,5 @@
 // contexts/AuthContext.jsx
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import axios from "axios";
 
 const AuthContext = createContext();
@@ -10,73 +10,79 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Sinkronisasi helper functions dengan role yang ada di database
+  // Berdasarkan Dashboard.jsx Anda: "super_admin", "admin", dan "user"
+  const isAdmin = user?.role === "admin";
+  const isSuperAdmin = user?.role === "super_admin";
+  const isIntern = user?.role === "user"; // DISESUAIKAN: dari "intern" ke "user"
+  const isAnyAdmin = isAdmin || isSuperAdmin;
+
+  const fetchUser = async (token) => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/auth/me`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      const userData = response.data.user || response.data;
+      setUser(userData);
+      return userData;
+    } catch (error) {
+      console.error("Gagal mengambil data user:", error);
+      localStorage.removeItem("token");
+      setUser(null);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
       setLoading(false);
       return;
     }
-
-    const fetchUser = async () => {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await response.json();
-        if (data.user) {
-          setUser(data.user);
-        } else {
-          localStorage.removeItem("token");
-        }
-      } catch (error) {
-        console.error("Gagal mengambil data user:", error);
-        localStorage.removeItem("token");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUser();
+    fetchUser(token);
   }, []);
 
-  // use axios for compact syntax similar to registration example
   const login = async (email, password) => {
     try {
+      // Pastikan status loading aktif saat proses login
+      setLoading(true);
+
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/auth/login`,
         { email, password },
-        { headers: { Accept: 'application/json' } }
+        { headers: { Accept: "application/json" } },
       );
 
       const token = response.data.access_token || response.data.token;
       if (!token) {
-        return { success: false, error: 'No token returned from server' };
+        setLoading(false);
+        return { success: false, error: "Token tidak ditemukan" };
       }
 
-      localStorage.setItem('token', token);
+      localStorage.setItem("token", token);
 
-      // load current user
-      const meResponse = await axios.get(
-        `${import.meta.env.VITE_API_URL}/auth/me`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setUser(meResponse.data);
+      // Ambil profile lengkap (termasuk role terbaru)
+      const userData = await fetchUser(token);
 
-      return { success: true };
+      return { success: true, role: userData?.role };
     } catch (err) {
-      if (err.response) {
-        return {
-          success: false,
-          error: err.response.data.error || err.response.data.message || 'Invalid credentials',
-        };
-      }
-      console.error('Login failed', err);
-      return { success: false, error: err.message };
+      setLoading(false);
+      return {
+        success: false,
+        error:
+          err.response?.data?.error ||
+          err.response?.data?.message ||
+          "Login gagal",
+      };
     }
   };
 
-  // register sekarang menerima username + nama lengkap (kita
-  // gunakan satu field untuk kedua tujuan)
   const register = async (username, divisionId, email, password) => {
     try {
       const response = await axios.post(
@@ -87,36 +93,48 @@ export const AuthProvider = ({ children }) => {
           division_id: divisionId,
           email,
           password,
-          password_confirmation: password, // backend requires confirmation
+          password_confirmation: password,
+          role: "user", // Konsisten menggunakan "user" untuk intern
         },
-        { headers: { Accept: 'application/json' } }
+        { headers: { Accept: "application/json" } },
       );
 
-      return { success: true, user: response.data.user, message: response.data.message };
+      return {
+        success: true,
+        user: response.data.user,
+        message: response.data.message,
+      };
     } catch (err) {
-      if (err.response) {
-        const data = err.response.data;
-        let errorMessage = '';
-        if (typeof data === 'object') {
-          errorMessage = Object.values(data).flat().join(' ');
-        } else {
-          errorMessage = data || 'Pendaftaran gagal';
-        }
-        return { success: false, error: errorMessage };
-      }
-      console.error('Register failed', err);
-      return { success: false, error: err.message };
+      const data = err.response?.data;
+      let errorMessage =
+        typeof data === "object"
+          ? Object.values(data).flat().join(" ")
+          : data || "Pendaftaran gagal";
+      return { success: false, error: errorMessage };
     }
   };
 
   const logout = () => {
     localStorage.removeItem("token");
     setUser(null);
+    setLoading(false);
   };
 
-  return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
-      {children}
-    </AuthContext.Provider>
+  // Gunakan useMemo untuk mengoptimalkan performa provider
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      login,
+      register,
+      logout,
+      isAdmin,
+      isSuperAdmin,
+      isIntern,
+      isAnyAdmin,
+    }),
+    [user, loading],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
