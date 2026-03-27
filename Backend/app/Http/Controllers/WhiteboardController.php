@@ -40,27 +40,29 @@ class WhiteboardController extends Controller
     {
         $user = Auth::user();
 
-        if ($user->role === 'user') {
-             return response()->json(['status' => 'error', 'message' => 'Hanya Admin/Superadmin yang bisa membuat pengumuman.'], 403);
+        if ($user->role === 'intern') {
+             return response()->json(['status' => 'error', 'message' => 'Hanya Admin yang bisa membuat pengumuman.'], 403);
         }
 
         $request->validate([
             'title' => 'required|string',
-            'content_url' => 'required|string',
-            'type' => 'required|in:SOP,Tutorial,Asset',
-            // Admin only injects into their own division automatically.
-            // Superadmin can specify which division they are posting to.
-            'division_id' => $user->role === 'super_admin' ? 'required|exists:divisions,id' : 'nullable|exists:divisions,id'
+            'file_url' => 'required|string',
+            'type' => 'required|in:pdf,image,link'
         ]);
 
         $whiteboard = Whiteboard::create([
-            'division_id' => clone($user->role === 'super_admin' ? $request->division_id : $user->division_id),
+            'division_id' => $user->division_id,
             'title' => $request->title,
-            'content_url' => $request->content_url,
+            'file_url' => $request->file_url,
             'type' => $request->type
         ]);
 
-        AuditLog::record($user->id, 'Buat Pengumuman', "Membuat Papan Pengumuman Baru: {$request->title}", $whiteboard->id);
+        AuditLog::record(
+            $user->id,
+            $user->role,
+            'Buat Pengumuman Whiteboard',
+            $whiteboard->toArray()
+        );
 
         return response()->json([
             'status' => 'success',
@@ -82,19 +84,26 @@ class WhiteboardController extends Controller
         }
 
         if ($user->role === 'admin' && $whiteboard->division_id !== $user->division_id) {
-            return response()->json(['status' => 'error', 'message' => 'Anda tidak bisa mengubah pengumuman divisi lain.'], 403);
+            return response()->json(['status' => 'error', 'message' => 'Tugas ini di luar divisi Anda.'], 403);
         }
+
+        $old_values = $whiteboard->toArray();
 
         $request->validate([
             'title' => 'sometimes|string',
-            'content_url' => 'sometimes|string',
-            'type' => 'sometimes|in:SOP,Tutorial,Asset'
+            'file_url' => 'sometimes|string',
+            'type' => 'sometimes|in:pdf,image,link'
         ]);
 
-        $dataToUpdate = $request->only(['title', 'content_url', 'type']);
-        $whiteboard->update($dataToUpdate);
+        $whiteboard->update($request->only(['title', 'file_url', 'type']));
 
-        AuditLog::record($user->id, 'Update Pengumuman', "Memperbarui Papan Pengumuman: {$whiteboard->title}", $whiteboard->id);
+        AuditLog::record(
+            $user->id,
+            $user->role,
+            'Update Pengumuman Whiteboard',
+            $whiteboard->fresh()->toArray(),
+            $old_values
+        );
 
         return response()->json([
             'status' => 'success',

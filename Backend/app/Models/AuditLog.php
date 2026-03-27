@@ -13,10 +13,18 @@ class AuditLog extends Model
 
     protected $fillable = [
         'actor_id',
-        'target_id',
-        'action_type',
-        'details',
+        'actor_role',
+        'target_user_id',
+        'action',
+        'old_values',
+        'new_values',
         'created_at'
+    ];
+
+    protected $casts = [
+        'old_values' => 'array',
+        'new_values' => 'array',
+        'created_at' => 'datetime',
     ];
 
     // Relasi ke User yang melakukan aksi
@@ -28,7 +36,7 @@ class AuditLog extends Model
     // Relasi ke User yang menjadi target aksi
     public function target()
     {
-        return $this->belongsTo(User::class, 'target_id');
+        return $this->belongsTo(User::class, 'target_user_id');
     }
 
     /**
@@ -50,14 +58,16 @@ class AuditLog extends Model
     /**
      * Universal helper to record actions easily across all controllers
      */
-    public static function record($actor_id, $action_type, $details, $target_id = null)
+    public static function record($actor_id, $actor_role, $action, $new_values = null, $old_values = null, $target_user_id = null)
     {
         // Menggunakan parent::query()->create() agar bypass override update/delete
         self::query()->create([
             'actor_id' => $actor_id,
-            'target_id' => $target_id,
-            'action_type' => $action_type,
-            'details' => $details,
+            'actor_role' => $actor_role,
+            'target_user_id' => $target_user_id,
+            'action' => $action,
+            'old_values' => $old_values,
+            'new_values' => $new_values,
             'created_at' => now(),
         ]);
     }

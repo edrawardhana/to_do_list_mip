@@ -67,20 +67,3 @@ TO authenticated
 USING (true);
 
 -- TIDAK ada policy untuk DELETE dan UPDATE = otomatis DITOLAK oleh RLS
-
--- ==============================================================================
--- CARA KERJA GHOST AUDIT LOG (3 LAPIS PROTEKSI):
--- 
--- LAPIS 1 (Trigger SQL): Jika ada yang mencoba DELETE atau UPDATE langsung
---          via SQL Console Supabase, trigger akan memblokir dan melempar error.
---
--- LAPIS 2 (RLS Policy): Jika ada yang mencoba lewat API Supabase (REST/Client),
---          RLS tidak punya policy DELETE/UPDATE, jadi otomatis ditolak.
---
--- LAPIS 3 (Laravel Model): Method delete() di-override agar melempar Exception
---          jika ada programmer yang secara tidak sengaja mencoba menghapus log
---          dari kode PHP Laravel.
---
--- Hasilnya: Data audit log 100% KEKAL dan tidak bisa dihapus oleh siapapun
---           melalui jalur manapun (SQL Console, REST API, atau Laravel ORM).
--- ==============================================================================

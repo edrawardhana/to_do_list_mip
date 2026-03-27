@@ -9,13 +9,18 @@ class Whiteboard extends Model
 {
     use HasUuids;
 
-    public $timestamps = false;
+    public $timestamps = true; // Based on ERD, only has created_at
+    const UPDATED_AT = null;
 
     protected $fillable = [
         'division_id',
         'title',
-        'content_url',
-        'type', // SOP, Tutorial, Asset
+        'file_url',
+        'created_at',
+    ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
     ];
 
     public function division()

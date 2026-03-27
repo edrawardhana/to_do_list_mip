@@ -32,7 +32,7 @@ RETURNS void AS $$
 BEGIN
     UPDATE profiles
     SET is_locked = true
-    WHERE role = 'user'; -- HANYA 'user' yang dikunci
+    WHERE role = 'intern'; -- HANYA 'intern' yang dikunci
 END;
 $$ LANGUAGE plpgsql;
 
@@ -42,13 +42,13 @@ RETURNS void AS $$
 BEGIN
     UPDATE profiles p
     SET is_locked = false
-    WHERE p.role = 'user'
+    WHERE p.role = 'intern'
     AND NOT EXISTS (
-        SELECT 1 FROM attendance_schedules a
-        WHERE a.user_id = p.id
-          AND a.is_approved = true
-          AND (a.type = 'Izin' OR a.type = 'Sakit')
-          AND CURRENT_DATE BETWEEN a.start_date AND a.end_date
+        SELECT 1 FROM exceptions e
+        WHERE e.user_id = p.id
+          AND e.status = 'approved'
+          AND (e.type = 'izin' OR e.type = 'sakit')
+          AND e.permission_date = CURRENT_DATE
     );
 END;
 $$ LANGUAGE plpgsql;
