@@ -19,8 +19,8 @@ BEGIN
         -- Cari tahu apa jabatan orang yang sedang mencoba melakukan Update ini
         SELECT role INTO user_role FROM public.profiles WHERE id = auth.uid();
         
-        -- Jika dia ternyata cuma 'user' biasa, BATALKAN proses update dan lemparkan pesan Error
-        IF user_role = 'user' THEN
+        -- Jika dia ternyata cuma 'intern' biasa, BATALKAN proses update dan lemparkan pesan Error
+        IF user_role = 'intern' THEN
             RAISE EXCEPTION 'Akses Ditolak: Bukti foto untuk tugas pelaporan ini sudah dikunci permanen oleh sistem. Silakan hubungi Admin divisi Anda jika terjadi kesalahan unggah.';
         END IF;
         

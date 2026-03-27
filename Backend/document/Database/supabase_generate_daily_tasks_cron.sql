@@ -1,6 +1,6 @@
--- PANDUAN SETUP CRON JOB: GENERATE DAILY TASKS OTOMATIS
+-- PANDUAN SETUP CRON JOB: GENERATE DAILY TASKS OTOMATIS (ERD v3 Version)
 -- Waktu Server: Zona Waktu WIB (Malang Kota, UTC+7) - Jalan Jam 00:00 WIB (17:00 UTC)
--- Tujuan: Menarik template tugas per divisi dan membagikannya ke semua karyawan terkait setiap hari.
+-- Tujuan: Menarik template tugas per divisi dan membagikannya ke semua intern terkait setiap hari.
 -- ----------------------------------------------------
 
 -- 1. Pastikan Ekstensi pg_cron Aktif
@@ -17,38 +17,39 @@ END $$;
 
 
 -- 3. Buat Fungsi (Procedure) untuk Meng-generate Tugas
--- Logika: Mengambil semua user (karyawan biasa) per-divisi, 
--- lalu mencocokkan dengan task_templates milik divisinya,
+-- Logika: Mengambil semua intern per-divisi, 
+-- lalu mencocokkan dengan task_templates milik divisinya yang aktif,
 -- kemudian dijejalkan ke tabel daily_tasks untuk hari ini.
 CREATE OR REPLACE FUNCTION generate_daily_tasks_from_templates()
 RETURNS void AS $$
 BEGIN
     INSERT INTO public.daily_tasks (
-        user_id, 
+        uploader_id, 
         division_id, 
-        task_template_id, 
-        task_name, 
-        status
+        template_id, 
+        status,
+        task_date
     )
     SELECT 
-        p.id AS user_id,
+        p.id AS uploader_id,
         p.division_id,
-        t.id AS task_template_id,
-        t.task_name,
-        'pending' AS status
+        t.id AS template_id,
+        'pending' AS status,
+        CURRENT_DATE AS task_date
     FROM 
         public.profiles p
     JOIN 
         public.task_templates t ON p.division_id = t.division_id
     WHERE 
-        p.role = 'user' 
+        p.role = 'intern' 
         AND p.division_id IS NOT NULL
+        AND t.is_active = true
         AND NOT EXISTS (
-            SELECT 1 FROM attendance_schedules a
-            WHERE a.user_id = p.id
-              AND a.is_approved = true
-              AND (a.type = 'Izin' OR a.type = 'Sakit' OR a.type = 'Libur')
-              AND CURRENT_DATE BETWEEN a.start_date AND a.end_date
+            SELECT 1 FROM exceptions e
+            WHERE e.user_id = p.id
+              AND e.status = 'approved'
+              AND (e.type = 'izin' OR e.type = 'sakit' OR e.type = 'tugas_luar')
+              AND e.permission_date = CURRENT_DATE
         );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

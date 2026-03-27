@@ -4,98 +4,132 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Hash;
 use App\Models\User;
-use Illuminate\Support\Facades\Validator;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
-use App\Models\AuditLog;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        'full_name' => 'required|string|max:255',
-        'username' => 'required|string|max:255|unique:profiles', // Harus unik di database
-        'email' => 'required|email|unique:profiles',
-        'password' => 'required|min:8|confirmed', // Min 8 dan butuh password_confirmation
-        'division_id' => 'required|uuid|exists:divisions,id', // Dropdown divisi
-    ]);
-
-    if ($validator->fails()) {
-        return response()->json($validator->errors(), 422);
+    /**
+     * Create a new AuthController instance.
+     */
+    public function __construct()
+    {
+        // Require auth for all methods except login and register
+        $this->middleware('auth:api', ['except' => ['login', 'register']]);
     }
 
-    $user = User::create([
-        'full_name' => $request->full_name,
-        'username' => $request->username,
-        'email' => $request->email,
-        'password_hash' => bcrypt($request->password),
-        'division_id' => $request->division_id,
-        'role' => 'user',
-        'shift' => null,
-        'is_locked' => true // Terkunci otomatis, menunggu ACC admin
-    ]);
+    /**
+     * Register a new intern User
+     */
+    public function register(Request $request)
+    {
+        $request->validate([
+            'full_name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:profiles,email',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
 
-    AuditLog::record($user->id, 'Register', "User baru mendaftar dan menunggu verifikasi Admin", $user->id);
+        $user = User::create([
+            'full_name' => $request->full_name,
+            'email' => $request->email,
+            'password_hash' => Hash::make($request->password),
+            'role' => 'intern', // Default role ERD v3
+            'is_verified' => false,
+            'is_locked' => false,
+        ]);
 
-    return response()->json([
-        'message' => 'User successfully registered. Please wait for admin approval.',
-        'user' => $user
-    ], 201);
-}
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Registrasi berhasil. Silakan tunggu persetujuan Admin/HR.',
+            'data' => $user
+        ], 201);
+    }
 
+    /**
+     * Get a JWT via given credentials.
+     */
     public function login(Request $request)
     {
-        // Validasi input dari Frontend
-        $validator = Validator::make($request->all(), [
+        $request->validate([
             'email' => 'required|email',
             'password' => 'required|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+        $user = User::where('email', $request->email)->first();
+
+        // ERD v3 uses password_hash instead of standard password column, so we check manually
+        if (!$user || !Hash::check($request->password, $user->password_hash)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Email atau Password salah.'
+            ], 401);
         }
 
-        $credentials = [
-            'email'    => $request->email,
-            'password' => $request->password,
-        ];
-
-        if (!$token = Auth::guard('api')->attempt($credentials)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+        // Check if verified
+        if ($user->role === 'intern' && !$user->is_verified) {
+             return response()->json([
+                'status' => 'error',
+                'message' => 'Akun belum diverifikasi oleh Admin/HR.'
+            ], 403);
         }
 
-        // Cek apakah akun masih dikunci oleh Admin
-        $user = Auth::guard('api')->user();
-        if ($user->is_locked) {
-            Auth::guard('api')->logout(); // Hancurkan token yang baru dibuat
-            return response()->json(['error' => 'Akun Anda masih dikunci. Hubungi Admin untuk persetujuan.'], 403);
-        }
-
-        AuditLog::record($user->id, 'Login Sukses', "User berhasil masuk ke dalam sistem", $user->id);
+        // Issue token manually since Auth::attempt expects 'password' column
+        $token = JWTAuth::fromUser($user);
 
         return $this->respondWithToken($token);
     }
 
+    /**
+     * Get the authenticated User.
+     */
     public function me()
     {
-        return response()->json(Auth::guard('api')->user());
+        $user = Auth::user();
+        if ($user) {
+            $user->load('division');
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $user
+        ]);
     }
 
+    /**
+     * Log the user out (Invalidate the token).
+     */
     public function logout()
     {
-        Auth::guard('api')->logout();
+        Auth::logout();
 
-        return response()->json(['message' => 'Successfully logged out']);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Berhasil logout.'
+        ]);
     }
 
+    /**
+     * Refresh a token.
+     */
+    public function refresh()
+    {
+        return $this->respondWithToken(Auth::refresh());
+    }
+
+    /**
+     * Get the token array structure.
+     */
     protected function respondWithToken($token)
     {
         return response()->json([
-            'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => JWTAuth::factory()->getTTL() * 60
+            'status' => 'success',
+            'authorization' => [
+                'token' => $token,
+                'type' => 'bearer',
+                'expires_in' => Auth::factory()->getTTL() * 60
+            ],
+            'user' => Auth::user()
         ]);
     }
 }

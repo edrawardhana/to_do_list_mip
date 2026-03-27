@@ -16,14 +16,14 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
-        $query = User::with('division')->select('id', 'full_name', 'username', 'email', 'division_id', 'role', 'shift', 'is_locked');
+        // ERD v3: Profiles has full_name, nickname, role, division_id, is_verified, is_locked, avatar_url, phone_number
+        $query = User::with('division')->select('id', 'full_name', 'nickname', 'division_id', 'role', 'is_verified', 'is_locked', 'avatar_url', 'phone_number');
 
         // Data Isolation
-        if ($user->role === 'user') {
-            // Normal users typically only need this to see colleagues in the same division
-            // (e.g. for tagging confirmed_participants)
+        if ($user->role === 'intern') {
+            // Interns typically only need this to see colleagues in the same division for tagging
             $query->where('division_id', $user->division_id)
-                  ->where('role', 'user');
+                  ->where('role', 'intern');
         } elseif ($user->role === 'admin') {
             // Admin sees everyone in their division
             $query->where('division_id', $user->division_id);
@@ -39,43 +39,78 @@ class ProfileController extends Controller
     }
 
     /**
-     * Update employee (Admin approves registration, unlocks account, or assigns shift/role)
+     * Get specific user profile
+     */
+    public function show($id)
+    {
+        $profile = User::with('division')->findOrFail($id);
+        return response()->json([
+            'status' => 'success',
+            'data' => $profile
+        ]);
+    }
+
+    /**
+     * Update employee (Admin approves registration, unlocks account, or assigns role)
      */
     public function update(Request $request, $id)
     {
         $authUser = Auth::user();
 
-        // Only Admin or Superadmin can modify profiles
-        if ($authUser->role === 'user') {
-            return response()->json(['status' => 'error', 'message' => 'Hanya Admin/HR yang bisa mengelola profil karyawan.'], 403);
+        // Only Admin or Superadmin can modify other profiles
+        if ($authUser->role === 'intern' && $authUser->id !== $id) {
+            return response()->json(['status' => 'error', 'message' => 'Hanya Admin/HR yang bisa mengelola profil karyawan lain.'], 403);
         }
 
         $profile = User::findOrFail($id);
 
-        if ($authUser->role === 'admin' && $profile->division_id !== $authUser->division_id) {
+        if ($authUser->role === 'admin' && $profile->division_id !== $authUser->division_id && $authUser->id !== $id) {
             return response()->json(['status' => 'error', 'message' => 'Anda tidak bisa mengelola karyawan divisi lain.'], 403);
         }
 
-        // Prevent admin from making themselves super_admin
-        $roleValidation = $authUser->role === 'super_admin' ? 'sometimes|in:user,admin,super_admin,developer' : 'sometimes|in:user,admin';
+        $old_values = $profile->toArray();
+
+        // Role Validation based on who is updating
+        $roleValidation = '';
+        if ($authUser->role === 'super_admin') {
+            $roleValidation = 'sometimes|in:intern,admin,super_admin,developer';
+        } elseif ($authUser->role === 'admin') {
+            $roleValidation = 'sometimes|in:intern,admin';
+        }
 
         $request->validate([
-            'shift' => 'sometimes|in:pagi,middle,siang',
-            'is_locked' => 'sometimes|boolean',
+            'nickname' => 'sometimes|string|max:100',
+            'phone_number' => 'sometimes|string|max:20',
+            'avatar_url' => 'sometimes|string',
+            'is_locked' => $authUser->role !== 'intern' ? 'sometimes|boolean' : '', // only admin+ can lock/unlock
+            'is_verified' => $authUser->role !== 'intern' ? 'sometimes|boolean' : '', // only admin+ can verify
             'role' => $roleValidation,
             'division_id' => $authUser->role === 'super_admin' ? 'sometimes|uuid|exists:divisions,id' : ''
         ]);
 
-        $dataToUpdate = $request->only(['shift', 'is_locked', 'role']);
+        $dataToUpdate = $request->only(['nickname', 'phone_number', 'avatar_url']);
         
+        // Only Admins can update these security fields
+        if ($authUser->role !== 'intern') {
+            if ($request->has('is_locked')) $dataToUpdate['is_locked'] = $request->is_locked;
+            if ($request->has('is_verified')) $dataToUpdate['is_verified'] = $request->is_verified;
+            if ($request->has('role')) $dataToUpdate['role'] = $request->role;
+        }
+
         if ($authUser->role === 'super_admin' && $request->has('division_id')) {
             $dataToUpdate['division_id'] = $request->division_id;
         }
 
         $profile->update($dataToUpdate);
 
-        $actionDetail = "Meresmikan/Memperbarui Data Karyawan: {$profile->full_name} (Shift: {$profile->shift}, Locked: {$profile->is_locked})";
-        AuditLog::record($authUser->id, 'Update Karyawan', $actionDetail, $profile->id);
+        AuditLog::record(
+            $authUser->id, 
+            $authUser->role, 
+            'Update Profil Karyawan', 
+            $profile->fresh()->toArray(), 
+            $old_values, 
+            $profile->id
+        );
 
         return response()->json([
             'status' => 'success',

@@ -9,26 +9,38 @@ class DailyTask extends Model
 {
     use HasUuids;
 
-    public $timestamps = false;
+    public $timestamps = true; // ERD V3 has created_at, updated_at
 
     protected $fillable = [
-        'user_id',
+        'template_id',
+        'uploader_id',
         'division_id',
-        'task_template_id',
-        'task_name',
+        'evaluated_by',
+        'task_date',
         'evidence_url',
-        'status', // pending, approved, rejected
-        'first_uploader_id',
+        'description',
         'confirmed_participants',
+        'status', // pending, approved, rejected, revision
+        'reject_reason',
+        'is_archived',
+        'captured_at',
     ];
 
     protected $casts = [
         'confirmed_participants' => 'array',
+        'is_archived' => 'boolean',
+        'task_date' => 'date',
+        'captured_at' => 'datetime',
     ];
 
-    public function user()
+    public function uploader()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'uploader_id');
+    }
+
+    public function evaluator()
+    {
+        return $this->belongsTo(User::class, 'evaluated_by');
     }
 
     public function division()
@@ -38,11 +50,6 @@ class DailyTask extends Model
 
     public function taskTemplate()
     {
-        return $this->belongsTo(TaskTemplate::class);
-    }
-
-    public function firstUploader()
-    {
-        return $this->belongsTo(User::class, 'first_uploader_id');
+        return $this->belongsTo(TaskTemplate::class, 'template_id');
     }
 }
