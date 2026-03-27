@@ -17,11 +17,11 @@ class DailyTaskController extends Controller
     {
         $user = Auth::user();
         
-        $query = DailyTask::query();
+        $query = DailyTask::with(['taskTemplate', 'uploader', 'evaluator']);
 
-        if ($user->role === 'user') {
-            // User only sees their own tasks
-            $query->where('user_id', $user->id);
+        if ($user->role === 'intern') {
+            // Intern only sees their own tasks
+            $query->where('uploader_id', $user->id);
         } elseif ($user->role === 'admin') {
             // Admin sees tasks from their entire division
             $query->where('division_id', $user->division_id);
@@ -29,7 +29,7 @@ class DailyTaskController extends Controller
         // Superadmin sees all (no filter)
 
         if ($request->has('date')) {
-            $query->whereDate('created_at', $request->date);
+            $query->whereDate('task_date', $request->date);
         }
 
         $tasks = $query->orderBy('created_at', 'desc')->get();
@@ -47,27 +47,33 @@ class DailyTaskController extends Controller
     {
         $user = Auth::user();
 
-        // Admin/Superadmin generally don't fill out logbooks, but if they do, we allow it.
-        // However, we enforce the division_id to be their own.
         $request->validate([
-            'task_template_id' => 'nullable|uuid',
-            'task_name' => 'required|string',
-            // evidence_url usually uploaded separately to Storage, then sent here as string URL
+            'template_id' => 'required|uuid',
+            'task_date' => 'required|date',
+            'description' => 'nullable|string',
             'evidence_url' => 'nullable|string',
-            'confirmed_participants' => 'nullable|array'
+            'confirmed_participants' => 'nullable|array',
+            'captured_at' => 'nullable|date'
         ]);
 
         $task = DailyTask::create([
-            'user_id' => $user->id,
+            'uploader_id' => $user->id,
             'division_id' => $user->division_id,
-            'task_template_id' => $request->task_template_id,
-            'task_name' => $request->task_name,
-            'status' => 'pending', // Default strictly lowercase pending
+            'template_id' => $request->template_id,
+            'task_date' => $request->task_date,
+            'description' => $request->description,
+            'status' => 'pending', 
             'evidence_url' => $request->evidence_url,
-            'confirmed_participants' => $request->confirmed_participants ?? []
+            'confirmed_participants' => $request->confirmed_participants ?? [],
+            'captured_at' => $request->captured_at
         ]);
 
-        AuditLog::record($user->id, 'Buat Logbook', "Membuat Logbook Tugas Baru: {$request->task_name}", $task->id);
+        AuditLog::record(
+            $user->id, 
+            $user->role, 
+            'Buat Logbook', 
+            $task->toArray()
+        );
 
         return response()->json([
             'status' => 'success',
@@ -83,9 +89,10 @@ class DailyTaskController extends Controller
     {
         $user = Auth::user();
         $task = DailyTask::findOrFail($id);
+        $old_values = $task->toArray();
 
         // Security: Ensure User only edits their own, Admin only edits their division's
-        if ($user->role === 'user' && $task->user_id !== $user->id) {
+        if ($user->role === 'intern' && $task->uploader_id !== $user->id) {
             return response()->json(['status' => 'error', 'message' => 'Anda tidak bisa mengedit tugas orang lain.'], 403);
         }
         if ($user->role === 'admin' && $task->division_id !== $user->division_id) {
@@ -93,24 +100,39 @@ class DailyTaskController extends Controller
         }
 
         $request->validate([
-            'task_name' => 'sometimes|string',
-            'status' => 'sometimes|in:pending,approved,rejected',
+            'description' => 'sometimes|string',
+            'status' => 'sometimes|in:pending,approved,rejected,revision',
+            'reject_reason' => 'nullable|string',
             'evidence_url' => 'sometimes|string',
-            'confirmed_participants' => 'sometimes|array'
+            'confirmed_participants' => 'sometimes|array',
+            'is_archived' => 'sometimes|boolean'
         ]);
 
-        // Non-admin shouldn't change status to approved
-        if ($user->role === 'user' && $request->has('status') && $request->status !== 'pending') {
-             return response()->json(['status' => 'error', 'message' => 'Hanya Admin yang berhak menyetujui logbook.'], 403);
+        // Non-admin shouldn't change status to approved/rejected/revision
+        if ($user->role === 'intern' && $request->has('status') && $request->status !== 'pending') {
+             return response()->json(['status' => 'error', 'message' => 'Hanya Admin yang berhak memproses logbook.'], 403);
         }
 
         try {
-            // Only update fields that are present in the request
-            $dataToUpdate = $request->only(['task_name', 'status', 'evidence_url', 'confirmed_participants']);
+            $dataToUpdate = $request->only(['description', 'status', 'reject_reason', 'evidence_url', 'confirmed_participants', 'is_archived']);
+            
+            // Mark evaluated_by if admin processed it
+            if ($user->role === 'admin' || $user->role === 'super_admin') {
+                if ($request->has('status')) {
+                    $dataToUpdate['evaluated_by'] = $user->id;
+                }
+            }
+
             $task->update($dataToUpdate);
 
-            $actionDetail = $user->role === 'user' ? "Update progres/bukti tugas harian" : "Memproses/Update tugas milik bawahan (Status: {$task->status})";
-            AuditLog::record($user->id, 'Update Logbook', $actionDetail, $task->id);
+            AuditLog::record(
+                $user->id, 
+                $user->role, 
+                'Update Logbook', 
+                $task->fresh()->toArray(), 
+                $old_values,
+                $user->role !== 'intern' ? $task->uploader_id : null // Target is the intern if admin is acting
+            );
 
             return response()->json([
                 'status' => 'success',
@@ -119,9 +141,6 @@ class DailyTaskController extends Controller
             ]);
 
         } catch (QueryException $e) {
-            // 🚨 CATCH THE SUPABASE TRIGGER EXCEPTION (Evidence Lock)
-            // If the user tries to update an existing evidence_url, Supabase will reject it
-            // and throw an error with our custom message.
             if (str_contains($e->getMessage(), 'Akses Ditolak: Bukti foto')) {
                 return response()->json([
                     'status' => 'error',
@@ -130,7 +149,6 @@ class DailyTaskController extends Controller
                 ], 403);
             }
 
-            // Other database errors
             return response()->json([
                 'status' => 'error',
                 'message' => 'Terjadi kesalahan sistem database.',
@@ -140,25 +158,35 @@ class DailyTaskController extends Controller
     }
 
     /**
-     * Delete logbook (Usually Admin/Superadmin only, or User if still pending and no photo?)
-     * Let's restrict it to Superadmin or Admin for now.
+     * Delete logbook
      */
     public function destroy($id)
     {
         $user = Auth::user();
         $task = DailyTask::findOrFail($id);
 
-        if ($user->role === 'user') {
-             return response()->json(['status' => 'error', 'message' => 'User biasa tidak diizinkan menghapus logbook permanen.'], 403);
+        if ($user->role === 'intern') {
+             return response()->json(['status' => 'error', 'message' => 'Pelatih tidak diizinkan menghapus logbook permanen.'], 403);
         }
 
         if ($user->role === 'admin' && $task->division_id !== $user->division_id) {
             return response()->json(['status' => 'error', 'message' => 'Anda tidak bisa menghapus tugas divisi lain.'], 403);
         }
 
+        // Simpan state sebelum dihapus untuk Audit Log
+        $old_values = $task->toArray();
+        $internId = $task->uploader_id;
+        
         $task->delete();
 
-        AuditLog::record($user->id, 'Hapus Logbook', "Menghapus permanen Logbook Tugas: {$task->task_name}", $id);
+        AuditLog::record(
+            $user->id, 
+            $user->role, 
+            'Hapus Logbook', 
+            null, 
+            $old_values, 
+            $internId
+        );
 
         return response()->json([
             'status' => 'success',

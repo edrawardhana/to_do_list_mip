@@ -16,7 +16,7 @@ class AuditLogController extends Controller
         $user = Auth::user();
 
         // Security: Normal users cannot see audit logs
-        if ($user->role === 'user') {
+        if ($user->role === 'intern') {
             return response()->json(['status' => 'error', 'message' => 'Anda tidak berhak mengakses log sistem.'], 403);
         }
 
@@ -30,9 +30,9 @@ class AuditLogController extends Controller
         }
         // super_admin sees everything
 
-        // Filter opsional berdasarkan tipe aksi (misal: ?action_type=Proses Absen)
-        if ($request->has('action_type')) {
-            $query->where('action_type', $request->action_type);
+        // Filter opsional berdasarkan tipe aksi (misal: ?action=Proses Absen)
+        if ($request->has('action')) {
+            $query->where('action', $request->action);
         }
 
         // Sort by newest
