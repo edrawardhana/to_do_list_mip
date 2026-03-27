@@ -59,7 +59,8 @@ export const AuthProvider = ({ children }) => {
         { headers: { Accept: "application/json" } },
       );
 
-      const token = response.data.access_token || response.data.token;
+      // Extract token from nested authorization object based on ERD v3 Laravel API structure
+      const token = response.data.authorization?.token || response.data.token || response.data.access_token;
       if (!token) {
         setLoading(false);
         return { success: false, error: "Token tidak ditemukan" };
