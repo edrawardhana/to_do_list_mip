@@ -70,7 +70,8 @@ export default function Login() {
         },
       );
 
-      const token = response.data.access_token || response.data.token;
+      // Extract token from nested authorization object (Laravel JWT structure)
+      const token = response.data.authorization?.token || response.data.token || response.data.access_token;
       if (token) {
         localStorage.setItem("token", token);
         // optionally update context user via login()
