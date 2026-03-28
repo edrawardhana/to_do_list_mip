@@ -79,7 +79,7 @@ class WhiteboardController extends Controller
         $user = Auth::user();
         $whiteboard = Whiteboard::findOrFail($id);
 
-        if ($user->role === 'user') {
+        if ($user->role === 'intern') {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
         }
 
@@ -120,7 +120,7 @@ class WhiteboardController extends Controller
          $user = Auth::user();
          $whiteboard = Whiteboard::findOrFail($id);
  
-         if ($user->role === 'user') {
+         if ($user->role === 'intern') {
              return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
          }
  

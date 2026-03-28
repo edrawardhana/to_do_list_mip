@@ -103,12 +103,12 @@ const InternView = ({ user }) => (
               <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">
                 Division
               </p>
-              <h3 className="text-lg font-bold text-[#1b254b]">IT Support</h3>
+              <h3 className="text-lg font-bold text-[#1b254b]">{user?.division?.name || "Menunggu Penempatan"}</h3>
             </div>
           </div>
           <div className="text-right">
             <span className="bg-indigo-50 text-indigo-600 px-5 py-1.5 rounded-xl font-black text-xs uppercase italic tracking-tighter">
-              Morning Shift
+              {user?.role?.replace("_", " ")}
             </span>
           </div>
         </div>
