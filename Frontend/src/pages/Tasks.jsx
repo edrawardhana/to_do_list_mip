@@ -100,7 +100,7 @@ const Tasks = ({ allowCamera = true }) => {
               </div>
             )}
 
-            {(isIntern || user?.role === "user") && allowCamera && (
+            {(isIntern || user?.role === "intern") && allowCamera && (
               <div className="flex gap-2 animate-in fade-in zoom-in duration-300">
                 <button
                   type="button"

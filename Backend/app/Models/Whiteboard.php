@@ -16,6 +16,7 @@ class Whiteboard extends Model
         'division_id',
         'title',
         'file_url',
+        'type', // pdf, image, link
         'created_at',
     ];
 

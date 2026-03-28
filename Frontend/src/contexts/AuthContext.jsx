@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }) => {
   // Berdasarkan Dashboard.jsx Anda: "super_admin", "admin", dan "user"
   const isAdmin = user?.role === "admin";
   const isSuperAdmin = user?.role === "super_admin";
-  const isIntern = user?.role === "user"; // DISESUAIKAN: dari "intern" ke "user"
+  const isIntern = user?.role === "intern"; // DISESUAIKAN: dari "user" ke "intern" (ERD v3)
   const isAnyAdmin = isAdmin || isSuperAdmin;
 
   const fetchUser = async (token) => {
@@ -26,7 +26,8 @@ export const AuthProvider = ({ children }) => {
         },
       );
 
-      const userData = response.data.user || response.data;
+      // Unwrap the Laravel JSON response: Backend returns { status: 'success', data: { ...user object... } }
+      const userData = response.data.data || response.data.user || response.data;
       setUser(userData);
       return userData;
     } catch (error) {
@@ -95,7 +96,7 @@ export const AuthProvider = ({ children }) => {
           email,
           password,
           password_confirmation: password,
-          role: "user", // Konsisten menggunakan "user" untuk intern
+          role: "intern", // Konsisten menggunakan "intern" untuk intern (ERD v3)
         },
         { headers: { Accept: "application/json" } },
       );

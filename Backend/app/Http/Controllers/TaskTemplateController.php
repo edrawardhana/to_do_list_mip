@@ -22,7 +22,7 @@ class TaskTemplateController extends Controller
             $query->where('division_id', $user->division_id);
         }
 
-        $templates = $query->orderBy('task_name', 'asc')->get();
+        $templates = $query->orderBy('title', 'asc')->get();
 
         return response()->json([
             'status' => 'success',
@@ -37,21 +37,23 @@ class TaskTemplateController extends Controller
     {
         $user = Auth::user();
 
-        if ($user->role === 'user') {
+        if ($user->role === 'intern') {
             return response()->json(['status' => 'error', 'message' => 'Hanya Admin/Superadmin yang bisa membuat template tugas.'], 403);
         }
 
         $request->validate([
-            'task_name' => 'required|string',
+            'title' => 'required|string',
+            'description' => 'nullable|string',
             'division_id' => $user->role === 'super_admin' ? 'required|uuid|exists:divisions,id' : 'nullable|uuid|exists:divisions,id'
         ]);
 
         $template = TaskTemplate::create([
-            'division_id' => clone($user->role === 'super_admin' ? $request->division_id : $user->division_id),
-            'task_name' => $request->task_name
+            'division_id' => $user->role === 'super_admin' ? $request->division_id : $user->division_id,
+            'title' => $request->title,
+            'description' => $request->description,
         ]);
 
-        AuditLog::record($user->id, 'Buat Template Tugas', "Membuat Template Tugas Baru: {$request->task_name}", $template->id);
+        AuditLog::record($user->id, $user->role, 'Buat Template Tugas', $template->toArray());
 
         return response()->json([
             'status' => 'success',
@@ -67,7 +69,7 @@ class TaskTemplateController extends Controller
     {
         $user = Auth::user();
 
-        if ($user->role === 'user') {
+        if ($user->role === 'intern') {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
         }
 
@@ -78,11 +80,13 @@ class TaskTemplateController extends Controller
         }
 
         $request->validate([
-            'task_name' => 'required|string'
+            'title' => 'required|string',
+            'description' => 'nullable|string',
         ]);
 
         $template->update([
-            'task_name' => $request->task_name
+            'title' => $request->title,
+            'description' => $request->description,
         ]);
 
         return response()->json([
@@ -99,7 +103,7 @@ class TaskTemplateController extends Controller
     {
         $user = Auth::user();
 
-        if ($user->role === 'user') {
+        if ($user->role === 'intern') {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
         }
 
@@ -111,7 +115,7 @@ class TaskTemplateController extends Controller
 
         $template->delete();
 
-        AuditLog::record($user->id, 'Hapus Template Tugas', "Menghapus Template Tugas", $id);
+        AuditLog::record($user->id, $user->role, 'Hapus Template Tugas', null, $template->toArray());
 
         return response()->json([
             'status' => 'success',
