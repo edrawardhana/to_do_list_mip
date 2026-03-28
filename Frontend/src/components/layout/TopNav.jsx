@@ -29,7 +29,7 @@ const TopNav = ({ onToggleSidebar }) => {
   // Logika Identifikasi Role
   const isSuperAdmin = user?.role === "super_admin";
   const isAdmin = user?.role === "admin";
-  const isIntern = user?.role === "user";
+  const isIntern = user?.role === "intern";
 
   // Mapping path → judul Dinamis
   const titles = {
@@ -48,9 +48,10 @@ const TopNav = ({ onToggleSidebar }) => {
   };
 
   const title = titles[location.pathname] || "MCC Internship";
-  const shiftLabel = user?.shift_type === "Morning" ? "Pagi" : "Sore";
-  const statusColor =
-    user?.status === "Active" ? "text-emerald-400" : "text-slate-400";
+  const isUserActive = user?.is_verified && !user?.is_locked;
+  const statusColor = isUserActive ? "text-emerald-400" : "text-rose-400";
+  const statusText = isUserActive ? "Aktif" : (user?.is_locked ? "Terkunci" : "Pending");
+  const shiftLabel = user?.division?.name || "Umum";
 
   return (
     <header className="h-[68px] flex items-center justify-between px-5 bg-[#070e1d] flex-shrink-0 border-b border-white/[0.05]">
@@ -106,7 +107,7 @@ const TopNav = ({ onToggleSidebar }) => {
             Status Kerja
           </p>
           <p className={`text-[11px] font-bold ${statusColor} leading-none`}>
-            {user?.status === "Active" ? "Aktif" : "Tidak Aktif"} · {shiftLabel}
+            {statusText} · {shiftLabel}
           </p>
         </div>
 

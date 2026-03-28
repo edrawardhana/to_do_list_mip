@@ -73,7 +73,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     } else if (rawRole === "admin") {
       // Untuk Admin
       mappedRole = "admin";
-    } else if (rawRole === "user") {
+    } else if (rawRole === "intern") {
       // Untuk DashboardIntern
       mappedRole = "intern";
     }
