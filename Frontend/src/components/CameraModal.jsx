@@ -1,7 +1,8 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback } from "react";
 import Webcam from "react-webcam";
 import imageCompression from "browser-image-compression";
 import { supabase } from "../supabaseClient";
+import toast from "react-hot-toast"; // 1. Import toast
 
 const CameraModal = ({ task, onClose, onRefresh }) => {
   const webcamRef = useRef(null);
@@ -9,14 +10,12 @@ const CameraModal = ({ task, onClose, onRefresh }) => {
   const [loading, setLoading] = useState(false);
   const [cameraError, setCameraError] = useState(null);
 
-  // 1. KONFIGURASI KAMERA
   const videoConstraints = {
     width: 1280,
     height: 720,
-    facingMode: "user", // Gunakan "environment" jika ingin kamera belakang di mobile
+    facingMode: "user",
   };
 
-  // 2. VALIDASI WAKTU (Cek apakah tugas dari hari yang berbeda)
   const isTaskExpired = () => {
     if (!task?.created_at) return false;
     const today = new Date().toDateString();
@@ -24,50 +23,58 @@ const CameraModal = ({ task, onClose, onRefresh }) => {
     return today !== taskDate;
   };
 
-  // 3. HANDLER ERROR KAMERA
   const handleUserMediaError = useCallback((error) => {
     console.error("Camera Error Detail:", error);
     setCameraError(error.name || "Unknown Error");
+    toast.error("Gagal mengakses kamera. Pastikan izin aktif.");
   }, []);
 
-  // 4. PROSES AMBIL FOTO
   const capture = useCallback(() => {
     if (webcamRef.current) {
       const image = webcamRef.current.getScreenshot();
       setImgSrc(image);
+      toast.success("Foto berhasil diambil!");
     }
   }, [webcamRef]);
 
-  // 5. PROSES KOMPRESI & UPLOAD KE SUPABASE
   const handleUpload = async () => {
     if (!imgSrc) return;
     setLoading(true);
 
+    // 2. Gunakan toast.loading untuk progres
+    const toastId = toast.loading("Sedang mengompres & mengirim bukti...");
+
     try {
-      // Ubah Base64 ke File Object
       const response = await fetch(imgSrc);
       const blob = await response.blob();
       const file = new File([blob], "evidence.jpg", { type: "image/jpeg" });
 
-      // Kompresi (Target < 500kb)
       const options = {
         maxSizeMB: 0.5,
         maxWidthOrHeight: 1280,
         useWebWorker: true,
       };
       const compressedFile = await imageCompression(file, options);
-
-      // Path Penyimpanan: folder/nama_file
       const fileName = `${task.id}/${Date.now()}.jpg`;
 
-      // Upload ke Bucket "TASK_EVIDENCE"
-      const { data, error: uploadError } = await supabase.storage
+      // Upload ke Storage
+      const { error: uploadError } = await supabase.storage
         .from("task_evidence")
         .upload(fileName, compressedFile);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        // Cek error RLS pada Storage
+        if (
+          uploadError.message.includes("row-level security") ||
+          uploadError.status === 403
+        ) {
+          throw new Error(
+            "Izin storage ditolak. Akun Anda mungkin belum diizinkan mengunggah.",
+          );
+        }
+        throw uploadError;
+      }
 
-      // Ambil Public URL
       const {
         data: { publicUrl },
       } = supabase.storage.from("task_evidence").getPublicUrl(fileName);
@@ -81,20 +88,36 @@ const CameraModal = ({ task, onClose, onRefresh }) => {
         })
         .eq("id", task.id);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        // 3. Tangani error RLS Database secara spesifik
+        if (
+          dbError.message.includes("row-level security") ||
+          dbError.code === "42501"
+        ) {
+          throw new Error(
+            "Akses Ditolak: Anda tidak memiliki izin untuk memperbarui tugas ini.",
+          );
+        }
+        throw dbError;
+      }
 
-      alert("Bukti berhasil dikirim!");
+      // 4. Feedback sukses
+      toast.success("Bukti berhasil dikirim!", { id: toastId });
       onRefresh();
       onClose();
     } catch (error) {
       console.error("Upload Error:", error);
-      alert(`Gagal: ${error.message || "Terjadi kesalahan sistem"}`);
+
+      // 5. Tampilkan pesan error yang sudah "dimanusiakan"
+      toast.error(error.message || "Terjadi kesalahan sistem", {
+        id: toastId,
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // Tampilan jika tugas kedaluwarsa
   if (isTaskExpired()) {
     return (
       <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
@@ -122,7 +145,6 @@ const CameraModal = ({ task, onClose, onRefresh }) => {
   return (
     <div className="fixed inset-0 bg-[#1b254b]/90 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
       <div className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white">
-        {/* Header Modal */}
         <div className="p-6 bg-white border-b border-slate-50 flex justify-between items-center">
           <span className="font-black uppercase text-[10px] text-[#1b254b] tracking-[0.2em]">
             Verify Daily Task
@@ -136,7 +158,6 @@ const CameraModal = ({ task, onClose, onRefresh }) => {
         </div>
 
         <div className="p-8">
-          {/* Area Kamera / Preview */}
           <div className="aspect-square bg-slate-900 rounded-[2rem] overflow-hidden border-4 border-slate-50 relative shadow-inner flex items-center justify-center">
             {cameraError ? (
               <div className="text-center p-6 text-white">
@@ -166,17 +187,12 @@ const CameraModal = ({ task, onClose, onRefresh }) => {
             )}
           </div>
 
-          {/* Tombol Aksi */}
           <div className="mt-8 space-y-3">
             {!imgSrc ? (
               <button
                 onClick={capture}
                 disabled={!!cameraError}
-                className={`w-full py-5 rounded-[1.5rem] font-black flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl ${
-                  cameraError
-                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                    : "bg-[#1b254b] text-white shadow-blue-200"
-                }`}
+                className={`w-full py-5 rounded-[1.5rem] font-black flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl ${cameraError ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-[#1b254b] text-white"}`}
               >
                 <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
                   <i className="fa-solid fa-camera text-xl"></i>

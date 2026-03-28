@@ -29,7 +29,7 @@ const Home = () => {
       {/* Header Section */}
       <div className="space-y-1">
         <h1 className="text-2xl font-black text-[#0A065D] tracking-tight uppercase">
-          MCC INTERNSHIP ADMINISTRATION
+          MCC INTERNSHIP
         </h1>
         <p className="text-xs font-bold text-slate-400 uppercase">
           {new Date().toLocaleDateString("id-ID", {
