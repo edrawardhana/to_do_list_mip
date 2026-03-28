@@ -10,12 +10,14 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Sinkronisasi helper functions dengan role yang ada di database
-  // Berdasarkan Dashboard.jsx Anda: "super_admin", "admin", dan "user"
+  // 1. Helper status role & lock (Berdasarkan data user terbaru)
   const isAdmin = user?.role === "admin";
   const isSuperAdmin = user?.role === "super_admin";
-  const isIntern = user?.role === "intern"; // DISESUAIKAN: dari "user" ke "intern" (ERD v3)
+  const isIntern = user?.role === "intern";
   const isAnyAdmin = isAdmin || isSuperAdmin;
+
+  // Menambahkan pengecekan is_locked (mendukung format boolean atau integer 0/1)
+  const isLocked = Boolean(user?.is_locked);
 
   const fetchUser = async (token) => {
     try {
@@ -26,14 +28,18 @@ export const AuthProvider = ({ children }) => {
         },
       );
 
-      // Unwrap the Laravel JSON response: Backend returns { status: 'success', data: { ...user object... } }
-      const userData = response.data.data || response.data.user || response.data;
+      // Unwrap data: memastikan mengambil objek user terlepas dari nesting API
+      const userData =
+        response.data.data || response.data.user || response.data;
       setUser(userData);
       return userData;
     } catch (error) {
       console.error("Gagal mengambil data user:", error);
-      localStorage.removeItem("token");
-      setUser(null);
+      // Jika token expired atau invalid, bersihkan session
+      if (error.response?.status === 401) {
+        localStorage.removeItem("token");
+        setUser(null);
+      }
       return null;
     } finally {
       setLoading(false);
@@ -51,28 +57,31 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      // Pastikan status loading aktif saat proses login
       setLoading(true);
-
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/auth/login`,
         { email, password },
         { headers: { Accept: "application/json" } },
       );
 
-      // Extract token from nested authorization object based on ERD v3 Laravel API structure
-      const token = response.data.authorization?.token || response.data.token || response.data.access_token;
+      const token =
+        response.data.authorization?.token ||
+        response.data.token ||
+        response.data.access_token;
+
       if (!token) {
         setLoading(false);
         return { success: false, error: "Token tidak ditemukan" };
       }
 
       localStorage.setItem("token", token);
-
-      // Ambil profile lengkap (termasuk role terbaru)
       const userData = await fetchUser(token);
 
-      return { success: true, role: userData?.role };
+      return {
+        success: true,
+        role: userData?.role,
+        isLocked: Boolean(userData?.is_locked), // Kembalikan status lock saat login
+      };
     } catch (err) {
       setLoading(false);
       return {
@@ -96,7 +105,7 @@ export const AuthProvider = ({ children }) => {
           email,
           password,
           password_confirmation: password,
-          role: "intern", // Konsisten menggunakan "intern" untuk intern (ERD v3)
+          role: "intern",
         },
         { headers: { Accept: "application/json" } },
       );
@@ -122,7 +131,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   };
 
-  // Gunakan useMemo untuk mengoptimalkan performa provider
+  // 2. Masukkan isLocked ke dalam value Provider
   const value = useMemo(
     () => ({
       user,
@@ -134,6 +143,7 @@ export const AuthProvider = ({ children }) => {
       isSuperAdmin,
       isIntern,
       isAnyAdmin,
+      isLocked, // Expose status kunci akun ke seluruh aplikasi
     }),
     [user, loading],
   );

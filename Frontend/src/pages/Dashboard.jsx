@@ -18,7 +18,7 @@ const Dashboard = () => {
       <div className="min-h-screen bg-[#f4f7fe] flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="font-black text-[#1b254b] animate-pulse uppercase tracking-widest">
+          <p className="font-black text-[#1b254b] animate-pulse uppercase tracking-widest text-sm">
             Memasuki Dashboard...
           </p>
         </div>
@@ -28,7 +28,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#f4f7fe] p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
-      {/* HEADER SECTION - Universal */}
+      {/* HEADER SECTION - Universal untuk semua role */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-2xl md:text-3xl font-black text-[#1b254b] tracking-tight uppercase mt-1">
@@ -57,11 +57,12 @@ const Dashboard = () => {
       </div>
 
       <main className="animate-in slide-in-from-bottom-4 duration-700">
-        {/* Hanya tampilkan view yang relevan dengan dashboard */}
+        {/* 1. VIEW SUPER ADMIN */}
         {isSuperAdmin && (
           <SuperAdminView stats={{ total: 12, swaps: 2, onDuty: 8, off: 4 }} />
         )}
 
+        {/* 2. VIEW ADMIN (Bisa melihat Approval & Aktivitas) */}
         {isAdmin && (
           <div className="space-y-8">
             <Approval />
@@ -71,9 +72,10 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* 3. VIEW INTERN (Hanya melihat progress & tugas pribadinya) */}
         {isIntern && <InternView user={user} />}
 
-        {/* Fallback Role Error */}
+        {/* 4. FALLBACK ROLE */}
         {!isSuperAdmin && !isAdmin && !isIntern && (
           <div className="bg-white p-20 rounded-[3rem] text-center border-2 border-dashed border-slate-200 text-slate-400 font-bold uppercase italic tracking-widest text-sm">
             Akses Terbatas: Role Tidak Dikenali
@@ -84,7 +86,8 @@ const Dashboard = () => {
   );
 };
 
-/* VIEW KHUSUS INTERN */
+/* --- SUB-COMPONENTS (TETAP SAMA SEPERTI KODE KAMU) --- */
+
 const InternView = ({ user }) => (
   <div className="space-y-8 animate-in fade-in duration-1000">
     <div className="grid grid-cols-12 gap-6">
@@ -103,7 +106,9 @@ const InternView = ({ user }) => (
               <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">
                 Division
               </p>
-              <h3 className="text-lg font-bold text-[#1b254b]">{user?.division?.name || "Menunggu Penempatan"}</h3>
+              <h3 className="text-lg font-bold text-[#1b254b]">
+                {user?.division?.name || "Menunggu Penempatan"}
+              </h3>
             </div>
           </div>
           <div className="text-right">
@@ -124,12 +129,14 @@ const InternView = ({ user }) => (
         </div>
       </div>
 
-      <div className="col-span-12 lg:col-span-7 bg-white p-8 rounded-[2rem] shadow-sm border border-white relative overflow-hidden">
-        <p className="text-slate-300 font-black text-[10px] uppercase italic mb-4">
-          Informasi Tambahan
-        </p>
-        <div className="h-32 bg-slate-50 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400 italic text-sm">
-          Konten Whitebook/Jadwal Aktif
+      <div className="col-span-12 lg:col-span-7 bg-white p-8 rounded-[2rem] shadow-sm border border-white relative overflow-hidden flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-300 font-black text-[10px] uppercase italic mb-4">
+            Informasi Tambahan
+          </p>
+          <div className="h-24 px-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400 italic text-sm">
+            Konten Whitebook/Jadwal Aktif
+          </div>
         </div>
       </div>
     </div>
@@ -143,7 +150,6 @@ const InternView = ({ user }) => (
   </div>
 );
 
-/* VIEW KHUSUS SUPER ADMIN */
 const SuperAdminView = ({ stats }) => (
   <div className="space-y-8 animate-in fade-in duration-1000">
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
@@ -164,7 +170,6 @@ const SuperAdminView = ({ stats }) => (
         </div>
       ))}
     </div>
-    {/* ... konten super admin lainnya ... */}
   </div>
 );
 
