@@ -3,6 +3,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute";
 import MainLayout from "./components/layout/MainLayout";
+import { Toaster } from "react-hot-toast";
 
 // Pages
 import Login from "./pages/Login";
@@ -17,37 +18,55 @@ import AuditLog from "./pages/AuditLog";
 import ManageAdmin from "./pages/admin/ManageAdmin";
 import Reports from "./pages/Reports";
 import Whitebook from "./pages/Whitebook";
+import LockedPage from "./pages/LockedPage";
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <Toaster
+          position="top-right"
+          reverseOrder={false}
+          toastOptions={{
+            style: {
+              borderRadius: "16px",
+              background: "#1b254b",
+              color: "#fff",
+              fontSize: "14px",
+              fontWeight: "bold",
+            },
+          }}
+        />
+
         <Routes>
           {/* 1. RUTE PUBLIK */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* 2. RUTE TERPROTEKSI (MainLayout) */}
+          {/* 2. RUTE TERPROTEKSI (MainLayout & Sub-routes) */}
           <Route
-            path="/"
             element={
               <PrivateRoute>
                 <MainLayout />
               </PrivateRoute>
             }
           >
-            {/* Arahkan root "/" langsung ke "/dashboard". 
-               Ini memastikan Dashboard.jsx yang menangani pemisahan tampilan Admin/Intern.
-            */}
-            <Route index element={<Navigate to="/dashboard" replace />} />
+            {/* Navigasi Root & Dashboard (Bisa diakses SEMUA Role) */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
+
+            {/* Rute Reports (Bisa diakses SEMUA Role - Intern untuk ajukan laporan, Admin untuk lihat) */}
+            <Route path="reports" element={<Reports />} />
+
+            {/* Halaman Locked (Harus bisa diakses Intern saat mereka nyasar) */}
+            <Route path="locked" element={<LockedPage />} />
 
             {/* --- RUTE KHUSUS INTERN (ROLE: USER) --- */}
             <Route path="tasks" element={<Tasks />} />
             <Route path="attendance" element={<Attendance />} />
             <Route path="whitebook" element={<Whitebook />} />
 
-            {/* --- RUTE KHUSUS ADMIN & SUPER_ADMIN --- */}
+            {/* --- RUTE KHUSUS ADMIN & SUPER_ADMIN SAJA --- */}
             <Route
               path="broadcasts"
               element={
@@ -88,17 +107,7 @@ function App() {
                 </AdminRoute>
               }
             />
-            <Route
-              path="reports"
-              element={
-                <AdminRoute>
-                  <Reports />
-                </AdminRoute>
-              }
-            />
-            {/* Rute Approval mengarah ke Dashboard karena Dashboard.jsx 
-               sudah memiliki komponen <Approval /> di dalamnya untuk role Admin.
-            */}
+            {/* Rute Approval hanya untuk Admin */}
             <Route
               path="approval"
               element={
@@ -109,7 +118,7 @@ function App() {
             />
           </Route>
 
-          {/* 3. CATCH-ALL: Redirect rute tidak dikenal ke root */}
+          {/* 3. CATCH-ALL */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

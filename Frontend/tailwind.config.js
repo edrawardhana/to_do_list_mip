@@ -26,20 +26,19 @@ export default {
 
       // KONSISTEN FONT UKURAN
       fontSize: {
-        // NAMA: [fontSize, { lineHeight, letterSpacing, fontWeight }]
-        xs: ["0.75rem", { lineHeight: "1rem" }], // 12px - teks tabel header
-        sm: ["0.875rem", { lineHeight: "1.25rem" }], // 14px - teks biasa, label
-        base: ["1rem", { lineHeight: "1.5rem" }], // 16px - value, nama intern
-        lg: ["1.125rem", { lineHeight: "1.75rem" }], // 18px - subjudul section
-        xl: ["1.25rem", { lineHeight: "1.75rem" }], // 20px - judul section
-        "2xl": ["1.5rem", { lineHeight: "2rem" }], // 24px - judul halaman utama
-        "3xl": ["1.875rem", { lineHeight: "2.25rem" }], // 30px - angka progress 50%
+        xs: ["0.75rem", { lineHeight: "1rem" }], // 12px
+        sm: ["0.875rem", { lineHeight: "1.25rem" }], // 14px
+        base: ["1rem", { lineHeight: "1.5rem" }], // 16px
+        lg: ["1.125rem", { lineHeight: "1.75rem" }], // 18px
+        xl: ["1.25rem", { lineHeight: "1.75rem" }], // 20px
+        "2xl": ["1.5rem", { lineHeight: "2rem" }], // 24px
+        "3xl": ["1.875rem", { lineHeight: "2.25rem" }], // 30px
       },
 
       // KONSISTEN FONT FAMILY
       fontFamily: {
         sans: [
-          "Inter", // font utama (harus diinstall)
+          "Inter",
           "system-ui",
           "-apple-system",
           "BlinkMacSystemFont",
@@ -49,27 +48,43 @@ export default {
         ],
       },
 
-      // KONSISTEN SPACING (PADDING, MARGIN, GAP)
+      // KONSISTEN SPACING
       spacing: {
-        card: "1.5rem", // 24px - padding dalam card
-        section: "2rem", // 32px - margin antar section
-        "grid-gap": "1.5rem", // 24px - gap antar grid item
+        card: "1.5rem",
+        section: "2rem",
+        "grid-gap": "1.5rem",
       },
 
       // KONSISTEN BORDER RADIUS
       borderRadius: {
-        card: "0.5rem", // 8px - border radius card
-        button: "0.375rem", // 6px - border radius tombol
+        card: "0.5rem",
+        button: "0.375rem",
       },
 
       // KONSISTEN SHADOW
       boxShadow: {
-        card: "0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05)", // shadow tipis
+        card: "0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05)",
         "card-hover":
           "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
       },
 
-      // KONSISTEN ANIMASI
+      // CUSTOM KEYFRAMES UNTUK ANIMASI MANUAL
+      keyframes: {
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        slideInBottom: {
+          "0%": { transform: "translateY(16px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+      },
+      animation: {
+        "fade-in": "fadeIn 0.5s ease-out forwards",
+        "slide-in-bottom": "slideInBottom 0.7s ease-out forwards",
+      },
+
+      // KONSISTEN TRANSISI
       transitionProperty: {
         colors:
           "color, background-color, border-color, text-decoration-color, fill, stroke",
@@ -77,20 +92,19 @@ export default {
       transitionDuration: {
         DEFAULT: "200ms",
       },
-      transitionTimingFunction: {
-        DEFAULT: "cubic-bezier(0.4, 0, 0.2, 1)",
-      },
     },
   },
 
-  // PLUGIN TAMBAHAN (OPSIONAL)
   plugins: [
-    // Plugin untuk styling form elements (input, select, textarea)
+    // 1. Plugin Animasi (Wajib Install: npm install tailwindcss-animate)
+    require("tailwindcss-animate"),
+
+    // 2. Plugin Forms
     require("@tailwindcss/forms")({
-      strategy: "class", // hanya terapkan jika pakai class 'form-input' dll
+      strategy: "class",
     }),
 
-    // Plugin untuk typography (prose class)
+    // 3. Plugin Typography
     require("@tailwindcss/typography"),
   ],
 };
