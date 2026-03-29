@@ -1,31 +1,20 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { supabase } from "../../supabaseClient";
+import { supabaseAdmin } from "../../supabaseClient";
 import { toast } from "react-hot-toast";
 
 const ManageAccountIntern = () => {
   const [interns, setInterns] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState(null); // Track which intern is being updated
+  const [updatingId, setUpdatingId] = useState(null);
 
   const fetchInterns = useCallback(async () => {
     setLoading(true);
-
-    // Tambahkan cek session
-    const { data: sessionData } = await supabase.auth.getSession();
-    console.log(
-      "SESSION:",
-      JSON.stringify(sessionData?.session?.user, null, 2),
-    );
-
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from("profiles")
         .select("id, full_name, email, role, is_locked")
         .eq("role", "intern")
         .order("full_name", { ascending: true });
-
-      console.log("DATA:", data);
-      console.log("ERROR:", error);
 
       if (error) throw error;
       setInterns(data || []);
@@ -46,17 +35,16 @@ const ManageAccountIntern = () => {
     try {
       const newStatus = !currentStatus;
 
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from("profiles")
         .update({
           is_locked: newStatus,
-          updated_at: new Date().toISOString(), // Track when status was updated
+          updated_at: new Date().toISOString(),
         })
         .eq("id", internId);
 
       if (error) throw error;
 
-      // Update local state
       setInterns((prevInterns) =>
         prevInterns.map((intern) =>
           intern.id === internId ? { ...intern, is_locked: newStatus } : intern,
@@ -202,7 +190,6 @@ const ManageAccountIntern = () => {
           </table>
         </div>
 
-        {/* Show total count statistics */}
         {!loading && interns.length > 0 && (
           <div className="mt-6 pt-4 border-t border-slate-100 text-right">
             <p className="text-[10px] text-slate-400 font-medium">
