@@ -47,7 +47,7 @@ const Tasks = ({ allowCamera = true }) => {
       id: 2,
       name: "Update Stok Kabel LAN",
       status: "In Progress",
-      proofImg: "https://via.placeholder.com/150",
+      proofImg: null, // ← ganti dari via.placeholder.com/150 ke null
       hasDescription: false,
       descText: "",
       isRejected: false,
