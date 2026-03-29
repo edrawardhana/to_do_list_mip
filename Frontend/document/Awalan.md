@@ -2,12 +2,25 @@
 
 Dokumentasi tentang project Frontend To-Do List MIP.
 
-1. Menambahkan File kode CameraModal.jsx, yaitu mempersiapkan fitur open camera menggunakan sdk supabase
-2. Membuat service upload untuk mengirim ke supabase storage
-3. Menyiapkan logika validasi waktu agar tombol kamera hanya aktif dijam tertentu. sepakatnya akan dibuka dalam 24 jam hari itu juga. Jika sudah lewat harinya tombol kamera akan disabled
+Berikut penjelasan singkat untuk dokumentasi:
 
+🔐 Catatan Konfigurasi: Supabase RLS & Custom Auth
+Masalah
+Aplikasi menggunakan custom authentication via Laravel backend (bukan Supabase Auth). Akibatnya, supabase.auth.getSession() selalu mengembalikan null/undefined karena Supabase tidak mengenali sesi login yang dikelola Laravel.
+Ketika RLS (Row Level Security) aktif di Supabase, semua query dari frontend yang tidak memiliki sesi Supabase valid akan ditolak dengan error 500 meskipun data di database ada.
+Root Cause
+Laravel Auth (JWT) ≠ Supabase Auth Session
+→ auth.uid() = NULL
+→ RLS policy gagal mengenali user
+→ Query diblokir → Error 500
+Solusi yang Diterapkan
+Karena keamanan autentikasi sudah sepenuhnya dihandle oleh Laravel API, RLS Supabase dinonaktifkan pada tabel profiles:
+sqlALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
+⚠️ Penting untuk Developer
 
-masalah yang ditemukan di 18 maret 2026. sudah bisa menangkap foto tapi belum bisa mengirim ke database
+Jangan aktifkan RLS pada tabel manapun selama sistem masih menggunakan custom Laravel auth
+Keamanan data dijaga di level Laravel middleware & policy, bukan di Supabase RLS
+Jika di masa depan ingin mengaktifkan RLS, sistem login harus dimigrasi menggunakan supabase.auth.signInWithPassword() agar auth.uid() terisi dengan benar
 ---
 
 ## Tech Stack
