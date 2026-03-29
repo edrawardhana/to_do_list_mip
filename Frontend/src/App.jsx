@@ -16,6 +16,7 @@ import Divisions from "./pages/Divisions";
 import Users from "./pages/Users";
 import AuditLog from "./pages/AuditLog";
 import ManageAdmin from "./pages/admin/ManageAdmin";
+import ManageAccountIntern from "./pages/admin/ManageAccountIntern"; // Import halaman Manage Account Intern
 import Reports from "./pages/Reports";
 import Whitebook from "./pages/Whitebook";
 import LockedPage from "./pages/LockedPage";
@@ -104,6 +105,15 @@ function App() {
               element={
                 <AdminRoute>
                   <ManageAdmin />
+                </AdminRoute>
+              }
+            />
+            {/* Route untuk Manage Account Intern - Hanya untuk Admin & Super Admin */}
+            <Route
+              path="manage-intern"
+              element={
+                <AdminRoute>
+                  <ManageAccountIntern />
                 </AdminRoute>
               }
             />
