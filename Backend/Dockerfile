@@ -22,8 +22,8 @@ ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# Ubah Port default Apache dari 80 menjadi 8080 (agar lebih fleksibel di Zeabur)
-RUN sed -i 's/80/8080/g' /etc/apache2/sites-available/000-default.conf /etc/apache2/ports.conf
+# Ubah Port default Apache dari 80 menjadi 8000 (menyesuaikan default port Koyeb)
+RUN sed -i 's/80/8000/g' /etc/apache2/sites-available/000-default.conf /etc/apache2/ports.conf
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -38,8 +38,13 @@ RUN composer install --no-dev --optimize-autoloader
 # Atur Izin Folder (Permission) agar Laravel bisa menulis cache & logs
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Ekspos Port 8080 yang digunakan oleh Apache
-EXPOSE 8080
+# Ekspos Port 8000 yang sesuai dengan default Koyeb Health Check
+EXPOSE 8000
 
-# Saat Container jalan: Lakukan migrasi database Supabase, baru start Apache Server
-CMD php artisan migrate --force && apache2-foreground
+# Saat Container jalan: Clear & Cache Config untuk Production, Migrasi DB, lalu Start Server
+CMD php artisan config:clear && \
+    php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache && \
+    php artisan migrate --force && \
+    apache2-foreground
