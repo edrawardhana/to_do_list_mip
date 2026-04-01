@@ -88,13 +88,15 @@ return new class extends Migration
             $table->boolean('is_approved')->default(false); // ERD says Default: TRUE for Libur. We'll handle this in logic or default false here.
         });
 
-        // 8. Create audit_logs
+        // 8. Create audit_logs (Aligned with supabase_schema_init.sql)
         Schema::create('audit_logs', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('actor_id')->constrained('profiles')->cascadeOnDelete();
-            $table->uuid('target_id'); // Can be any entity ID, not strictly constrained to one table
-            $table->string('action_type');
-            $table->text('details');
+            $table->foreignUuid('admin_id')->constrained('profiles')->cascadeOnDelete();
+            $table->string('actor_role');
+            $table->text('action');
+            $table->jsonb('old_values')->nullable();
+            $table->jsonb('new_values')->nullable();
+            $table->foreignUuid('target_user_id')->nullable()->constrained('profiles')->nullOnDelete();
             $table->timestampTz('created_at')->useCurrent();
         });
     }

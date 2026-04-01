@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from "react";
 import Webcam from "react-webcam";
 import imageCompression from "browser-image-compression";
-import { supabase } from "../supabaseClient";
+import axios from "axios";
 import toast from "react-hot-toast"; // 1. Import toast
 
 const CameraModal = ({ task, onClose, onRefresh }) => {
@@ -55,51 +55,43 @@ const CameraModal = ({ task, onClose, onRefresh }) => {
         useWebWorker: true,
       };
       const compressedFile = await imageCompression(file, options);
-      const fileName = `${task.id}/${Date.now()}.jpg`;
+      // 1. Dapatkan Token JWT
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Sesi telah habis, silakan login ulang.");
 
-      // Upload ke Storage
-      const { error: uploadError } = await supabase.storage
-        .from("task_evidence")
-        .upload(fileName, compressedFile);
+      // 2. Siapkan FormData untuk Upload ke Backend
+      const formData = new FormData();
+      formData.append("evidence_file", compressedFile);
 
-      if (uploadError) {
-        // Cek error RLS pada Storage
-        if (
-          uploadError.message.includes("row-level security") ||
-          uploadError.status === 403
-        ) {
-          throw new Error(
-            "Izin storage ditolak. Akun Anda mungkin belum diizinkan mengunggah.",
-          );
+      // 3. Eksekusi Upload Foto ke Backend (Laravel)
+      const uploadResponse = await axios.post(
+        `${import.meta.env.VITE_API_URL}/upload-evidence`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`,
+          },
         }
-        throw uploadError;
-      }
+      );
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("task_evidence").getPublicUrl(fileName);
+      // 4. Ekstrak Public URL dari respon sukses backend
+      const publicUrl = uploadResponse.data.data.evidence_url;
 
-      // Update Database
-      const { error: dbError } = await supabase
-        .from("daily_tasks")
-        .update({
-          evidance_url: publicUrl,
-          status: "pending_approval",
-        })
-        .eq("id", task.id);
-
-      if (dbError) {
-        // 3. Tangani error RLS Database secara spesifik
-        if (
-          dbError.message.includes("row-level security") ||
-          dbError.code === "42501"
-        ) {
-          throw new Error(
-            "Akses Ditolak: Anda tidak memiliki izin untuk memperbarui tugas ini.",
-          );
+      // 5. Update Database via Backend API (Logbook Daily Tasks)
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/daily-tasks/${task.id}`,
+        {
+          evidence_url: publicUrl,
+          status: "pending", 
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         }
-        throw dbError;
-      }
+      );
 
       // 4. Feedback sukses
       toast.success("Bukti berhasil dikirim!", { id: toastId });
