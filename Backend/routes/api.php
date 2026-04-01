@@ -14,6 +14,7 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SystemConfigController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\UploadController;
 
 // Endpoint publik (Bisa diakses tanpa login)
 Route::get('/divisions', [DivisionController::class, 'index']);
@@ -65,5 +66,8 @@ Route::middleware('auth:api')->group(function () {
 
     // Reports & Analytics (Sprint 4)
     Route::get('/reports/monthly', [ReportController::class, 'monthly']);
+
+    // Universal Supabase Image Upload Endpoint
+    Route::post('/upload-evidence', [UploadController::class, 'uploadEvidence']);
 });
 

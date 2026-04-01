@@ -12,7 +12,7 @@ class AuditLog extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'actor_id',
+        'admin_id',
         'actor_role',
         'target_user_id',
         'action',
@@ -30,7 +30,7 @@ class AuditLog extends Model
     // Relasi ke User yang melakukan aksi
     public function actor()
     {
-        return $this->belongsTo(User::class, 'actor_id');
+        return $this->belongsTo(User::class, 'admin_id');
     }
 
     // Relasi ke User yang menjadi target aksi
@@ -58,11 +58,11 @@ class AuditLog extends Model
     /**
      * Universal helper to record actions easily across all controllers
      */
-    public static function record($actor_id, $actor_role, $action, $new_values = null, $old_values = null, $target_user_id = null)
+    public static function record($admin_id, $actor_role, $action, $new_values = null, $old_values = null, $target_user_id = null)
     {
         // Menggunakan parent::query()->create() agar bypass override update/delete
         self::query()->create([
-            'actor_id' => $actor_id,
+            'admin_id' => $admin_id,
             'actor_role' => $actor_role,
             'target_user_id' => $target_user_id,
             'action' => $action,

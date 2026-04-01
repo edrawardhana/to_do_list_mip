@@ -1,19 +1,50 @@
 // Pages/Tasks.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import CameraModal from "../components/CameraModal";
 import toast from "react-hot-toast"; // 1. Import toast
+import axios from "axios";
 
 const Tasks = ({ allowCamera = true }) => {
-  const { user, isIntern, loading } = useAuth();
+  const { user, isIntern, loading: authLoading } = useAuth();
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  
+  // Real task state
+  const [taskList, setTaskList] = useState([]);
+  const [loadingTasks, setLoadingTasks] = useState(true);
+
+  // Fetch API Real-Time
+  const fetchTasks = useCallback(async () => {
+    try {
+      setLoadingTasks(true);
+      const token = localStorage.getItem("token");
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/daily-tasks`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      setTaskList(response.data.data || []);
+    } catch (error) {
+      console.error("Gagal mengambil tugas harian:", error);
+      toast.error("Gagal memuat logbook tugas dari server.");
+    } finally {
+      setLoadingTasks(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchTasks();
+    }
+  }, [authLoading, user, fetchTasks]);
 
   // Fungsi untuk membuka modal kamera
   const handleOpenCamera = (task) => {
     // Cek status tugas sebelum buka kamera
-    if (task.status === "Success") {
-      return toast.error("Tugas ini sudah selesai!", {
+    if (task.status === "approved" || task.status === "Success") {
+      return toast.error("Tugas ini sudah selesai/disetujui!", {
         icon: "✅",
         style: { borderRadius: "12px", background: "#1b254b", color: "#fff" },
       });
@@ -21,7 +52,7 @@ const Tasks = ({ allowCamera = true }) => {
 
     setSelectedTask(task);
     setIsCameraOpen(true);
-    toast.success(`Membuka kamera untuk: ${task.name}`, {
+    toast.success(`Membuka kamera untuk: ${task.task_template?.title || task.name || "Tugas"}`, {
       duration: 2000,
       style: {
         borderRadius: "12px",
@@ -32,41 +63,10 @@ const Tasks = ({ allowCamera = true }) => {
     });
   };
 
-  // Data Dummy
-  const taskList = [
-    {
-      id: 1,
-      name: "Cek Kebersihan Lab",
-      status: "Success",
-      proofImg: null,
-      hasDescription: true,
-      descText: "Lab sudah dibersihkan",
-      isRejected: false,
-    },
-    {
-      id: 2,
-      name: "Update Stok Kabel LAN",
-      status: "In Progress",
-      proofImg: null, // ← ganti dari via.placeholder.com/150 ke null
-      hasDescription: false,
-      descText: "",
-      isRejected: false,
-    },
-    {
-      id: 3,
-      name: "Perbaikan PC Admin",
-      status: "Error",
-      proofImg: null,
-      hasDescription: false,
-      descText: "",
-      isRejected: true,
-    },
-  ];
-
-  if (loading)
+  if (authLoading || loadingTasks)
     return (
       <div className="p-4 text-center animate-pulse text-[#1b254b] font-bold">
-        Menyiapkan daftar tugas...
+        Memuat daftar tugas dari server...
       </div>
     );
 
@@ -92,15 +92,15 @@ const Tasks = ({ allowCamera = true }) => {
           </div>
           <div className="col-span-3">
             <p className="font-bold text-[#1b254b] text-sm truncate pr-4">
-              {task.name}
+              {task.task_template?.title || task.name}
             </p>
           </div>
           <div className="col-span-2 flex justify-center">
             <span
               className={`text-[10px] font-black uppercase px-4 py-1 rounded-full italic tracking-tighter ${
-                task.status === "Success"
+                task.status === "approved" || task.status === "Success"
                   ? "bg-emerald-50 text-emerald-500"
-                  : task.status === "Error"
+                  : task.status === "rejected" || task.status === "Error" || task.status === "revision"
                     ? "bg-red-50 text-red-500"
                     : "bg-orange-50 text-orange-400"
               }`}
@@ -110,11 +110,12 @@ const Tasks = ({ allowCamera = true }) => {
           </div>
 
           <div className="col-span-3 flex items-center justify-center gap-3">
-            {task.proofImg ? (
+            {task.evidence_url || task.proofImg ? (
               <img
-                src={task.proofImg}
+                src={task.evidence_url || task.proofImg}
                 alt="proof"
-                className="w-14 h-9 object-cover rounded-lg border border-slate-100 shadow-sm"
+                className="w-14 h-9 object-cover rounded-lg border border-slate-100 shadow-sm cursor-pointer hover:scale-110 transition-transform"
+                onClick={() => window.open(task.evidence_url || task.proofImg, '_blank')}
               />
             ) : (
               <div className="w-14 h-9 bg-slate-50 rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-slate-300">
@@ -172,7 +173,7 @@ const Tasks = ({ allowCamera = true }) => {
 
           <div className="col-span-3 text-center">
             <span className="text-xs text-slate-400 italic">
-              No Description
+              {task.description || task.descText || "No Description"}
             </span>
           </div>
         </div>
