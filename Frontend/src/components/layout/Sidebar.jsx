@@ -23,7 +23,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         path: "/manage-intern", // Menu baru untuk Manage Intern
         label: "Manage Intern",
         icon: "fa-user-gear",
-        roles: ["admin", "superadmin"], // Bisa diakses admin dan superadmin
+        roles: ["admin"], // Bisa diakses admin dan superadmin
       },
       {
         path: "/broadcasts",
