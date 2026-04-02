@@ -4,7 +4,9 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = "https://syvvhzdstzdcnehkzbik.supabase.co";
 
 // Client biasa (anon key) — untuk user umum, kena RLS
+// Gunakan environment variables untuk production
 const supabaseKey =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5dnZoemRzdHpkY25laGt6YmlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MzEzMTEsImV4cCI6MjA4NzEwNzMxMX0.Yk2jh17ldjmXutan7AKodQbQaM8orK8CKsh0Mp3iBj8";
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
@@ -12,12 +14,15 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 // Client admin (service role key) — bypass RLS, khusus admin
 // PERINGATAN: Jangan pernah expose service role key ke client-side!
 // Key ini hanya boleh digunakan di server-side (API routes, server actions, etc.)
-const serviceRoleKey = "4";
+const serviceRoleKey =
+  import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5dnZoemRzdHpkY25laGt6YmlrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTUzMTMxMSwiZXhwIjoyMDg3MTA3MzExfQ.POOkdTNA8yAfCu6cYo9kFwPsE-10VcNQmEXjOg3KGa4";
 
 export const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
+    storageKey: "supabase-admin", // ← tambahkan ini untuk menghindari konflik dengan client biasa
   },
 });
 
@@ -35,6 +40,15 @@ export const updateUserLockStatus = async (
   adminRole,
   useAdminClient = false, // Parameter opsional untuk memilih client
 ) => {
+  // Validasi input
+  if (!targetUserId || !adminId) {
+    return {
+      success: false,
+      error:
+        "Missing required parameters: targetUserId and adminId are required",
+    };
+  }
+
   const newStatus = !currentStatus;
   const client = useAdminClient ? supabaseAdmin : supabase;
 
@@ -106,15 +120,26 @@ export const getAuditLogs = async (useAdminClient = false) => {
   }
 };
 
-// Tambahan: Fungsi untuk mendapatkan service role key dari environment variable
-// Rekomendasi untuk production
+/**
+ * Fungsi untuk mendapatkan service role key dari environment variable
+ * Rekomendasi untuk production - lebih aman daripada mengekspos langsung
+ */
 export const getSupabaseAdmin = () => {
+  // Cek apakah di server-side (opsional)
+  if (typeof window !== "undefined") {
+    console.warn(
+      "⚠️ Peringatan: Supabase admin client seharusnya hanya digunakan di server-side!",
+    );
+  }
+
   const key =
     import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!key) {
-    console.error("Service role key not found in environment variables");
+    console.error(
+      "❌ Service role key tidak ditemukan di environment variables",
+    );
     return null;
   }
 
@@ -122,6 +147,10 @@ export const getSupabaseAdmin = () => {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
+      storageKey: "supabase-admin",
     },
   });
 };
+
+// Ekspor konfigurasi URL juga jika diperlukan
+export const getSupabaseUrl = () => supabaseUrl;
