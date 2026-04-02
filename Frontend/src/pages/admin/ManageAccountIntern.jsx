@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { supabaseAdmin } from "../../supabaseClient";
+import axios from "axios";
 import { toast } from "react-hot-toast";
 
 const ManageAccountIntern = () => {
@@ -7,20 +7,37 @@ const ManageAccountIntern = () => {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
 
+  // Ambil token JWT Laravel dari localStorage
+  const getToken = () => localStorage.getItem("token");
+
   const fetchInterns = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabaseAdmin
-        .from("profiles")
-        .select("id, full_name, email, role, is_locked")
-        .eq("role", "intern")
-        .order("full_name", { ascending: true });
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/profiles`,
+        {
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            Accept: "application/json",
+          },
+          params: {
+            role: "intern", // filter intern
+          },
+        },
+      );
 
-      if (error) throw error;
-      setInterns(data || []);
+      // Response: { status: 'success', data: [...] }
+      const allProfiles = response.data.data || [];
+
+      // Filter hanya role intern (jaga-jaga jika backend tidak filter)
+      const internOnly = allProfiles.filter((p) => p.role === "intern");
+      setInterns(internOnly);
     } catch (error) {
-      console.error("Error detail:", JSON.stringify(error, null, 2));
-      toast.error("Gagal memuat data: " + error.message);
+      console.error("Fetch error:", error);
+      toast.error(
+        "Gagal memuat data: " +
+          (error.response?.data?.message || error.message),
+      );
     } finally {
       setLoading(false);
     }
@@ -35,15 +52,17 @@ const ManageAccountIntern = () => {
     try {
       const newStatus = !currentStatus;
 
-      const { error } = await supabaseAdmin
-        .from("profiles")
-        .update({
-          is_locked: newStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", internId);
-
-      if (error) throw error;
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/profiles/${internId}`,
+        { is_locked: newStatus },
+        {
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        },
+      );
 
       setInterns((prevInterns) =>
         prevInterns.map((intern) =>
@@ -56,7 +75,10 @@ const ManageAccountIntern = () => {
       );
     } catch (error) {
       console.error("Update error:", error);
-      toast.error(`Gagal memperbarui status: ${error.message}`);
+      toast.error(
+        "Gagal memperbarui status: " +
+          (error.response?.data?.message || error.message),
+      );
     } finally {
       setUpdatingId(null);
     }
