@@ -1,5 +1,5 @@
 // src/components/layout/HardLockScreen.jsx
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 
 const HardLockScreen = () => {
   const { user } = useAuth();

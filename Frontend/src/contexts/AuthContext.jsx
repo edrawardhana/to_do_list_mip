@@ -1,152 +1,115 @@
-// contexts/AuthContext.jsx
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
-import axios from "axios";
 
 const AuthContext = createContext();
-
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); 
 
-  // 1. Helper status role & lock (Berdasarkan data user terbaru)
-  const isAdmin = user?.role === "admin";
-  const isSuperAdmin = user?.role === "super_admin";
-  const isIntern = user?.role === "intern";
-  const isAnyAdmin = isAdmin || isSuperAdmin;
+  useEffect(() => {
+    // Ambil data user dari localStorage kalau ada (Biar gak login ulang pas di-refresh)
+    const savedUser = localStorage.getItem("dummy_user_data");
+    
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
+  }, []);
 
-  // Menambahkan pengecekan is_locked (mendukung format boolean atau integer 0/1)
-  const isLocked = Boolean(user?.is_locked);
+  // Tambahin parameter ke-3: secretRole (Buat dikirim dari Terminal God Mode)
+  const login = async (email, password, secretRole = null) => {
+    let assignedRole = "intern"; 
+    let isVerified = true; 
+    let isLocked = false;
 
-  const fetchUser = async (token) => {
+    if (secretRole) {
+      assignedRole = secretRole;
+    } 
+    else if (email.includes("super")) {
+      assignedRole = "superadmin";
+    } else if (email.includes("admin")) {
+      assignedRole = "admin";
+    } else if (email.includes("dev")) {
+      assignedRole = "developer";
+    } else if (email.includes("baru")) {
+      isVerified = false; 
+    } else if (email.includes("hukum")) {
+      // PERBAIKAN: Pastiin role-nya intern biar logic isLocked di useMemo nyala!
+      assignedRole = "intern"; 
+      isLocked = true;
+    }
+
+    const userData = {
+      id: `usr-${Math.floor(Math.random() * 1000)}`,
+      full_name: assignedRole === "developer" ? "System Root" : "Rekiel InternSync",
+      nickname: assignedRole === "developer" ? "Root" : "Kiel",
+      email: email || "kiel@mcc.com",
+      role: assignedRole,
+      division_id: "div-it",
+      division_name: "IT Support",
+      is_verified: isVerified,
+      is_locked: isLocked, 
+      status: "Aktif",
+      shift: "Pagi"
+    };
+
+    localStorage.setItem("dummy_user_data", JSON.stringify(userData));
+    setUser(userData);
+    
+    return { success: true, message: `Login Berhasil sebagai ${assignedRole}!` };
+  };
+
+  const logout = () => {
+    localStorage.removeItem("dummy_user_data");
+    setUser(null);
+    window.location.href = "/login";
+  };
+
+  const updateProfile = async (newData) => {
+    setLoading(true);
     try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/auth/me`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-
-      // Unwrap data: memastikan mengambil objek user terlepas dari nesting API
-      const userData =
-        response.data.data || response.data.user || response.data;
-      setUser(userData);
-      return userData;
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      const updatedUser = { ...user, ...newData };
+      setUser(updatedUser);
+      localStorage.setItem("dummy_user_data", JSON.stringify(updatedUser)); // Update storage juga
+      return { success: true, message: "Profil diperbarui!" };
     } catch (error) {
-      console.error("Gagal mengambil data user:", error);
-      // Jika token expired atau invalid, bersihkan session
-      if (error.response?.status === 401) {
-        localStorage.removeItem("token");
-        setUser(null);
-      }
-      return null;
+      return { success: false, message: "Gagal update profil." };
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    fetchUser(token);
-  }, []);
+  const value = useMemo(() => {
+    // NORMALISASI ROLE
+    const role = (user?.role || "").toLowerCase().replace("_", "").trim();
+    
+    const isIntern = role === "intern";
+    const isAdmin = role === "admin";
+    const isSuperAdmin = role === "superadmin"; 
+    const isDeveloper = role === "developer";
+    
+    const isAnyAdmin = isAdmin || isSuperAdmin || isDeveloper;
 
-  const login = async (email, password) => {
-    try {
-      setLoading(true);
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/auth/login`,
-        { email, password },
-        { headers: { Accept: "application/json" } },
-      );
+    // LOGIC LOCK SAKTI
+    // Di sini kuncinya: Harus Intern DAN is_locked-nya true
+    const isLockedStatus = isIntern && Boolean(user?.is_locked);
 
-      const token =
-        response.data.authorization?.token ||
-        response.data.token ||
-        response.data.access_token;
-
-      if (!token) {
-        setLoading(false);
-        return { success: false, error: "Token tidak ditemukan" };
-      }
-
-      localStorage.setItem("token", token);
-      const userData = await fetchUser(token);
-
-      return {
-        success: true,
-        role: userData?.role,
-        isLocked: Boolean(userData?.is_locked), // Kembalikan status lock saat login
-      };
-    } catch (err) {
-      setLoading(false);
-      return {
-        success: false,
-        error:
-          err.response?.data?.error ||
-          err.response?.data?.message ||
-          "Login gagal",
-      };
-    }
-  };
-
-  const register = async (username, divisionId, email, password) => {
-    try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/auth/register`,
-        {
-          username,
-          full_name: username,
-          division_id: divisionId,
-          email,
-          password,
-          password_confirmation: password,
-          role: "intern",
-        },
-        { headers: { Accept: "application/json" } },
-      );
-
-      return {
-        success: true,
-        user: response.data.user,
-        message: response.data.message,
-      };
-    } catch (err) {
-      const data = err.response?.data;
-      let errorMessage =
-        typeof data === "object"
-          ? Object.values(data).flat().join(" ")
-          : data || "Pendaftaran gagal";
-      return { success: false, error: errorMessage };
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-    setLoading(false);
-  };
-
-  // 2. Masukkan isLocked ke dalam value Provider
-  const value = useMemo(
-    () => ({
+    return {
       user,
       loading,
       login,
-      register,
       logout,
+      updateProfile,
+      isIntern,
       isAdmin,
       isSuperAdmin,
-      isIntern,
+      isDeveloper,
       isAnyAdmin,
-      isLocked, // Expose status kunci akun ke seluruh aplikasi
-    }),
-    [user, loading],
-  );
+      isLocked: isLockedStatus, // Kita pake variable hasil cek di atas
+    };
+  }, [user, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

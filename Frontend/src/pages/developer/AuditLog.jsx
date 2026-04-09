@@ -1,6 +1,6 @@
 // src/pages/AuditLog.jsx
 import React, { useEffect, useState } from "react";
-import { getAuditLogs } from "../supabaseClient";
+import { getAuditLogs } from "../../services/supabaseClient";
 import { toast } from "react-hot-toast";
 
 const AuditLog = () => {

@@ -21,7 +21,12 @@ const Home = () => {
   };
 
   useEffect(() => {
-    fetchTasks();
+    const dummyTasks = [
+      { id: 1, name: "Menghidupkan CPG", status: "Pending", created_at: new Date().toISOString() },
+      { id: 2, name: "Cek Kebersihan Lab", status: "Success", created_at: new Date().toISOString() },
+    ];
+    setTasks(dummyTasks);
+    setLoading(false);
   }, []);
 
   return (
