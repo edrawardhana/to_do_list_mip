@@ -8,7 +8,13 @@ const ManageAdmin = () => {
   const canManageRoles = isSuperAdmin || isDeveloper;
 
   // ==========================================
-  // DUMMY DATA SEMUA USER (Lintas Divisi & Kasta)
+  // LOGIC WARNA TEMA DINAMIS
+  // ==========================================
+  const isDeveloperTheme = isDeveloper; // Kasta Tertinggi: Hitam/Zinc
+  const isPurpleTheme = isSuperAdmin && !isDeveloperTheme; // Kasta 2: Ungu
+
+  // ==========================================
+  // DUMMY DATA SEMUA USER (Tanpa Developer)
   // ==========================================
   const [users, setUsers] = useState([
     { id: "usr-001", name: "Kiel", email: "kiel@mcc.com", division: "IT Support", role: "intern" },
@@ -16,7 +22,6 @@ const ManageAdmin = () => {
     { id: "usr-003", name: "Mas Anton", email: "anton@mcc.com", division: "Multimedia", role: "admin" },
     { id: "usr-004", name: "Mbak Rina", email: "rina@mcc.com", division: "Public Relation", role: "admin" },
     { id: "usr-005", name: "Root Boss", email: "super@mcc.com", division: "Global Management", role: "superadmin" },
-    { id: "usr-006", name: "Developer", email: "dev@mcc.com", division: "System Root", role: "developer" },
   ]);
 
   // State Filter & Search
@@ -47,7 +52,7 @@ const ManageAdmin = () => {
     return data;
   }, [users, filterRole, filterDivision, searchQuery]);
 
-  // Statistik Kasta
+  // Statistik Kasta (Tanpa Developer)
   const stats = useMemo(() => {
     return {
       interns: users.filter(u => u.role === "intern").length,
@@ -60,20 +65,14 @@ const ManageAdmin = () => {
   // FUNGSI GANTI KASTA (PROMOTE/DEMOTE)
   // ==========================================
   const handleRoleChange = (id, name, currentRole, newRole) => {
-    // 1. Safety Lock: Cegah Superadmin nurunin kastanya sendiri biar gak kehilangan akses
+    // 1. Safety Lock: Cegah Superadmin nurunin kastanya sendiri
     if (id === user?.id && newRole !== currentRole) {
       alert("Brok! Lu gak bisa nurunin pangkat lu sendiri. Ntar siapa yang ngurus sistem?");
       return;
     }
 
-    // 2. Safety Lock: Cegah sembarang orang ngutak-ngatik akun Developer
-    if (currentRole === "developer" && !isDeveloper) {
-      alert("Hanya System Root yang bisa mengubah kasta Developer.");
-      return;
-    }
-
-    // 3. Logic Konfirmasi (Promote / Demote)
-    const roleHierarchy = { "intern": 1, "admin": 2, "superadmin": 3, "developer": 4 };
+    // 2. Logic Konfirmasi
+    const roleHierarchy = { "intern": 1, "admin": 2, "superadmin": 3 };
     
     let actionText = "mengubah kasta";
     if (roleHierarchy[newRole] > roleHierarchy[currentRole]) actionText = "MENGANGKAT (Promote)";
@@ -81,7 +80,6 @@ const ManageAdmin = () => {
 
     if (window.confirm(`Yakin ingin ${actionText} ${name} menjadi ${newRole.toUpperCase()}?`)) {
       setUsers(prev => prev.map(u => u.id === id ? { ...u, role: newRole } : u));
-      // Nanti tembak RPC Supabase di sini: update role user
       alert(`Sukses! ${name} sekarang adalah ${newRole.toUpperCase()}.`);
     }
   };
@@ -90,132 +88,256 @@ const ManageAdmin = () => {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-2 max-w-7xl mx-auto">
 
       {/* ================================================================= */}
-      {/* FILTER & SEARCH ROW                                                 */}
+      {/* HERO SECTION & TOOLBAR (TEMA DINAMIS VVIP)                        */}
       {/* ================================================================= */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm">
+      <div className={`rounded-[2.5rem] text-white shadow-xl border border-white/5 relative overflow-hidden flex flex-col ${
+        isDeveloperTheme ? "bg-[#0f0f11] border-[#27272a]" : "bg-[#1d1633] border-[#342459] shadow-purple-900/20"
+      }`}>
+        <div className={`absolute -top-20 -right-20 w-64 h-64 rounded-full blur-3xl pointer-events-none ${
+          isDeveloperTheme ? "bg-zinc-500/10" : "bg-purple-500/20"
+        }`}></div>
         
-        {/* Search Bar */}
-        <div className="relative w-full md:w-80">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <i className="fa-solid fa-magnifying-glass text-slate-400"></i>
+        {/* Header Content */}
+        <div className="relative z-10 p-8 md:p-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shadow-inner backdrop-blur-md ${
+              isDeveloperTheme ? "bg-zinc-800/50 border-zinc-700 text-zinc-300" : "bg-purple-500/20 border-purple-400/30 text-purple-400"
+            }`}>
+              <i className="fa-solid fa-user-shield text-lg"></i>
+            </div>
+            <span className={`text-[10px] font-black uppercase tracking-widest ${
+              isDeveloperTheme ? "text-zinc-400" : "text-purple-300"
+            }`}>Access & Role Management</span>
           </div>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari nama atau email..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-2.5 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
-          />
+          <h1 className={`text-3xl md:text-4xl font-black tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-white via-white ${
+            isDeveloperTheme ? "to-zinc-300" : "to-purple-200"
+          }`}>Role Controller System</h1>
+          
+          {/* WIDGET ANIMASI */}
+          <div className="flex flex-wrap items-center gap-4 mt-2">
+            <div className="relative w-10 h-10 flex items-center justify-center">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                <path strokeDasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+                <path strokeDasharray="75, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className={`animate-[spin_3s_linear_infinite] ${isDeveloperTheme ? 'text-zinc-500' : 'text-purple-400'}`} />
+              </svg>
+              <i className={`fa-solid fa-arrows-rotate absolute animate-pulse text-[10px] ${isDeveloperTheme ? 'text-zinc-400' : 'text-purple-400'}`}></i>
+            </div>
+
+            <div className="h-6 w-px bg-white/20 rounded-full"></div>
+
+            <div className="flex gap-2">
+              <div className={`px-3 py-1.5 rounded-lg border backdrop-blur-md flex items-center gap-2 shadow-sm animate-pulse ${
+                  isDeveloperTheme ? 'bg-zinc-800/50 border-zinc-700/50 text-zinc-300' : 'bg-purple-500/20 border-purple-400/30 text-purple-200'
+              }`}>
+                <i className="fa-solid fa-database text-[10px]"></i>
+                <span className="text-[9px] font-black uppercase tracking-widest">Roles Synced</span>
+              </div>
+              <div className={`px-3 py-1.5 rounded-lg border backdrop-blur-md flex items-center gap-2 shadow-sm animate-pulse ${
+                  isDeveloperTheme ? 'bg-zinc-700/30 border-zinc-600/30 text-zinc-200' : 'bg-fuchsia-500/20 border-fuchsia-400/30 text-fuchsia-200'
+              }`} style={{ animationDelay: '500ms' }}>
+                <i className="fa-solid fa-shield-halved text-[10px]"></i>
+                <span className="text-[9px] font-black uppercase tracking-widest">{isDeveloperTheme ? 'Dev Protocol' : 'Superadmin Mode'}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Dropdown Filters */}
-        <div className="flex w-full md:w-auto gap-3">
-          <div className="relative flex-1 md:w-40">
-            <select 
-              value={filterRole} 
-              onChange={e => setFilterRole(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500 appearance-none cursor-pointer"
-            >
-              <option value="semua">Semua Kasta</option>
-              <option value="intern">Interns</option>
-              <option value="admin">Admins</option>
-              <option value="superadmin">Superadmins</option>
-            </select>
-            <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
-          </div>
+        {/* Toolbar Filters (Bawah Hero) */}
+        <div className={`relative z-10 border-t px-8 py-5 flex flex-col md:flex-row justify-between items-center gap-4 backdrop-blur-xl ${
+           isDeveloperTheme ? "bg-[#09090b] border-[#27272a]" : "bg-[#18112a] border-[#342459]"
+        }`}>
+           
+           {/* Search */}
+           <div className="relative w-full md:w-80 group">
+             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+               <i className={`fa-solid fa-magnifying-glass transition-colors ${
+                 isDeveloperTheme ? "text-zinc-500 group-focus-within:text-zinc-300" : "text-purple-400/50 group-focus-within:text-purple-300"
+               }`}></i>
+             </div>
+             <input
+               type="text"
+               value={searchQuery}
+               onChange={(e) => setSearchQuery(e.target.value)}
+               placeholder="Cari nama atau email..."
+               className={`w-full rounded-xl pl-11 pr-4 py-2.5 text-sm font-bold text-white outline-none focus:ring-2 appearance-none shadow-inner transition-all border ${
+                  isDeveloperTheme ? "bg-zinc-900 border-zinc-700 focus:ring-zinc-500 placeholder:text-zinc-600" : 
+                  "bg-[#1d1633] border-[#342459] focus:ring-purple-400 placeholder:text-purple-400/50"
+               }`}
+             />
+           </div>
 
-          <div className="relative flex-1 md:w-48">
-            <select 
-              value={filterDivision} 
-              onChange={e => setFilterDivision(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500 appearance-none cursor-pointer"
-            >
-              <option value="semua">Semua Divisi</option>
-              {divisionsList.map(div => <option key={div} value={div}>{div}</option>)}
-            </select>
-            <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
-          </div>
+           {/* Dropdowns */}
+           <div className="flex w-full md:w-auto gap-3">
+             <div className="relative flex-1 md:w-40 group">
+               <select 
+                 value={filterRole} 
+                 onChange={e => setFilterRole(e.target.value)}
+                 className={`w-full rounded-xl px-4 py-2.5 text-sm font-bold text-white outline-none focus:ring-2 appearance-none cursor-pointer shadow-inner transition-all border ${
+                    isDeveloperTheme ? "bg-zinc-900 border-zinc-700 focus:ring-zinc-500" : 
+                    "bg-[#1d1633] border-[#342459] focus:ring-purple-400"
+                 }`}
+               >
+                 <option className="text-slate-800" value="semua">Semua Kasta</option>
+                 <option className="text-slate-800" value="intern">Interns</option>
+                 <option className="text-slate-800" value="admin">Admins</option>
+                 <option className="text-slate-800" value="superadmin">Superadmins</option>
+               </select>
+               <i className={`fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs pointer-events-none transition-colors ${
+                 isDeveloperTheme ? "text-zinc-500 group-focus-within:text-zinc-300" : "text-purple-400/50 group-focus-within:text-purple-300"
+               }`}></i>
+             </div>
+
+             <div className="relative flex-1 md:w-48 group">
+               <select 
+                 value={filterDivision} 
+                 onChange={e => setFilterDivision(e.target.value)}
+                 className={`w-full rounded-xl px-4 py-2.5 text-sm font-bold text-white outline-none focus:ring-2 appearance-none cursor-pointer shadow-inner transition-all border ${
+                    isDeveloperTheme ? "bg-zinc-900 border-zinc-700 focus:ring-zinc-500" : 
+                    "bg-[#1d1633] border-[#342459] focus:ring-purple-400"
+                 }`}
+               >
+                 <option className="text-slate-800" value="semua">Semua Divisi</option>
+                 {divisionsList.map(div => <option className="text-slate-800" key={div} value={div}>{div}</option>)}
+               </select>
+               <i className={`fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs pointer-events-none transition-colors ${
+                 isDeveloperTheme ? "text-zinc-500 group-focus-within:text-zinc-300" : "text-purple-400/50 group-focus-within:text-purple-300"
+               }`}></i>
+             </div>
+           </div>
         </div>
+      </div>
+
+      {/* ================================================================= */}
+      {/* QUICK STATS CARDS                                                 */}
+      {/* ================================================================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+         <div className={`rounded-[1.5rem] p-5 border shadow-sm flex flex-col gap-2 ${
+           isDeveloperTheme ? "bg-[#18181b] border-zinc-800" : "bg-white border-slate-200"
+         }`}>
+            <i className={`fa-solid fa-user text-lg ${isDeveloperTheme ? "text-blue-400" : "text-blue-500"}`}></i>
+            <h3 className={`text-2xl font-black mt-1 ${isDeveloperTheme ? "text-zinc-100" : "text-slate-800"}`}>
+              {stats.interns} <span className={`text-xs font-bold ${isDeveloperTheme ? "text-zinc-500" : "text-slate-400"}`}>User</span>
+            </h3>
+            <span className={`text-[9px] font-black uppercase tracking-widest ${isDeveloperTheme ? "text-zinc-500" : "text-slate-400"}`}>Total Interns</span>
+         </div>
+         <div className={`rounded-[1.5rem] p-5 border shadow-sm flex flex-col gap-2 ${
+           isDeveloperTheme ? "bg-[#18181b] border-zinc-800" : "bg-white border-slate-200"
+         }`}>
+            <i className={`fa-solid fa-user-tie text-lg ${isDeveloperTheme ? "text-emerald-400" : "text-emerald-500"}`}></i>
+            <h3 className={`text-2xl font-black mt-1 ${isDeveloperTheme ? "text-zinc-100" : "text-slate-800"}`}>
+              {stats.admins} <span className={`text-xs font-bold ${isDeveloperTheme ? "text-zinc-500" : "text-slate-400"}`}>User</span>
+            </h3>
+            <span className={`text-[9px] font-black uppercase tracking-widest ${isDeveloperTheme ? "text-zinc-500" : "text-slate-400"}`}>Total Admins</span>
+         </div>
+         <div className={`rounded-[1.5rem] p-5 border shadow-sm flex flex-col gap-2 ${
+           isDeveloperTheme ? "bg-[#18181b] border-zinc-800" : "bg-white border-slate-200"
+         }`}>
+            <i className={`fa-solid fa-crown text-lg ${isDeveloperTheme ? "text-purple-400" : "text-purple-500"}`}></i>
+            <h3 className={`text-2xl font-black mt-1 ${isDeveloperTheme ? "text-zinc-100" : "text-slate-800"}`}>
+              {stats.supers} <span className={`text-xs font-bold ${isDeveloperTheme ? "text-zinc-500" : "text-slate-400"}`}>User</span>
+            </h3>
+            <span className={`text-[9px] font-black uppercase tracking-widest ${isDeveloperTheme ? "text-zinc-500" : "text-slate-400"}`}>Superadmins</span>
+         </div>
       </div>
 
       {/* ================================================================= */}
       {/* DATA TABLE (ROLE MANAGEMENT)                                        */}
       {/* ================================================================= */}
-      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+      <div className={`rounded-[2rem] border shadow-sm overflow-hidden ${
+        isDeveloperTheme ? "bg-[#18181b] border-zinc-800" : "bg-white border-slate-200"
+      }`}>
+        <div className={`p-6 border-b flex items-center gap-3 ${
+          isDeveloperTheme ? "bg-[#27272a]/30 border-zinc-800" : "bg-slate-50/50 border-slate-100"
+        }`}>
+           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-sm ${
+             isDeveloperTheme ? "bg-zinc-800" : "bg-purple-600"
+           }`}>
+              <i className="fa-solid fa-users-gear text-xs"></i>
+           </div>
+           <h3 className={`font-black ${isDeveloperTheme ? "text-zinc-200" : "text-slate-800"}`}>Daftar Pengguna Sistem</h3>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600">
-            <thead className="bg-slate-50/50 border-b border-slate-100 text-[10px] uppercase font-black text-slate-400 tracking-widest">
+          <table className="w-full text-left text-sm">
+            <thead className={`border-b text-[10px] uppercase font-black tracking-widest ${
+              isDeveloperTheme ? "bg-[#18181b] border-zinc-800 text-zinc-500" : "bg-white border-slate-100 text-slate-400"
+            }`}>
               <tr>
                 <th className="px-6 py-5">Identitas Pengguna</th>
                 <th className="px-6 py-5">Divisi / Penempatan</th>
                 <th className="px-6 py-5 text-right">Manajemen Kasta</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className={`divide-y ${isDeveloperTheme ? "divide-zinc-800" : "divide-slate-50"}`}>
               {filteredUsers.map((u) => {
                 // Styling visual badge kasta
                 const getRoleBadge = (role) => {
-                  switch(role) {
-                    case 'developer': return { bg: "bg-stone-800", text: "text-stone-100", label: "Developer", icon: "fa-code" };
-                    case 'superadmin': return { bg: "bg-purple-100", text: "text-purple-700", label: "Super Admin", icon: "fa-crown" };
-                    case 'admin': return { bg: "bg-emerald-100", text: "text-emerald-700", label: "Admin Divisi", icon: "fa-user-tie" };
-                    default: return { bg: "bg-blue-50", text: "text-blue-600", label: "Intern", icon: "fa-user" };
+                  if (isDeveloperTheme) {
+                    switch(role) {
+                      case 'superadmin': return { bg: "bg-purple-500/10 border border-purple-500/20", text: "text-purple-400", label: "Super Admin", icon: "fa-crown" };
+                      case 'admin': return { bg: "bg-emerald-500/10 border border-emerald-500/20", text: "text-emerald-400", label: "Admin Divisi", icon: "fa-user-tie" };
+                      default: return { bg: "bg-blue-500/10 border border-blue-500/20", text: "text-blue-400", label: "Intern", icon: "fa-user" };
+                    }
+                  } else {
+                    switch(role) {
+                      case 'superadmin': return { bg: "bg-purple-100", text: "text-purple-700", label: "Super Admin", icon: "fa-crown" };
+                      case 'admin': return { bg: "bg-emerald-100", text: "text-emerald-700", label: "Admin Divisi", icon: "fa-user-tie" };
+                      default: return { bg: "bg-blue-50", text: "text-blue-600", label: "Intern", icon: "fa-user" };
+                    }
                   }
                 };
                 const badge = getRoleBadge(u.role);
 
                 return (
-                  <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={u.id} className={`transition-colors ${
+                    isDeveloperTheme ? "hover:bg-zinc-800/40" : "hover:bg-slate-50/80"
+                  }`}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 border border-white shadow-sm ${badge.bg} ${badge.text}`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 shadow-sm ${badge.bg} ${badge.text}`}>
                           {u.name.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-bold text-slate-800 text-sm mb-0.5">{u.name}</p>
-                          <p className="text-[10px] font-medium text-slate-400">{u.email}</p>
+                          <p className={`font-black text-sm mb-0.5 ${isDeveloperTheme ? "text-zinc-200" : "text-slate-800"}`}>{u.name}</p>
+                          <p className={`text-[10px] font-bold ${isDeveloperTheme ? "text-zinc-500" : "text-slate-400"}`}>{u.email}</p>
                         </div>
                       </div>
                     </td>
                     
                     <td className="px-6 py-4">
-                      <span className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-bold border border-slate-200 flex items-center gap-1.5 w-max">
-                        <i className="fa-solid fa-building text-slate-400"></i> {u.division}
+                      <span className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border flex items-center gap-1.5 w-max ${
+                        isDeveloperTheme ? "bg-zinc-800/50 text-zinc-400 border-zinc-700" : "bg-slate-50 text-slate-600 border-slate-200"
+                      }`}>
+                        <i className={`fa-solid fa-building ${isDeveloperTheme ? "text-zinc-500" : "text-slate-400"}`}></i> {u.division}
                       </span>
                     </td>
 
-                    {/* Kolom Pilihan Ganti Kasta */}
                     <td className="px-6 py-4 text-right">
-                      {/* Jangan kasih opsi dropdown buat Developer, kecuali lu login sbg Developer */}
-                      {(u.role === "developer" && !isDeveloper) ? (
-                        <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-stone-100 text-stone-500 text-xs font-black rounded-xl border border-stone-200 opacity-70 cursor-not-allowed">
-                           <i className="fa-solid fa-lock"></i> Protected
-                        </span>
-                      ) : (
-                        <div className="inline-flex items-center gap-2">
-                          {/* Badge Status Saat Ini (Kiri) */}
-                          <div className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${badge.bg} ${badge.text}`}>
-                            <i className={`fa-solid ${badge.icon}`}></i> {badge.label}
-                          </div>
-
-                          <i className="fa-solid fa-arrow-right-arrow-left text-slate-300 hidden sm:block mx-1"></i>
-
-                          {/* Dropdown Ubah Kasta (Kanan) */}
-                          <div className="relative">
-                            <select
-                              value={u.role}
-                              onChange={(e) => handleRoleChange(u.id, u.name, u.role, e.target.value)}
-                              className="bg-white border border-slate-200 rounded-xl pl-4 pr-8 py-2 text-xs font-bold text-slate-700 outline-none hover:border-amber-400 focus:ring-2 focus:ring-amber-500 appearance-none cursor-pointer shadow-sm transition-all"
-                            >
-                              <option value="intern">Jadi Intern</option>
-                              <option value="admin">Jadi Admin</option>
-                              <option value="superadmin">Jadi Superadmin</option>
-                              {isDeveloper && <option value="developer">Jadi Developer</option>}
-                            </select>
-                            <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
-                          </div>
+                      <div className="inline-flex items-center gap-2">
+                        {/* Badge Status Saat Ini (Kiri) */}
+                        <div className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${badge.bg} ${badge.text}`}>
+                          <i className={`fa-solid ${badge.icon}`}></i> {badge.label}
                         </div>
-                      )}
+
+                        <i className={`fa-solid fa-arrow-right-arrow-left hidden sm:block mx-1 ${isDeveloperTheme ? "text-zinc-700" : "text-slate-300"}`}></i>
+
+                        {/* Dropdown Ubah Kasta (Kanan) */}
+                        <div className="relative">
+                          <select
+                            value={u.role}
+                            onChange={(e) => handleRoleChange(u.id, u.name, u.role, e.target.value)}
+                            className={`border rounded-xl pl-4 pr-8 py-2.5 text-xs font-bold outline-none focus:ring-2 appearance-none cursor-pointer shadow-sm transition-all ${
+                              isDeveloperTheme ? "bg-[#09090b] border-zinc-700 text-zinc-300 hover:border-zinc-500 focus:ring-zinc-600" : 
+                              "bg-white border-slate-200 text-slate-700 hover:border-purple-400 focus:ring-purple-500"
+                            }`}
+                          >
+                            <option value="intern">Set Intern</option>
+                            <option value="admin">Set Admin</option>
+                            <option value="superadmin">Set Superadmin</option>
+                          </select>
+                          <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -223,12 +345,14 @@ const ManageAdmin = () => {
               
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan="3" className="px-6 py-12 text-center">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-2xl text-slate-300 mx-auto mb-3">
+                  <td colSpan="3" className={`px-6 py-12 text-center ${isDeveloperTheme ? "bg-[#18181b]" : "bg-slate-50/50"}`}>
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl mx-auto mb-3 border shadow-sm ${
+                      isDeveloperTheme ? "bg-zinc-800/50 text-zinc-600 border-zinc-700" : "bg-white text-slate-300 border-slate-100"
+                    }`}>
                       <i className="fa-solid fa-user-slash"></i>
                     </div>
-                    <h3 className="text-slate-800 font-bold mb-1">User tidak ditemukan.</h3>
-                    <p className="text-xs text-slate-500 font-medium">Coba hapus filter atau cari dengan kata kunci lain.</p>
+                    <h3 className={`font-black mb-1 ${isDeveloperTheme ? "text-zinc-300" : "text-slate-800"}`}>User tidak ditemukan.</h3>
+                    <p className={`text-xs font-medium ${isDeveloperTheme ? "text-zinc-500" : "text-slate-500"}`}>Coba hapus filter atau cari dengan kata kunci lain.</p>
                   </td>
                 </tr>
               )}

@@ -17,30 +17,27 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       // ADMIN OPERASIONAL
       { path: "/tasks", label: "Daily Activation", icon: "fa-list-check", roles: ["admin"] },
       { path: "/approval", label: "Approval Center", icon: "fa-check-to-slot", roles: ["admin"] },
-
       { path: "/manage-intern", label: "Manage Intern", icon: "fa-users-gear", roles: ["admin"] },
       
-      { path: "/analytics", label: "Analytics", icon: "fa-chart-line", roles: ["superadmin"] },
-      
-      // MANAJEMEN AKUN (Murni Superadmin buat Promote/Mutasi)
+      // MANAJEMEN AKUN (Superadmin & Dev)
       { path: "/manage-admin", label: "Manage Akun", icon: "fa-user-gear", roles: ["superadmin", "developer"] },
 
-      // FITUR BARU: MANAGE DIVISI
-      { path: "/divisions", label: "Manage Divisi", icon: "fa-building", roles: ["superadmin", "developer"] },
+      // FITUR BARU: GABUNGAN ANALYTICS & DIVISI
+      { path: "/division-analytics", label: "System Analytics", icon: "fa-chart-line", roles: ["superadmin", "developer"] },
+
+      // 👇 INI YANG UDAH DIBENERIN (Pakai 'label' bukan 'title')
+      { path: "/system-config", label: "System Config", icon: "fa-server", roles: ["developer"] },
       
       // LAIN-LAIN
       { path: "/broadcasts", label: "Broadcast", icon: "fa-tower-broadcast", roles: ["admin", "superadmin", "developer"] },
-      { path: "/whitebook", label: "Whitebook", icon: "fa-book-open", roles: ["intern", "admin", "superadmin"] },
+      { path: "/whitebook", label: "Whitebook", icon: "fa-book-open", roles: ["intern", "admin", "superadmin", "developer"] },
     ],
     [],
   );
 
   const filteredMenu = useMemo(() => {
-    // NORMALISASI: Huruf kecilin semua, terus buang spasi dan underscore
-    // Jadi "super_admin", "Super Admin", "superadmin" bakal seragam dibaca -> "superadmin"
     const rawRole = user?.role?.toLowerCase().replace(/_|\s/g, "") || ""; 
     
-    // Developer bypass (Opsional, tapi biar God Mode selalu aman)
     if (rawRole === "developer") {
       return menuItems.filter((item) => item.roles.includes("developer"));
     }
@@ -48,7 +45,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     return menuItems.filter((item) => item.roles.includes(rawRole));
   }, [user, menuItems]);
 
-  // TEMA SIDEBAR (Framing Design - Lebih Tua dari Background)
+  // 1. TEMA DEFAULT (INTERN)
   let theme = {
     sidebarBg: "bg-[#0b1437] border-r border-white/10", 
     logoText: "text-white",
@@ -56,36 +53,34 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     navNormal: "text-white/60 hover:bg-white/10 hover:text-white",
     navActiveBg: "bg-white/10 shadow-sm border border-white/5",
     navActiveText: "text-white font-bold tracking-wide",
-    navActiveBorder: "bg-sky-400", // Garis nyala di sebelah kiri
+    navActiveBorder: "bg-sky-400", 
   };
 
-  // 2. ADMIN
-  if (isAdmin) {
+  // ===============================================
+  // PENGECEKAN TEMA DARI KASTA TERTINGGI KE BAWAH
+  // ===============================================
+  if (isDeveloper) {
     theme = { 
       ...theme, 
-      sidebarBg: "bg-blue-950 border-r border-blue-900", 
+      sidebarBg: "bg-[#09090b] border-r border-zinc-800",
+      logoIconBg: "bg-zinc-600", 
+      navActiveBorder: "bg-zinc-400" 
+    };
+  } else if (isSuperAdmin) {
+    theme = { 
+      ...theme, 
+      sidebarBg: "bg-[#1d1633] border-r border-purple-900/50", 
+      logoIconBg: "bg-purple-600", 
+      navActiveBorder: "bg-purple-400" 
+    };
+  } else if (isAdmin) {
+    theme = { 
+      ...theme, 
+      sidebarBg: "bg-[#242b4d] border-r border-blue-900/50", 
       logoIconBg: "bg-blue-600", 
       navActiveBorder: "bg-blue-400" 
     };
   } 
-  // 3. SUPERADMIN
-  else if (isSuperAdmin) {
-    theme = { 
-      ...theme, 
-      sidebarBg: "bg-purple-950 border-r border-purple-900", 
-      logoIconBg: "bg-purple-600", 
-      navActiveBorder: "bg-purple-400" 
-    };
-  } 
-  // 4. DEVELOPER
-  else if (isDeveloper) {
-    theme = { 
-      ...theme, 
-      sidebarBg: "bg-[#09090b] border-r border-white/10",
-      logoIconBg: "bg-emerald-600", 
-      navActiveBorder: "bg-emerald-500" 
-    };
-  }
 
   return (
     <>
@@ -98,14 +93,14 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         {/* LOGO */}
         <div className="h-28 flex items-center justify-center shrink-0 border-b border-white/5 px-6 py-4">
           <img 
-            src={LogoWhite} // Pake variabel import lu tadi
+            src={LogoWhite}
             alt="Logo Malang Creative Center" 
             className="h-20 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" 
           />
         </div>
 
         {/* MENU LIST */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto custom-scrollbar">
           {filteredMenu.map((item) => (
             <NavLink
               key={item.path}
@@ -131,10 +126,10 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         </nav>
 
         {/* LOGOUT */}
-        <div className="p-4 shrink-0 border-t border-transparent">
+        <div className="p-4 shrink-0 border-t border-white/5">
           <button
             onClick={logout}
-            className="w-full py-2.5 rounded-xl text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-500/20 text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl text-rose-500 hover:bg-rose-500/10 hover:text-rose-400 text-sm font-semibold transition-colors flex items-center justify-center gap-2"
           >
             <i className="fa-solid fa-power-off"></i>
             Sign Out

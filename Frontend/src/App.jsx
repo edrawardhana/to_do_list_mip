@@ -31,8 +31,9 @@ import Reports from "./pages/admin/Reports";
 
 // Pages - VVIP (Superadmin & Up)
 import ManageAdmin from "./pages/superadmin/ManageAdmin";
-import Divisions from "./pages/superadmin/Divisions";
-import Analytics from "./pages/superadmin/Analytics"; // 👈 TAMBAHIN INI
+import DivisionAnalytics from "./pages/superadmin/DivisionAnalytics"; 
+// 👇 IMPORT KOMPONEN CONFIG
+import SystemConfig from './pages/developer/SystemConfig';
 
 function App() {
   return (
@@ -51,12 +52,10 @@ function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
             {/* --- JALUR KEBAL GEMBOK --- */}
-            {/* Halaman ini bisa dibuka meskipun is_locked = true */}
             <Route path="leave-request" element={<LeaveRequest />} />
             <Route path="forbidden" element={<LockedPage />} />
 
             {/* --- JALUR TERGEMBOK --- */}
-            {/* Semua rute di bawah ini akan dicek oleh SelectiveLockGuard */}
             <Route element={<SelectiveLockGuard />}>
               
               {/* Universal */}
@@ -94,19 +93,22 @@ function App() {
               } />
 
               {/* VVIP & Analytics */}
-              <Route path="analytics" element={
-                <ProtectedRoute roles={["superadmin", "developer"]}>
-                  <Analytics />
-                </ProtectedRoute>
-              } />
               <Route path="manage-admin" element={
                 <ProtectedRoute roles={["superadmin", "developer"]}>
                   <ManageAdmin />
                 </ProtectedRoute>
               } />
-              <Route path="divisions" element={
+              
+              <Route path="division-analytics" element={
                 <ProtectedRoute roles={["superadmin", "developer"]}>
-                  <Divisions />
+                  <DivisionAnalytics />
+                </ProtectedRoute>
+              } />
+
+              {/* 👇 INI YANG KETINGGALAN: RUTE KHUSUS DEVELOPER */}
+              <Route path="system-config" element={
+                <ProtectedRoute roles={["developer"]}>
+                  <SystemConfig />
                 </ProtectedRoute>
               } />
 
