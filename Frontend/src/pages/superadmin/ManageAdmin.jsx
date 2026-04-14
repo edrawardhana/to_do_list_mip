@@ -1,5 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 const ManageAdmin = () => {
   const { user, isSuperAdmin, isDeveloper } = useAuth();
@@ -13,23 +15,44 @@ const ManageAdmin = () => {
   const isDeveloperTheme = isDeveloper; // Kasta Tertinggi: Hitam/Zinc
   const isPurpleTheme = isSuperAdmin && !isDeveloperTheme; // Kasta 2: Ungu
 
-  // ==========================================
-  // DUMMY DATA SEMUA USER (Tanpa Developer)
-  // ==========================================
-  const [users, setUsers] = useState([
-    { id: "usr-001", name: "Kiel", email: "kiel@mcc.com", division: "IT Support", role: "intern" },
-    { id: "usr-002", name: "Nabil", email: "nabil@mcc.com", division: "IT Support", role: "intern" },
-    { id: "usr-003", name: "Mas Anton", email: "anton@mcc.com", division: "Multimedia", role: "admin" },
-    { id: "usr-004", name: "Mbak Rina", email: "rina@mcc.com", division: "Public Relation", role: "admin" },
-    { id: "usr-005", name: "Root Boss", email: "super@mcc.com", division: "Global Management", role: "superadmin" },
-  ]);
+  const [users, setUsers] = useState([]);
+  const [divisionsList, setDivisionsList] = useState(["IT Support", "Multimedia", "Public Relation", "Creative Design", "Global Management"]);
 
   // State Filter & Search
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("semua");
   const [filterDivision, setFilterDivision] = useState("semua");
 
-  const divisionsList = ["IT Support", "Multimedia", "Public Relation", "Creative Design", "Global Management"];
+  const fetchData = async () => {
+    try {
+      const [usersRes, divsRes] = await Promise.all([
+        api.get('/profiles'),
+        api.get('/divisions')
+      ]);
+      
+      const profilesData = usersRes.data?.data || usersRes.data || [];
+      const divsData = divsRes.data?.data || divsRes.data || [];
+      
+      setUsers(profilesData.filter(u => u.role !== 'developer').map(u => ({
+        id: u.id,
+        name: u.full_name || u.name || "Unknown",
+        email: u.email,
+        division: u.division?.name || u.division_name || u.division || "Unknown",
+        role: u.role
+      })));
+      
+      if (divsData.length > 0) {
+        setDivisionsList(divsData.map(d => d.name));
+      }
+    } catch (error) {
+      console.error("Gagal memuat data admin:", error);
+      toast.error("Gagal memuat data pengguna");
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   // ==========================================
   // LOGIC FILTER
@@ -38,7 +61,11 @@ const ManageAdmin = () => {
     let data = users;
 
     if (filterRole !== "semua") {
-      data = data.filter(u => u.role === filterRole);
+      if (filterRole === "user") {
+        data = data.filter(u => u.role === "user" || u.role === "intern");
+      } else {
+        data = data.filter(u => u.role === filterRole);
+      }
     }
     if (filterDivision !== "semua") {
       data = data.filter(u => u.division === filterDivision);
@@ -55,32 +82,38 @@ const ManageAdmin = () => {
   // Statistik Kasta (Tanpa Developer)
   const stats = useMemo(() => {
     return {
-      interns: users.filter(u => u.role === "intern").length,
+      interns: users.filter(u => u.role === "user" || u.role === "intern").length,
       admins: users.filter(u => u.role === "admin").length,
-      supers: users.filter(u => u.role === "superadmin").length,
+      supers: users.filter(u => u.role === "super_admin").length,
     };
   }, [users]);
 
   // ==========================================
   // FUNGSI GANTI KASTA (PROMOTE/DEMOTE)
   // ==========================================
-  const handleRoleChange = (id, name, currentRole, newRole) => {
+  const handleRoleChange = async (id, name, currentRole, newRole) => {
     // 1. Safety Lock: Cegah Superadmin nurunin kastanya sendiri
     if (id === user?.id && newRole !== currentRole) {
-      alert("Brok! Lu gak bisa nurunin pangkat lu sendiri. Ntar siapa yang ngurus sistem?");
+      toast.error("Brok! Lu gak bisa nurunin pangkat lu sendiri. Ntar siapa yang ngurus sistem?");
       return;
     }
 
     // 2. Logic Konfirmasi
-    const roleHierarchy = { "intern": 1, "admin": 2, "superadmin": 3 };
+    // Kita anggap 'user' dan 'intern' ada di level hierarki kasta yang sama (1)
+    const roleHierarchy = { "intern": 1, "user": 1, "admin": 2, "super_admin": 3 };
     
     let actionText = "mengubah kasta";
     if (roleHierarchy[newRole] > roleHierarchy[currentRole]) actionText = "MENGANGKAT (Promote)";
     if (roleHierarchy[newRole] < roleHierarchy[currentRole]) actionText = "MENURUNKAN (Demote)";
 
     if (window.confirm(`Yakin ingin ${actionText} ${name} menjadi ${newRole.toUpperCase()}?`)) {
-      setUsers(prev => prev.map(u => u.id === id ? { ...u, role: newRole } : u));
-      alert(`Sukses! ${name} sekarang adalah ${newRole.toUpperCase()}.`);
+      try {
+        await api.put(`/profiles/${id}/role`, { role: newRole });
+        toast.success(`Sukses! ${name} sekarang adalah ${newRole.toUpperCase()}.`);
+        fetchData();
+      } catch (error) {
+        toast.error("Gagal mengubah role pengguna");
+      }
     }
   };
 
@@ -178,9 +211,9 @@ const ManageAdmin = () => {
                  }`}
                >
                  <option className="text-slate-800" value="semua">Semua Kasta</option>
-                 <option className="text-slate-800" value="intern">Interns</option>
+                 <option className="text-slate-800" value="user">Interns</option>
                  <option className="text-slate-800" value="admin">Admins</option>
-                 <option className="text-slate-800" value="superadmin">Superadmins</option>
+                 <option className="text-slate-800" value="super_admin">Superadmins</option>
                </select>
                <i className={`fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs pointer-events-none transition-colors ${
                  isDeveloperTheme ? "text-zinc-500 group-focus-within:text-zinc-300" : "text-purple-400/50 group-focus-within:text-purple-300"
@@ -274,13 +307,13 @@ const ManageAdmin = () => {
                 const getRoleBadge = (role) => {
                   if (isDeveloperTheme) {
                     switch(role) {
-                      case 'superadmin': return { bg: "bg-purple-500/10 border border-purple-500/20", text: "text-purple-400", label: "Super Admin", icon: "fa-crown" };
+                      case 'super_admin': return { bg: "bg-purple-500/10 border border-purple-500/20", text: "text-purple-400", label: "Super Admin", icon: "fa-crown" };
                       case 'admin': return { bg: "bg-emerald-500/10 border border-emerald-500/20", text: "text-emerald-400", label: "Admin Divisi", icon: "fa-user-tie" };
                       default: return { bg: "bg-blue-500/10 border border-blue-500/20", text: "text-blue-400", label: "Intern", icon: "fa-user" };
                     }
                   } else {
                     switch(role) {
-                      case 'superadmin': return { bg: "bg-purple-100", text: "text-purple-700", label: "Super Admin", icon: "fa-crown" };
+                      case 'super_admin': return { bg: "bg-purple-100", text: "text-purple-700", label: "Super Admin", icon: "fa-crown" };
                       case 'admin': return { bg: "bg-emerald-100", text: "text-emerald-700", label: "Admin Divisi", icon: "fa-user-tie" };
                       default: return { bg: "bg-blue-50", text: "text-blue-600", label: "Intern", icon: "fa-user" };
                     }
@@ -331,9 +364,9 @@ const ManageAdmin = () => {
                               "bg-white border-slate-200 text-slate-700 hover:border-purple-400 focus:ring-purple-500"
                             }`}
                           >
-                            <option value="intern">Set Intern</option>
+                            <option value="user">Set Intern</option>
                             <option value="admin">Set Admin</option>
-                            <option value="superadmin">Set Superadmin</option>
+                            <option value="super_admin">Set Superadmin</option>
                           </select>
                           <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
                         </div>

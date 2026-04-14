@@ -3,19 +3,40 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 // Import Recharts sebagai ganti Chameleon
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import api from "../../api/axios";
 
 const AdminDashboard = () => {
   const { user } = useAuth();
-  const myDivision = user?.division_name || "IT Support";
+  const myDivision = user?.division?.name || user?.division_name || "IT Support";
+  const [loading, setLoading] = useState(true);
 
-  // Data Dummy untuk Chart (5 Besar Intern)
-  const chartData = [
-    { name: "Nabil Pratama", tasks: 25 },
-    { name: "Kiel Dev", tasks: 22 },
-    { name: "Budi Santoso", tasks: 18 },
-    { name: "Edra Maulana", tasks: 15 },
-    { name: "Siti Aisyah", tasks: 10 },
-  ];
+  // State untuk Real Data
+  const [chartData, setChartData] = useState([]);
+  const [stats, setStats] = useState({ onSiteInterns: 0, totalInterns: 0, pendingTasks: 0, pendingUsers: 0 });
+  const [activityLogs, setActivityLogs] = useState([]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await api.get('/dashboard/admin');
+        const data = response.data?.data || response.data;
+        
+        setChartData(data.chartData || []);
+        setStats({
+          onSiteInterns: data.stats?.onSiteInterns ?? data.onSiteInterns ?? 0,
+          totalInterns: data.stats?.totalInterns ?? data.totalInterns ?? 0,
+          pendingTasks: data.stats?.pendingTasks ?? data.pendingTasks ?? 0,
+          pendingUsers: data.stats?.pendingUsers ?? data.pendingUsers ?? 0,
+        });
+        setActivityLogs(data.activityLogs || []);
+      } catch (error) {
+        console.error("Gagal mengambil data admin:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboardData();
+  }, []);
 
   // Palette warna custom biar senada sama dashboard
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6'];
@@ -85,7 +106,12 @@ const AdminDashboard = () => {
 
           <div className="flex-1 min-h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              {chartData.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-blue-200/50 text-xs font-bold uppercase tracking-widest">
+                  {loading ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i> Memuat Data...</> : "Tidak Ada Data"}
+                </div>
+              ) : (
+                <PieChart>
                 <Pie
                   data={chartData}
                   cx="50%"
@@ -111,7 +137,8 @@ const AdminDashboard = () => {
                   iconType="circle"
                   wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#93c5fd' }} // text-blue-300
                 />
-              </PieChart>
+                </PieChart>
+              )}
             </ResponsiveContainer>
           </div>
         </div>
@@ -135,13 +162,13 @@ const AdminDashboard = () => {
           </div>
           
           <div className="flex items-center gap-3 mb-6 relative z-10 flex-1">
-             <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">12</h3>
+             <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">{loading ? '...' : stats.onSiteInterns}</h3>
              <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg uppercase tracking-widest border border-emerald-200 shadow-sm">On-Site</span>
           </div>
 
           <div className="relative z-10 pt-5 border-t border-slate-100 mt-auto">
             <p className="text-[11px] font-bold text-slate-500 flex items-center gap-2">
-               <i className="fa-solid fa-circle-info text-slate-300"></i> Dari 15 orang di divisi
+               <i className="fa-solid fa-circle-info text-slate-300"></i> Dari {stats.totalInterns} orang di divisi
             </p>
           </div>
         </div>
@@ -158,7 +185,7 @@ const AdminDashboard = () => {
           </div>
           
           <div className="flex items-center gap-3 mb-6 relative z-10 flex-1">
-             <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">8</h3>
+             <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">{loading ? '...' : stats.pendingTasks}</h3>
              <span className="text-[10px] font-black text-amber-700 bg-amber-100 px-2.5 py-1 rounded-lg uppercase tracking-widest border border-amber-200 shadow-sm">Tugas</span>
           </div>
 
@@ -181,7 +208,7 @@ const AdminDashboard = () => {
           </div>
           
           <div className="flex items-center gap-3 mb-6 relative z-10 flex-1">
-             <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">3</h3>
+             <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">{loading ? '...' : stats.pendingUsers}</h3>
              <span className="text-[10px] font-black text-rose-700 bg-rose-100 px-2.5 py-1 rounded-lg uppercase tracking-widest border border-rose-200 shadow-sm">Baru</span>
           </div>
 
@@ -278,49 +305,24 @@ const AdminDashboard = () => {
           <div className="p-6 flex-1 overflow-y-auto custom-scrollbar bg-blue-950 font-mono text-sm">
             <div className="space-y-4">
               
-              <div className="flex flex-col sm:flex-row sm:items-start gap-2 border-b border-white/5 pb-4 hover:bg-white/[0.03] transition-colors p-2 rounded-lg">
-                 <div className="text-blue-300/60 text-[11px] shrink-0 pt-0.5 w-[140px]">2026-04-10 08:30:12</div>
-                 <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold text-blue-950 bg-blue-400 px-2 py-0.5 rounded uppercase tracking-wider">Submit</span>
-                      <span className="text-blue-300 font-bold">@nabil_pratama</span>
+              {loading ? (
+                 <div className="text-blue-200/50 text-xs text-center py-4"><i className="fa-solid fa-spinner fa-spin mr-2"></i> Sinkronisasi Log...</div>
+              ) : activityLogs.length === 0 ? (
+                 <div className="text-blue-200/50 text-xs text-center py-4">Belum ada aktivitas terbaru</div>
+              ) : activityLogs.map((log, i) => (
+                 <div key={i} className="flex flex-col sm:flex-row sm:items-start gap-2 border-b border-white/5 pb-4 hover:bg-white/[0.03] transition-colors p-2 rounded-lg">
+                    <div className="text-blue-300/60 text-[11px] shrink-0 pt-0.5 w-[140px]">{new Date(log.created_at).toLocaleString('id-ID')}</div>
+                    <div>
+                       <div className="flex flex-wrap items-center gap-2 mb-1">
+                         <span className={`text-[10px] font-bold text-blue-950 px-2 py-0.5 rounded uppercase tracking-wider ${
+                           log.actor_role === 'super_admin' ? 'bg-purple-400' : log.actor_role === 'admin' ? 'bg-emerald-400' : 'bg-blue-400'
+                         }`}>{log.actor_role || "Activity"}</span>
+                         <span className="text-blue-300 font-bold">@{log.actor?.username || log.actor?.nickname || "System"}</span>
+                       </div>
+                       <p className="text-blue-100/70 text-xs">{log.action}</p>
                     </div>
-                    <p className="text-blue-100/70 text-xs">Setup jaringan lantai 2 selesai. Status: <span className="text-amber-400">WAITING_VERIFICATION</span>.</p>
                  </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-start gap-2 border-b border-white/5 pb-4 hover:bg-white/[0.03] transition-colors p-2 rounded-lg">
-                 <div className="text-blue-300/60 text-[11px] shrink-0 pt-0.5 w-[140px]">2026-04-10 07:15:00</div>
-                 <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold text-blue-950 bg-emerald-400 px-2 py-0.5 rounded uppercase tracking-wider">Register</span>
-                      <span className="text-emerald-400 font-bold">@kiel_dev</span>
-                    </div>
-                    <p className="text-blue-100/70 text-xs">New user registered for division {myDivision}. Status: <span className="text-rose-400">LOCKED</span>.</p>
-                 </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-start gap-2 border-b border-white/5 pb-4 hover:bg-white/[0.03] transition-colors p-2 rounded-lg">
-                 <div className="text-blue-300/60 text-[11px] shrink-0 pt-0.5 w-[140px]">2026-04-10 06:05:45</div>
-                 <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold text-blue-950 bg-rose-400 px-2 py-0.5 rounded uppercase tracking-wider">Leave Req</span>
-                      <span className="text-rose-400 font-bold">@budi_santoso</span>
-                    </div>
-                    <p className="text-blue-100/70 text-xs">Requesting SICK leave (Attachment: YES). Status: <span className="text-amber-400">PENDING_APPROVAL</span>.</p>
-                 </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-start gap-2 pb-2 hover:bg-white/[0.03] transition-colors p-2 rounded-lg">
-                 <div className="text-blue-300/60 text-[11px] shrink-0 pt-0.5 w-[140px]">2026-04-09 23:59:59</div>
-                 <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold text-blue-950 bg-slate-400 px-2 py-0.5 rounded uppercase tracking-wider">Cron Job</span>
-                      <span className="text-slate-300 font-bold">SYSTEM</span>
-                    </div>
-                    <p className="text-blue-100/70 text-xs">Daily shift rotation reset executed successfully. <span className="text-emerald-400">OK</span>.</p>
-                 </div>
-              </div>
+              ))}
 
             </div>
           </div>

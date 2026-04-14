@@ -1,5 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 const DivisionAnalytics = () => {
   const { user, isAdmin, isSuperAdmin, isDeveloper } = useAuth();
@@ -13,58 +15,41 @@ const DivisionAnalytics = () => {
   const isPurpleTheme = isSuperAdmin && !isDeveloperTheme; // Tema Ungu
   const isBlueTheme = isAdmin && !isSuperAdmin && !isDeveloperTheme; // Tema Biru
 
-  // ==========================================
-  // DUMMY DATA GABUNGAN
-  // ==========================================
-  const [divisions, setDivisions] = useState([
-    { 
-      id: "div-001", name: "IT Support", icon: "fa-network-wired", color: "blue", 
-      head: "Pak Budi", internCount: 6, description: "Menangani jaringan, server, dan perbaikan perangkat keras secara menyeluruh di gedung MCC.",
-      performance: 95, alphaRate: 2,
-      jobDescriptions: [
-        { task: "Instalasi & Maintenance Jaringan Lokal (LAN/WLAN)" },
-        { task: "Troubleshooting Hardware & Software PC/Laptop" },
-        { task: "Manajemen dan Konfigurasi Server Data" },
-        { task: "Monitoring Keamanan Sistem & Backup Data" }
-      ],
-      members: [
-        { name: "Kiel", role: "Network Specialist", avatar: "K" },
-        { name: "Nabil", role: "Hardware Technician", avatar: "N" },
-        { name: "Andi", role: "Server Administrator", avatar: "A" },
-        { name: "Bima", role: "IT Helpdesk", avatar: "B" }
-      ],
-      leaderboard: [
-        { name: "Kiel", score: 98, status: "Top Performer" },
-        { name: "Nabil", score: 92, status: "Stable" },
-        { name: "Andi", score: 45, status: "Warning" }, 
-      ]
-    },
-    { 
-      id: "div-002", name: "Multimedia", icon: "fa-video", color: "purple", 
-      head: "Mas Anton", internCount: 4, description: "Bertanggung jawab atas produksi video, dokumentasi kegiatan, dan operasional live streaming.",
-      performance: 88, alphaRate: 5,
-      jobDescriptions: [
-        { task: "Dokumentasi Foto & Video Event MCC" },
-        { task: "Editing Video Content Social Media" },
-        { task: "Operator Live Streaming & OBS" }
-      ],
-      members: [
-        { name: "Edra", role: "Videographer", avatar: "E" },
-        { name: "Siti", role: "Video Editor", avatar: "S" },
-        { name: "Rizky", role: "Photographer", avatar: "R" }
-      ],
-      leaderboard: [
-        { name: "Edra", score: 99, status: "Top Performer" },
-        { name: "Siti", score: 85, status: "Stable" },
-      ]
-    }
-  ]);
+  const [divisions, setDivisions] = useState([]);
 
   // State UI
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDivision, setSelectedDivision] = useState(null); 
   const [isFormOpen, setIsFormOpen] = useState(false); 
   const [formData, setFormData] = useState({ id: null, name: "", icon: "fa-building", color: "blue", head: "", description: "" });
+
+  const fetchDivisions = async () => {
+    try {
+      // Asumsi ada endpoint /divisions/analytics untuk data komprehensif, atau fallback ke /divisions
+      const res = await api.get('/divisions/analytics').catch(() => api.get('/divisions'));
+      const data = res.data?.data || res.data || [];
+      setDivisions(data.map(d => ({
+        id: d.id,
+        name: d.name,
+        icon: d.icon || 'fa-building',
+        color: d.color || 'blue',
+        head: d.head || '',
+        internCount: d.intern_count || d.internCount || 0,
+        description: d.description || '',
+        performance: d.performance || 0,
+        jobDescriptions: d.job_descriptions || d.jobDescriptions || [],
+        members: d.members || [],
+        leaderboard: d.leaderboard || []
+      })));
+    } catch (error) {
+      console.error("Gagal memuat data divisi:", error);
+      toast.error("Gagal memuat data analitik divisi");
+    }
+  };
+
+  useEffect(() => {
+    fetchDivisions();
+  }, []);
 
   // Filter
   const filteredDivisions = useMemo(() => {
@@ -86,29 +71,37 @@ const DivisionAnalytics = () => {
     setIsFormOpen(true);
   };
 
-  const handleDelete = (id, name, internCount) => {
+  const handleDelete = async (id, name, internCount) => {
     if (internCount > 0) {
-      alert(`GAK BISA DIHAPUS BROK! Masih ada ${internCount} anak magang di divisi ${name}.`);
+      toast.error(`GAK BISA DIHAPUS BROK! Masih ada ${internCount} anak magang di divisi ${name}.`);
       return;
     }
     if (window.confirm(`Yakin ingin menghapus divisi ${name} secara permanen?`)) {
-      setDivisions(prev => prev.filter(div => div.id !== id));
+      try {
+        await api.delete(`/divisions/${id}`);
+        toast.success(`Divisi ${name} berhasil dihapus.`);
+        fetchDivisions();
+      } catch (error) {
+        toast.error("Gagal menghapus divisi");
+      }
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.id) {
-      setDivisions(prev => prev.map(div => div.id === formData.id ? { ...div, ...formData } : div));
-    } else {
-      const newDiv = { 
-        ...formData, 
-        id: `div-${Date.now()}`, 
-        internCount: 0, performance: 0, alphaRate: 0, leaderboard: [], jobDescriptions: [], members: [] 
-      };
-      setDivisions([...divisions, newDiv]);
+    try {
+      if (formData.id) {
+        await api.put(`/divisions/${formData.id}`, formData);
+        toast.success("Data divisi berhasil diperbarui");
+      } else {
+        await api.post('/divisions', formData);
+        toast.success("Divisi baru berhasil ditambahkan");
+      }
+      fetchDivisions();
+      setIsFormOpen(false);
+    } catch (error) {
+      toast.error("Gagal menyimpan data divisi");
     }
-    setIsFormOpen(false);
   };
 
   // HELPER BIKIN WARNA BADGE DINAMIS

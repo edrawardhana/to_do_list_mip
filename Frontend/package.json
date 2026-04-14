@@ -11,13 +11,13 @@
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
-    "@supabase/supabase-js": "^2.99.2",
-    "axios": "^1.13.6",
+    "@supabase/supabase-js": "^2.103.0",
+    "axios": "^1.15.0",
     "browser-image-compression": "^2.0.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hot-toast": "^2.6.0",
-    "react-router-dom": "^7.13.1",
+    "react-router-dom": "^7.14.0",
     "react-webcam": "^7.2.0",
     "recharts": "^3.8.1",
     "tailwindcss-animate": "^1.0.7"

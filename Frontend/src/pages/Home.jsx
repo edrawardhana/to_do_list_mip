@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../supabaseClient"; // Pastikan file ini sudah ada
+import api from "../api/axios"; // Gunakan axios instance kita, bukan supabase langsung
 import CameraModal from "../components/CameraModal";
 
 const Home = () => {
@@ -11,22 +11,21 @@ const Home = () => {
   // Ambil data dari tabel daily_tasks
   const fetchTasks = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("daily_tasks")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error) setTasks(data);
-    setLoading(false);
+    try {
+      // Panggil endpoint backend Laravel (otomatis bawa token JWT)
+      const response = await api.get('/daily-tasks');
+      
+      // Sesuaikan dengan bentuk JSON dari backend (biasanya dibungkus dalam 'data')
+      setTasks(response.data?.data || response.data || []);
+    } catch (error) {
+      console.error("Gagal memuat tugas harian:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    const dummyTasks = [
-      { id: 1, name: "Menghidupkan CPG", status: "Pending", created_at: new Date().toISOString() },
-      { id: 2, name: "Cek Kebersihan Lab", status: "Success", created_at: new Date().toISOString() },
-    ];
-    setTasks(dummyTasks);
-    setLoading(false);
+    fetchTasks();
   }, []);
 
   return (

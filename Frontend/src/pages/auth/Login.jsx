@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import axios from "axios";
+import api from "../../api/axios";
 import { useAuth } from "../../contexts/AuthContext";
 import toast from "react-hot-toast";
 
@@ -70,28 +70,55 @@ export default function Login() {
       // BYPASS AXIOS BUAT TESTING ROLE DUMMY KITA
       if (email.includes("@mcc.com")) {
         await new Promise(resolve => setTimeout(resolve, 800)); // Fake delay
-        await login(email, password); // Panggil smart dummy login dari AuthContext
+        
+        // Sesuaikan dengan parameter AuthContext baru: login(token, userData)
+        const dummyUser = {
+          id: "dummy-123",
+          full_name: "Rekiel Dummy",
+          email: email,
+          role: email.includes("admin") ? "admin" : "user",
+          is_locked: false
+        };
+        login("dummy-token-123", dummyUser); 
         toast.success(`Login Berhasil!`, { id: loadId });
         navigate("/dashboard");
         return; // Berhenti di sini, gak usah jalanin axios di bawah
       }
 
       // KODE ASLI LU (Jalan kalau emailnya BUKAN @mcc.com)
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/auth/login`,
-        { email, password },
-        { headers: { Accept: "application/json", "Content-Type": "application/json" } }
-      );
+      const response = await api.post("/auth/login", { email, password });
 
-      const token = response.data.authorization?.token || response.data.token || response.data.access_token;
+      console.log("ISI RESPON BACKEND (LOGIN):", response.data);
+
+      const resData = response.data?.data || response.data;
+      const token = resData?.access_token || resData?.token || response.data?.authorization?.token;
+      let userData = resData?.user || resData?.profile || (resData?.id ? resData : null);
+
+      // Skenario: Backend Laravel cuma kirim Token, gak kirim data User
+      if (token && !userData) {
+        try {
+          console.log("Token ditemukan! Mencoba fetch data user dari /auth/me...");
+          const meRes = await api.get("/auth/me", {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          console.log("ISI RESPON BACKEND (ME):", meRes.data);
+          userData = meRes.data?.data || meRes.data?.user || meRes.data;
+        } catch (err) {
+          console.warn("Gagal fetch /auth/me, backend mungkin belum punya endpoint ini.");
+        }
+      }
 
       if (token) {
-        localStorage.setItem("token", token);
-        await login(email, password);
+        // Jika masih gagal dapet data, kita buat data darurat biar sistem Frontend gak stuck
+        if (!userData || !userData.id) {
+          userData = { id: "darurat-123", email: email, role: email.includes("admin") ? "super_admin" : "user", full_name: "Karyawan (Fallback)" };
+        }
+        // Fungsi login dari AuthContext akan otomatis menyimpan token & user_data ke localStorage
+        login(token, userData);
         toast.success("Login Berhasil! Selamat datang.", { id: loadId });
         navigate("/");
       } else {
-        toast.error("Token tidak ditemukan dalam sistem.", { id: loadId });
+        toast.error("Token tidak ditemukan dari balasan server.", { id: loadId });
       }
     } catch (err) {
       let errorMsg = "Terjadi kesalahan koneksi.";
@@ -129,7 +156,14 @@ export default function Login() {
       setTerminalLogs(newLogs);
       
       setTimeout(() => {
-        login("root@mcc.com", "bypass", "developer"); 
+        const rootUser = {
+          id: "root-000",
+          full_name: "System Root Developer",
+          email: "root@mcc.com",
+          role: "developer",
+          is_locked: false
+        };
+        login("terminal-root-token", rootUser); 
         toast.success("Root Access Granted", { style: { background: "#050a15", color: "#34d399" } });
         navigate("/dashboard");
       }, 1500);

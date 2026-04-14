@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
+import api from "../api/axios";
 
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
@@ -8,73 +9,68 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true); 
 
   useEffect(() => {
-    // Ambil data user dari localStorage kalau ada (Biar gak login ulang pas di-refresh)
-    const savedUser = localStorage.getItem("dummy_user_data");
+    // Ambil token dan data user asli dari localStorage saat aplikasi pertama kali dimuat
+    const token = localStorage.getItem("jwt_token");
+    let savedUser = localStorage.getItem("user_data");
     
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    // Validasi tambahan agar string "undefined" atau "null" ditolak dan dibersihkan
+    if (token && savedUser && token !== "undefined" && savedUser !== "undefined" && savedUser !== "null") {
+      savedUser = JSON.parse(savedUser);
+      
+      setUser(savedUser);
+    } else {
+      // Bersihkan state jika salah satu tidak ada agar terhindar dari bug sesi nyangkut
+      localStorage.removeItem("jwt_token");
+      localStorage.removeItem("user_data");
     }
     setLoading(false);
   }, []);
 
-  // Tambahin parameter ke-3: secretRole (Buat dikirim dari Terminal God Mode)
-  const login = async (email, password, secretRole = null) => {
-    let assignedRole = "intern"; 
-    let isVerified = true; 
-    let isLocked = false;
-
-    if (secretRole) {
-      assignedRole = secretRole;
-    } 
-    else if (email.includes("super")) {
-      assignedRole = "superadmin";
-    } else if (email.includes("admin")) {
-      assignedRole = "admin";
-    } else if (email.includes("dev")) {
-      assignedRole = "developer";
-    } else if (email.includes("baru")) {
-      isVerified = false; 
-    } else if (email.includes("hukum")) {
-      // PERBAIKAN: Pastiin role-nya intern biar logic isLocked di useMemo nyala!
-      assignedRole = "intern"; 
-      isLocked = true;
-    }
-
-    const userData = {
-      id: `usr-${Math.floor(Math.random() * 1000)}`,
-      full_name: assignedRole === "developer" ? "System Root" : "Rekiel InternSync",
-      nickname: assignedRole === "developer" ? "Root" : "Kiel",
-      email: email || "kiel@mcc.com",
-      role: assignedRole,
-      division_id: "div-it",
-      division_name: "IT Support",
-      is_verified: isVerified,
-      is_locked: isLocked, 
-      status: "Aktif",
-      shift: "Pagi"
-    };
-
-    localStorage.setItem("dummy_user_data", JSON.stringify(userData));
+  // Fungsi Login: Menerima token & userData dari API axios Login.jsx
+  const login = (token, userData) => {
+    localStorage.setItem("jwt_token", token);
+    localStorage.setItem("user_data", JSON.stringify(userData));
     setUser(userData);
-    
-    return { success: true, message: `Login Berhasil sebagai ${assignedRole}!` };
   };
 
   const logout = () => {
-    localStorage.removeItem("dummy_user_data");
+    // Hapus sesi nyata JWT
+    localStorage.removeItem("jwt_token");
+    localStorage.removeItem("user_data");
     setUser(null);
     window.location.href = "/login";
+  };
+
+  // Fungsi Register (Dipanggil dari Register.jsx)
+  const register = async (username, division_id, email, password) => {
+    setLoading(true);
+    try {
+      const response = await api.post('/auth/register', { username, division_id, email, password });
+      const resData = response.data?.data || response.data;
+      // Jika backend merespons dengan token setelah daftar, langsung login-kan:
+      if (resData.access_token || resData.token) {
+        login(resData.access_token || resData.token, resData.user || resData.profile);
+      }
+      return { success: true };
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || Object.values(error.response?.data || {}).flat().join(" ") || "Gagal mendaftar.";
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateProfile = async (newData) => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      const updatedUser = { ...user, ...newData };
+      // Hit API Backend untuk update profil (misal ubah nickname di Settings)
+      const response = await api.put('/auth/profile', newData); // Sesuaikan endpoint dengan backend
+      const updatedUser = { ...user, ...newData, ...(response.data?.user || response.data?.data || {}) };
       setUser(updatedUser);
-      localStorage.setItem("dummy_user_data", JSON.stringify(updatedUser)); // Update storage juga
+      localStorage.setItem("user_data", JSON.stringify(updatedUser)); 
       return { success: true, message: "Profil diperbarui!" };
     } catch (error) {
+      console.error(error);
       return { success: false, message: "Gagal update profil." };
     } finally {
       setLoading(false);
@@ -82,12 +78,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = useMemo(() => {
-    // NORMALISASI ROLE
-    const role = (user?.role || "").toLowerCase().replace("_", "").trim();
+    // Role sudah otomatis bersih/dinormalisasi saat login di atas
+    const role = user?.role || "";
     
-    const isIntern = role === "intern";
+    const isIntern = role === "user" || role === "intern";
     const isAdmin = role === "admin";
-    const isSuperAdmin = role === "superadmin"; 
+    const isSuperAdmin = role === "super_admin"; 
     const isDeveloper = role === "developer";
     
     const isAnyAdmin = isAdmin || isSuperAdmin || isDeveloper;
@@ -100,6 +96,7 @@ export const AuthProvider = ({ children }) => {
       user,
       loading,
       login,
+      register,
       logout,
       updateProfile,
       isIntern,

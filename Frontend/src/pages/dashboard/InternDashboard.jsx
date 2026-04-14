@@ -1,10 +1,33 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import api from "../../api/axios";
 
 const InternDashboard = () => {
   const { user } = useAuth();
   const [greeting, setGreeting] = useState("");
+  const [progress, setProgress] = useState({ percentage: 0, completed: 0, total: 0 });
+  const [shiftInfo, setShiftInfo] = useState({ pagi: [], siang: [], libur: [] });
+  const [todayTasks, setTodayTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const response = await api.get('/dashboard/intern');
+        const data = response.data?.data || response.data || {};
+        setProgress(data.progress || { percentage: 0, completed: 0, total: 0 });
+        setShiftInfo(data.shiftInfo || { pagi: [], siang: [], libur: [] });
+        setTodayTasks(data.todayTasks || []);
+      } catch (error) {
+        console.error("Gagal memuat data intern:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   // Logic Sapaan Waktu
   useEffect(() => {
@@ -14,26 +37,6 @@ const InternDashboard = () => {
     else if (hour < 19) setGreeting("Selamat Sore");
     else setGreeting("Selamat Malam");
   }, []);
-
-  // ==========================================
-  // DUMMY DATA: Nyamain struktur dari Daily Task
-  // ==========================================
-  const todayTasks = [
-    { 
-      id: 1, 
-      title: "Nyalain TV Interaktif CPG", 
-      location: "Lantai 2 - Ruang Utama MCC", 
-      icon: "fa-desktop", 
-      isCompleted: false 
-    },
-    { 
-      id: 2, 
-      title: "Cek Jaringan MikroTik Rapat", 
-      location: "Lantai 3 - Meeting Room", 
-      icon: "fa-network-wired", 
-      isCompleted: false 
-    }
-  ];
 
   // --- LOGIC KALENDER ---
   const date = new Date();
@@ -55,11 +58,6 @@ const InternDashboard = () => {
     else if (i % 5 === 0) type = 2; // 2: Siang (Kuning)
     calendarDays.push({ day: i, type });
   }
-
-  // DUMMY DATA REKAN
-  const shiftPagi = ["Nabil Pratama", "Edra Maulana", "Siti Aminah"];
-  const shiftSiang = ["Ahmad Subardjo", "Budi Santoso"];
-  const libur = ["Joko Anwar", "Rina Nose"];
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-2 max-w-7xl mx-auto">
@@ -128,9 +126,9 @@ const InternDashboard = () => {
             <p className="text-[10px] font-bold text-sky-200/50 uppercase tracking-widest mb-1">Penyelesaian Rutinitas</p>
             <div className="flex items-end gap-2">
               <h3 className="text-[3.5rem] leading-none font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-sky-100 drop-shadow-sm">
-                75<span className="text-2xl text-slate-400 ml-0.5">%</span>
+                {loading ? "..." : progress.percentage}<span className="text-2xl text-slate-400 ml-0.5">%</span>
               </h3>
-              <p className="text-xs font-bold text-sky-400 mb-2"> (3/4 Tugas)</p>
+              <p className="text-xs font-bold text-sky-400 mb-2"> ({progress.completed}/{progress.total} Tugas)</p>
             </div>
           </div>
 
@@ -140,7 +138,7 @@ const InternDashboard = () => {
               <span className="text-sky-300">ON GOING</span>
             </div>
             <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden border border-white/5 shadow-inner">
-              <div className="h-full bg-gradient-to-r from-sky-500 to-sky-300 rounded-full w-[75%] relative shadow-[0_0_15px_rgba(56,189,248,0.5)]">
+              <div className="h-full bg-gradient-to-r from-sky-500 to-sky-300 rounded-full relative shadow-[0_0_15px_rgba(56,189,248,0.5)] transition-all duration-1000" style={{ width: `${progress.percentage}%` }}>
                 <div className="absolute top-0 right-0 w-6 h-full bg-white/50 rounded-full blur-[2px]"></div>
               </div>
             </div>
@@ -187,12 +185,14 @@ const InternDashboard = () => {
               <span className="text-[11px] font-black tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">08:00 - 15:00</span>
             </div>
             <div className="space-y-3.5">
-              {shiftPagi.map((nama, i) => (
+              {shiftInfo.pagi.length > 0 ? shiftInfo.pagi.map((nama, i) => (
                 <div key={i} className="flex items-center gap-3 text-sm text-slate-700 font-bold hover:text-emerald-600 transition-colors cursor-default">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]"></div>
                   {nama}
                 </div>
-              ))}
+              )) : (
+                <div className="text-xs text-slate-400 font-bold italic">Tidak ada</div>
+              )}
             </div>
           </div>
 
@@ -207,12 +207,14 @@ const InternDashboard = () => {
               <span className="text-[11px] font-black tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">15:00 - 21:00</span>
             </div>
             <div className="space-y-3.5">
-              {shiftSiang.map((nama, i) => (
+              {shiftInfo.siang.length > 0 ? shiftInfo.siang.map((nama, i) => (
                 <div key={i} className="flex items-center gap-3 text-sm text-slate-700 font-bold hover:text-amber-600 transition-colors cursor-default">
                   <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)]"></div>
                   {nama}
                 </div>
-              ))}
+              )) : (
+                <div className="text-xs text-slate-400 font-bold italic">Tidak ada</div>
+              )}
             </div>
           </div>
 
@@ -227,12 +229,14 @@ const InternDashboard = () => {
               <span className="text-[11px] font-black tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">ISTIRAHAT</span>
             </div>
             <div className="space-y-3.5">
-              {libur.map((nama, i) => (
+              {shiftInfo.libur.length > 0 ? shiftInfo.libur.map((nama, i) => (
                 <div key={i} className="flex items-center gap-3 text-sm text-slate-700 font-bold hover:text-rose-600 transition-colors cursor-default">
                   <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.5)]"></div>
                   {nama}
                 </div>
-              ))}
+              )) : (
+                <div className="text-xs text-slate-400 font-bold italic">Tidak ada</div>
+              )}
             </div>
           </div>
         </div>
@@ -251,7 +255,7 @@ const InternDashboard = () => {
           </div>
           
           <div className="space-y-4 flex-1">
-            {todayTasks.length > 0 ? todayTasks.map((task) => (
+            {loading ? <p className="text-center text-slate-400 text-sm font-bold py-8 mt-4"><i className="fa-solid fa-spinner fa-spin mr-2"></i> Memuat Tugas...</p> : todayTasks.length > 0 ? todayTasks.map((task) => (
               <div key={task.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 bg-white rounded-[1.5rem] border border-slate-200 hover:border-blue-200 transition-all group gap-4">
                 <div className="flex items-center gap-4 sm:gap-5 w-full">
                   <div className="w-12 h-12 bg-blue-50/80 rounded-[14px] flex items-center justify-center text-blue-600 shrink-0 group-hover:bg-blue-100 transition-colors">

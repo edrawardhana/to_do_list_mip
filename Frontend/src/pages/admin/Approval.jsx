@@ -1,61 +1,45 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 const Approval = () => {
   const { user, isSuperAdmin, isDeveloper } = useAuth();
   const [activeTab, setActiveTab] = useState("tasks");
 
   // Tarik nama divisi Admin yang lagi login
-  const myDivision = user?.division_name || "IT Support";
+  const myDivision = user?.division?.name || user?.division_name || "IT Support";
 
   // ==========================================
   // DUMMY DATA: TUGAS MENUNGGU ACC
   // ==========================================
-  const [pendingTasks, setPendingTasks] = useState([
-    {
-      id: 101, internName: "Edra Maulana", division: "Multimedia",
-      taskTitle: "Edit Video Profil MCC", timeSubmitted: "15:45 WIB",
-      photo: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=300",
-      notes: "Rendering selesai boss, file udah di Google Drive."
-    },
-    {
-      id: 102, internName: "Kiel", division: "IT Support",
-      taskTitle: "Cek Jaringan Lantai 3", timeSubmitted: "16:10 WIB",
-      photo: null, 
-      notes: "Sudah aman, ping stabil."
-    },
-    {
-      id: 103, internName: "Nabil", division: "IT Support",
-      taskTitle: "Setup Router Mikrotik", timeSubmitted: "16:30 WIB",
-      photo: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=300", 
-      notes: "Kabel LAN udah ditarik semua."
-    }
-  ]);
+  const [pendingTasks, setPendingTasks] = useState([]);
 
   // ==========================================
   // DUMMY DATA: IZIN / EXCEPTIONS MENUNGGU ACC
   // ==========================================
-  const [pendingLeaves, setPendingLeaves] = useState([
-    {
-      id: 201, internName: "Nabil Pratama", division: "IT Support",
-      type: "unlock", dateReq: "Hari Ini", 
-      reason: "Shift libur tapi ditelpon pak koor disuruh masuk benerin server.",
-      proof: null, swapDate: null
-    },
-    {
-      id: 202, internName: "Siti", division: "Public Relation",
-      type: "swap_shift", dateReq: "15 Apr 2026", 
-      reason: "Ada bimbingan skripsi mendadak jam 1 siang.",
-      proof: null, swapDate: "18 Apr 2026"
-    },
-    {
-      id: 203, internName: "Budi", division: "Creative Design",
-      type: "sakit", dateReq: "Hari Ini - Besok", 
-      reason: "Gejala tifus, butuh istirahat.",
-      proof: "https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=300", 
-      swapDate: null
+  const [pendingLeaves, setPendingLeaves] = useState([]);
+
+  const fetchApprovals = async () => {
+    try {
+      const [tasksRes, leavesRes] = await Promise.all([
+        api.get('/daily-tasks/pending'),
+        api.get('/attendance-schedules/pending')
+      ]);
+      
+      const tData = tasksRes.data?.data || tasksRes.data || [];
+      const lData = leavesRes.data?.data || leavesRes.data || [];
+
+      setPendingTasks(tData.map(t => ({ ...t, internName: t.uploader?.full_name || t.user?.full_name || t.internName || "Sistem", division: t.division?.name || t.division_name || (typeof t.division === 'string' ? t.division : "Unknown"), taskTitle: t.task_name || t.description || "Logbook", photo: t.evidence_url })));
+      setPendingLeaves(lData.map(l => ({ ...l, internName: l.user?.full_name || l.internName || "Sistem", division: l.division?.name || l.division_name || (typeof l.division === 'string' ? l.division : "Unknown"), reason: l.description || l.reason || l.notes, dateReq: l.permission_date || l.start_date, proof: l.evidence_url || l.proof_url })));
+    } catch (error) {
+      console.error("Gagal mengambil antrean data approval:", error);
     }
-  ]);
+  };
+
+  useEffect(() => {
+    fetchApprovals();
+  }, []);
 
   // ==========================================
   // LOGIC FILTER SAKTI (PEMISAH KASTA & DIVISI)
@@ -77,26 +61,38 @@ const Approval = () => {
   // ==========================================
   // ACTION HANDLERS (Simulasi)
   // ==========================================
-  const handleActionTask = (id, action) => {
+  const handleActionTask = async (id, action) => {
+    let notes = "";
     if (action === 'reject') {
-      const reason = prompt("Kasih alasan revisi ke anak magangnya:");
-      if (!reason) return;
+      notes = prompt("Kasih alasan revisi ke anak magangnya:");
+      if (!notes) return;
     }
-    setPendingTasks(prev => prev.filter(task => task.id !== id));
-    alert(`Tugas berhasil di-${action}!`);
+    
+    try {
+      await api.put(`/daily-tasks/${id}/status`, { status: action === 'acc' ? 'approved' : 'rejected', reviewer_notes: notes });
+      toast.success(action === 'acc' ? "Tugas Logbook Di-ACC" : "Tugas Dikembalikan untuk Revisi");
+      fetchApprovals();
+    } catch (error) {
+      toast.error("Gagal memproses tugas");
+    }
   };
 
-  const handleActionLeave = (id, action, type) => {
+  const handleActionLeave = async (id, action, type) => {
+    let notes = "";
     if (action === 'acc') {
-      let msg = "Izin berhasil di-ACC.";
-      if (type === 'unlock') msg = "Unlock di-ACC! Akun anak ini otomatis terbuka.";
-      if (type === 'swap_shift') msg = "Swap Shift di-ACC! Jadwal ditukar.";
-      alert(msg);
+      // Logika dinamis untuk feedback UI (akan dijalankan setelah await)
     } else {
-      const reason = prompt("Alasan menolak pengajuan ini:");
-      if (!reason) return;
+      notes = prompt("Alasan menolak pengajuan izin ini:");
+      if (!notes) return;
     }
-    setPendingLeaves(prev => prev.filter(leave => leave.id !== id));
+
+    try {
+      await api.put(`/attendance-schedules/${id}/status`, { is_approved: action === 'acc', review_notes: notes });
+      toast.success(action === 'acc' ? "Izin / Perubahan Shift di-ACC" : "Pengajuan Izin Ditolak");
+      fetchApprovals();
+    } catch (error) {
+      toast.error("Gagal memproses pengajuan izin");
+    }
   };
 
   return (
@@ -202,10 +198,11 @@ const Approval = () => {
           {filteredLeaves.map((leave) => {
             const getExceptionStyle = (type) => {
               switch(type) {
-                case 'unlock': return { icon: "fa-unlock", color: "text-amber-500", bg: "bg-amber-50", label: "Unlock" };
                 case 'swap_shift': return { icon: "fa-code-compare", color: "text-blue-500", bg: "bg-blue-50", label: "Swap Shift" };
                 case 'sakit': return { icon: "fa-house-medical", color: "text-rose-500", bg: "bg-rose-50", label: "Sakit" };
-                default: return { icon: "fa-envelope", color: "text-slate-500", bg: "bg-slate-50", label: "Izin Biasa" };
+                case 'izin': return { icon: "fa-envelope-open-text", color: "text-amber-500", bg: "bg-amber-50", label: "Izin Biasa" };
+                case 'tugas_luar': return { icon: "fa-briefcase", color: "text-emerald-500", bg: "bg-emerald-50", label: "Tugas Luar" };
+                default: return { icon: "fa-envelope", color: "text-slate-500", bg: "bg-slate-50", label: "Pengajuan" };
               }
             };
             const style = getExceptionStyle(leave.type);

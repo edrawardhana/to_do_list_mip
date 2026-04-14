@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 const Broadcasts = () => {
   const { user, isAdmin, isSuperAdmin, isDeveloper } = useAuth();
 
-  const myDivision = user?.division_name || "IT Support";
+  const myDivision = user?.division?.name || user?.division_name || "IT Support";
 
   // ==========================================
   // LOGIC WARNA TEMA DINAMIS BERDASARKAN KASTA
@@ -14,13 +16,8 @@ const Broadcasts = () => {
   const isBlueTheme = isAdmin && !isSuperAdmin && !isDeveloperTheme; // Kasta 3: Biru
 
   // Dummy Data
-  const allDivisions = ["IT Support", "Multimedia", "Public Relation", "Creative Design"];
-  const allInterns = [
-    { id: 1, name: "Kiel", division: "IT Support" },
-    { id: 2, name: "Nabil", division: "IT Support" },
-    { id: 3, name: "Edra", division: "Multimedia" },
-    { id: 4, name: "Siti", division: "Public Relation" },
-  ];
+  const [allDivisions, setAllDivisions] = useState([]);
+  const [allInterns, setAllInterns] = useState([]);
 
   // State Form
   const [title, setTitle] = useState("");
@@ -32,10 +29,26 @@ const Broadcasts = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // History Data
-  const [history] = useState([
-    { id: 1, title: "Server Maintenance", target: "Global", date: "Hari ini, 10:00", sender: "Root" },
-    { id: 2, title: "Kumpul Divisi!", target: "IT Support", date: "Kemarin, 15:30", sender: "Admin IT" },
-  ]);
+  const [history, setHistory] = useState([]);
+
+  const fetchBroadcastData = async () => {
+    try {
+      const [divRes, internRes, histRes] = await Promise.all([
+        api.get('/divisions'),
+        api.get('/profiles'),
+        api.get('/broadcasts/history')
+      ]);
+      setAllDivisions(divRes.data?.data || divRes.data || []);
+      setAllInterns((internRes.data?.data || internRes.data || []).map(i => ({ ...i, name: i.full_name || i.name })));
+      setHistory(histRes.data?.data || histRes.data || []);
+    } catch (error) {
+      console.error("Gagal memuat data referensi broadcast:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchBroadcastData();
+  }, []);
 
   // ==========================================
   // LOGIC FILTER DROPDOWN BERDASARKAN ROLE
@@ -78,18 +91,22 @@ const Broadcasts = () => {
     e.preventDefault();
     if ((targetType.includes("division") && targetType !== "division_locked") || targetType.includes("personal")) {
       if (selectedTargets.length === 0) {
-        alert("Pilih minimal 1 target dari daftar!");
+        toast.error("Pilih minimal 1 target divisi/personal dari daftar!");
         return;
       }
     }
 
     setIsLoading(true);
-    console.log("Mengirim payload ke Backend:", { title, message, targetType, selectedTargets });
-    
-    await new Promise(res => setTimeout(res, 1500));
-    setIsLoading(false);
-    alert("FCM Broadcast Terkirim ke Firebase!");
-    setTitle(""); setMessage(""); setSelectedTargets([]);
+    try {
+      await api.post('/broadcasts/send', { title, message, targetType, targets: selectedTargets });
+      toast.success("FCM Broadcast Terkirim ke Perangkat!");
+      setTitle(""); setMessage(""); setSelectedTargets([]);
+      fetchBroadcastData();
+    } catch (error) {
+      toast.error("Gagal mengirim perintah Broadcast");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

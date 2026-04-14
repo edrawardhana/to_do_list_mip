@@ -2,27 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import api from "../../api/axios";
 import { useAuth } from "../../contexts/AuthContext";
-// axios tidak dipakai langsung di halaman ini, fungsi register
-// diambil dari AuthContext yang sudah menggunakan axios di dalamnya.
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DUMMY MODE (hapus/comment blok ini saat mau connect ke backend)
-// Registrasi dummy: isi form dengan data apa saja, langsung berhasil.
-// Simulasi gagal jika username = "admin" (sudah dipakai).
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FUNGSI REGISTER TERPADU
-// • register() diambil dari AuthContext, telah mengirim axios ke
-//   `${import.meta.env.VITE_API_URL}/auth/register` menggunakan field
-//   full_name, division_id, email, dan password (disertai konfirmasi). 
-// • handleSubmit pada form sudah memanggil register(
-//     form.username, form.divisi, form.email, form.password
-//   ) dan menampilkan error atau menavigasi.
-// • Anda tidak perlu menulis axios manual di sini, kecuali ingin
-//   logika khusus.
-// ─────────────────────────────────────────────────────────────────────────────
+import toast from "react-hot-toast";
 
 function Particle({ style }) {
   return <span className="particle" style={style} aria-hidden />;
@@ -42,9 +24,9 @@ const DIVISI_OPTIONS = []; // populated in useEffect (see below)
 
 
 export default function Register() {
-  const { register } = useAuth();
+  const { login } = useAuth(); // Kita panggil API langsung biar gampang atur payload
   const navigate = useNavigate();
-  const [form, setForm] = useState({ username: "", divisi: "", email: "", password: "", confirm: "" });
+  const [form, setForm] = useState({ full_name: "", username: "", division_id: "", email: "", password: "", confirm: "" });
   const [divisions, setDivisions] = useState([]); // list from backend
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -58,9 +40,9 @@ export default function Register() {
   useEffect(() => {
     async function loadDivs() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/divisions`);
-        const json = await res.json();
-        if (Array.isArray(json)) setDivisions(json);
+        const res = await api.get("/divisions");
+        const data = res.data?.data || res.data;
+        if (Array.isArray(data)) setDivisions(data);
       } catch (e) {
         console.error('failed to load divisions', e);
       }
@@ -86,39 +68,46 @@ export default function Register() {
 
     setIsLoading(true);
 
-    // ── DUMMY: hapus/comment blok ini saat connect ke backend ──
-    // try {
-    //   await new Promise((r) => setTimeout(r, 900));
-    //   if (form.username === "admin") throw new Error("Username sudah digunakan.");
-    //   const result = await register(form.username, form.divisi, form.email, form.password);
-    //   setIsLoading(false);
-    //   if (result.success) {
-    //     navigate("/");
-    //   } else {
-    //     setError(result.error);
-    //   }
-    // } catch (err) {
-    //   setIsLoading(false);
-    //   setError(err.message);
-    // }
-    // ────────────────────────────────────────────────────────────
-
-    // ── AXIOS (uncomment saat backend siap, hapus dummy di atas) ──
     try {
-      // `register` sekarang akan menerima username juga; kita
-      // gunakan form.username kedua‑duanya sebagai nama dan username
-      const result = await register(form.username, form.divisi, form.email, form.password);
+      const payload = {
+        full_name: form.full_name,
+        username: form.username,
+        division_id: form.division_id,
+        email: form.email,
+        password: form.password,
+        password_confirmation: form.confirm
+      };
+
+      const response = await api.post("/auth/register", payload);
+      const resData = response.data?.data || response.data;
+      const token = resData?.access_token || resData?.token || response.data?.authorization?.token;
+
       setIsLoading(false);
-      if (result.success) {
+      
+      // Jika backend Laravel otomatis memberikan Token setelah mendaftar
+      if (token) {
+        const userData = resData?.user || resData?.profile || resData;
+        login(token, userData);
+        toast.success("Registrasi & Login Berhasil!");
         navigate("/");
       } else {
-        setError(result.error);
+        toast.success("Registrasi berhasil! Silakan masuk.");
+        navigate("/login");
       }
     } catch (err) {
       setIsLoading(false);
-      setError(err.message);
+      let errorMsg = "Registrasi gagal.";
+      if (err.response && err.response.status === 422) {
+        // Menggabungkan semua error validasi dari Laravel secara elegan
+        const errors = err.response.data.errors || err.response.data;
+        errorMsg = Object.values(errors).flat().join(" ");
+      } else if (err.response) {
+        errorMsg = err.response.data.message || err.response.data.error || errorMsg;
+      } else {
+        errorMsg = err.message;
+      }
+      setError(errorMsg);
     }
-    // ─────────────────────────────────────────────────────────────
   };
 
   const passwordStrength = () => {
@@ -349,6 +338,17 @@ export default function Register() {
               </div>
             )}
 
+            {/* Nama Lengkap */}
+            <div className="field">
+              <label htmlFor="full_name">Nama Lengkap</label>
+              <div className="input-wrap">
+                <svg className="input-icon" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input id="full_name" type="text" value={form.full_name} onChange={set("full_name")} placeholder="Masukkan nama lengkap" required />
+              </div>
+            </div>
+
             {/* Username */}
             <div className="field">
               <label htmlFor="username">Username</label>
@@ -356,7 +356,7 @@ export default function Register() {
                 <svg className="input-icon" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                 </svg>
-                <input id="username" type="text" value={form.username} onChange={set("username")} placeholder="johndoe" required />
+                <input id="username" type="text" value={form.username} onChange={set("username")} placeholder="johndoe123" required />
               </div>
             </div>
 
@@ -368,11 +368,11 @@ export default function Register() {
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                 </svg>
                 <select
-                  id="divisi"
-                  value={form.divisi}
-                  onChange={set("divisi")}
+                  id="division_id"
+                  value={form.division_id}
+                  onChange={set("division_id")}
                   required
-                  className={!form.divisi ? "placeholder-selected" : ""}
+                  className={!form.division_id ? "placeholder-selected" : ""}
                 >
                   <option value="" disabled>Pilih divisi</option>
                   {divisions.map((d) => (

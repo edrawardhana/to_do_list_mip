@@ -1,26 +1,32 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import api from "../../api/axios";
 
 const DeveloperDashboard = () => {
   const { user } = useAuth();
   const [isLockingMassive, setIsLockingMassive] = useState(false);
   const [isClearingCache, setIsClearingCache] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Fake Live Stats State (Biar UI kerasa hidup)
   const [sysStats, setSysStats] = useState({ cpu: 32, ram: 45, ping: 12, db: 68, api: 99.9 });
 
-  // ==========================================
-  // DUMMY DATA: GLOBAL AUDIT LOGS
-  // ==========================================
-  const [auditLogs, setAuditLogs] = useState([
-    { id: 1, timestamp: "23:05:12", actorName: "Root Boss", actorRole: "superadmin", action: "Mempromosikan 'Mas Anton' menjadi Admin Divisi Multimedia.", type: "warning" },
-    { id: 2, timestamp: "22:30:45", actorName: "Pak Budi", actorRole: "admin", action: "Mengunci individual akun 'Kiel' (IT Support).", type: "danger" },
-    { id: 3, timestamp: "20:15:00", actorName: "Nabil", actorRole: "intern", action: "Mengirimkan laporan logbook harian.", type: "info" },
-    { id: 4, timestamp: "18:00:01", actorName: "System Cron", actorRole: "system", action: "Menembakkan 15 FCM Push Notification.", type: "system" },
-    { id: 5, timestamp: "15:45:22", actorName: "Siti", actorRole: "intern", action: "Mengajukan izin tukar shift (Swap Shift).", type: "info" },
-    { id: 6, timestamp: "14:10:05", actorName: "System DB", actorRole: "system", action: "Auto-backup PostgreSQL (Success).", type: "success" },
-  ]);
+  const [auditLogs, setAuditLogs] = useState([]);
+
+  useEffect(() => {
+    const fetchAuditLogs = async () => {
+      try {
+        const res = await api.get('/dashboard/developer'); // Atau '/audit-logs'
+        setAuditLogs(res.data?.data?.auditLogs || res.data?.data || []);
+      } catch (error) {
+        console.error("Gagal mengambil audit logs:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAuditLogs();
+  }, []);
 
   useEffect(() => {
     // Interval buat animasi fake stats server
@@ -50,9 +56,9 @@ const DeveloperDashboard = () => {
         setIsLockingMassive(false);
         const newLog = {
           id: Date.now(),
-          timestamp: new Date().toLocaleTimeString('id-ID', { hour12: false }),
-          actorName: user?.nickname || "Developer",
-          actorRole: "developer",
+          created_at: new Date().toISOString(),
+          actor: { full_name: user?.nickname || "Developer" },
+          actor_role: "developer",
           action: "🚨 MENGEKSEKUSI EMERGENCY MASS LOCK. Seluruh akun user dibekukan.",
           type: "danger"
         };
@@ -68,9 +74,9 @@ const DeveloperDashboard = () => {
       setIsClearingCache(false);
       const newLog = {
         id: Date.now(),
-        timestamp: new Date().toLocaleTimeString('id-ID', { hour12: false }),
-        actorName: "System",
-        actorRole: "system",
+        created_at: new Date().toISOString(),
+        actor: { full_name: "System" },
+        actor_role: "system",
         action: "🧹 System Cache & Redis berhasil dibersihkan secara manual.",
         type: "success"
       };
@@ -327,7 +333,11 @@ const DeveloperDashboard = () => {
           {/* List Log Terminal */}
           <div className="p-4 flex-1 overflow-y-auto custom-scrollbar font-mono text-sm bg-[#09090b]">
             <div className="space-y-1">
-              {auditLogs.map((log) => {
+              {loading ? (
+                 <div className="text-zinc-500 text-xs text-center py-4"><i className="fa-solid fa-spinner fa-spin mr-2"></i> Mengumpulkan Log...</div>
+              ) : auditLogs.length === 0 ? (
+                 <div className="text-zinc-500 text-xs text-center py-4">Data Stream Kosong</div>
+              ) : auditLogs.map((log) => {
                 // Pewarnaan berdasarkan Tipe
                 const colorMap = {
                   system: "text-blue-400",
@@ -341,20 +351,20 @@ const DeveloperDashboard = () => {
                 return (
                   <div key={log.id} className="p-2.5 hover:bg-zinc-900/50 rounded-lg transition-colors border border-transparent hover:border-zinc-800/50 flex flex-col gap-1 group">
                     <div className="flex flex-wrap items-center gap-2 text-[10px] opacity-70 group-hover:opacity-100 transition-opacity">
-                      <span className="text-zinc-500">[{log.timestamp}]</span>
+                      <span className="text-zinc-500">[{new Date(log.created_at || new Date()).toLocaleTimeString('id-ID')}]</span>
                       <span className={`uppercase font-black px-1.5 rounded bg-zinc-800 border border-zinc-700 ${
-                        log.actorRole === 'superadmin' ? 'text-purple-400' :
-                        log.actorRole === 'developer' ? 'text-zinc-300' :
-                        log.actorRole === 'admin' ? 'text-blue-400' : 
-                        log.actorRole === 'system' ? 'text-emerald-400' : 'text-slate-400'
+                        log.actor_role?.toLowerCase() === 'super_admin' ? 'text-purple-400' :
+                        log.actor_role?.toLowerCase() === 'developer' ? 'text-zinc-300' :
+                        log.actor_role?.toLowerCase() === 'admin' ? 'text-blue-400' : 
+                        log.actor_role?.toLowerCase() === 'system' ? 'text-emerald-400' : 'text-slate-400'
                       }`}>
-                        {log.actorRole}
+                        {log.actor_role || "User"}
                       </span>
-                      <span className="text-zinc-300 font-bold">{log.actorName}</span>
+                      <span className="text-zinc-300 font-bold">{log.actorName || log.actor?.full_name || "System"}</span>
                     </div>
                     <div className="flex items-start gap-2.5 pl-1">
                       <i className={`fa-solid fa-angle-right mt-1 text-[9px] ${logColor}`}></i>
-                      <p className={`${logColor} leading-relaxed text-[12px] ${log.type === 'danger' ? 'bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20 mt-0.5' : ''}`}>
+                      <p className={`${logColor} leading-relaxed text-[12px] ${log.action?.toLowerCase().includes('danger') ? 'bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20 mt-0.5' : ''}`}>
                         {log.action}
                       </p>
                     </div>

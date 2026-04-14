@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 const AdminTaskCRUD = () => {
   const [activeTab, setActiveTab] = useState("template"); // 'template' atau 'live'
@@ -70,19 +72,15 @@ const AdminTaskCRUD = () => {
             {/* VISUAL WIDGET (PENGGANTI TEKS DESKRIPSI BIAR LEBIH KEREN)  */}
             {/* ========================================================== */}
             <div className="flex items-center gap-5 mt-2">
-              
-              {/* 1. Avatar Stack (Tim yang aktif) */}
-              <div className="flex items-center">
-                <div className="flex -space-x-3">
-                  <img src="https://i.pravatar.cc/100?img=11" className="w-10 h-10 rounded-full border-2 border-blue-950 object-cover shadow-sm" alt="A" />
-                  <img src="https://i.pravatar.cc/100?img=33" className="w-10 h-10 rounded-full border-2 border-blue-950 object-cover shadow-sm" alt="B" />
-                  <img src="https://i.pravatar.cc/100?img=44" className="w-10 h-10 rounded-full border-2 border-blue-950 object-cover shadow-sm" alt="C" />
-                  <div className="w-10 h-10 rounded-full border-2 border-blue-950 bg-white/10 backdrop-blur-md flex items-center justify-center text-[11px] font-black text-white shadow-sm">
-                    +8
-                  </div>
-                </div>
+              {/* 1. Animated Progress Ring */}                 
+              <div className="relative w-10 h-10 flex items-center justify-center">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                  <path strokeDasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+                  <path strokeDasharray="75, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#38bdf8" strokeWidth="3" strokeLinecap="round" className="animate-[spin_3s_linear_infinite]" />
+                </svg>
+                <i className="fa-solid fa-bolt text-sky-400 text-[10px] absolute animate-pulse"></i>
               </div>
-
+              
               {/* Garis Pemisah */}
               <div className="h-8 w-px bg-white/10 rounded-full"></div>
 
@@ -93,19 +91,7 @@ const AdminTaskCRUD = () => {
                 <div className="w-1.5 h-7 bg-emerald-400 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></div>
                 <div className="w-1.5 h-4 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '450ms' }}></div>
                 <div className="w-1.5 h-2 bg-blue-300 rounded-full animate-pulse" style={{ animationDelay: '600ms' }}></div>
-              </div>
-              
-              {/* Garis Pemisah */}
-              <div className="h-8 w-px bg-white/10 rounded-full"></div>
-
-              {/* 3. Animated Progress Ring */}
-              <div className="relative w-10 h-10 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                  <path strokeDasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
-                  <path strokeDasharray="75, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#38bdf8" strokeWidth="3" strokeLinecap="round" className="animate-[spin_3s_linear_infinite]" />
-                </svg>
-                <i className="fa-solid fa-bolt text-sky-400 text-[10px] absolute animate-pulse"></i>
-              </div>
+              </div>          
 
             </div>
           </div>
@@ -200,7 +186,7 @@ const AdminTaskCRUD = () => {
                     <button className="px-5 py-2.5 bg-slate-50 border border-slate-200 text-slate-500 hover:text-amber-500 hover:border-amber-300 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 hover:bg-amber-50">
                       <i className="fa-solid fa-pen"></i> Edit
                     </button>
-                    <button className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-500 hover:text-rose-500 hover:border-rose-300 rounded-xl text-xs font-bold shadow-sm transition-all hover:bg-rose-50">
+                    <button onClick={() => handleDeleteTemplate(task.id)} className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-500 hover:text-rose-500 hover:border-rose-300 rounded-xl text-xs font-bold shadow-sm transition-all hover:bg-rose-50">
                       <i className="fa-solid fa-trash"></i>
                     </button>
                   </div>
@@ -253,7 +239,7 @@ const AdminTaskCRUD = () => {
                     </div>
 
                     {/* Aksi Hapus Urgent */}
-                    <button className="w-11 h-11 flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-300 rounded-2xl text-sm font-bold shadow-sm transition-all md:opacity-0 group-hover:opacity-100 shrink-0">
+                    <button onClick={() => handleDeleteLiveTask(task.id)} className="w-11 h-11 flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-300 rounded-2xl text-sm font-bold shadow-sm transition-all md:opacity-0 group-hover:opacity-100 shrink-0">
                     <i className="fa-solid fa-trash"></i>
                     </button>
                 </div>

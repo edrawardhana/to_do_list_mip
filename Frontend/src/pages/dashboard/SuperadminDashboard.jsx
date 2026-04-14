@@ -2,48 +2,57 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import api from "../../api/axios"; // 1. Import Axios instance
+import toast from "react-hot-toast";
 
 const SuperadminDashboard = () => {
   const { user } = useAuth();
   
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [loading, setLoading] = useState(true);
 
   // ==========================================
-  // DUMMY DATA GLOBAL & AUDIT LOGS
+  // REAL DATA STATES
   // ==========================================
-  const globalStats = {
-    activeInterns: 45,
-    totalDivisions: 4,
-    pendingApprovals: 15,
-    systemHealth: "Optimal"
-  };
-
-  const [auditLogs] = useState([
-    { id: 1, timestamp: "Baru saja", actorName: "Pak Budi", actorRole: "admin", action: "Menyukai/ACC Laporan Tugas 'Kiel' (IT Support).", type: "success" },
-    { id: 2, timestamp: "5 mnt lalu", actorName: "Nabil", actorRole: "intern", action: "Berhasil Login ke sistem.", type: "info" },
-    { id: 3, timestamp: "15 mnt lalu", actorName: "Mbak Rina", actorRole: "admin", action: "Menolak izin sakit 'Siti' karena tanpa bukti.", type: "warning" },
-    { id: 4, timestamp: "1 jam lalu", actorName: "System", actorRole: "system", action: "Auto-backup database mingguan selesai.", type: "system" },
-    { id: 5, timestamp: "2 jam lalu", actorName: "Admin Multimedia", actorRole: "admin", action: "Membuka gembok (Unlock) akun 'Budi'.", type: "info" },
-  ]);
-
-  // Data buat Recharts (Performa Divisi)
-  const divisionPerformance = [
-    { name: 'IT', score: 95 },
-    { name: 'MM', score: 88 },
-    { name: 'PR', score: 70 },
-    { name: 'CD', score: 92 },
-  ];
-
-  // Data buat Leaderboard di Hero
-  const topInterns = [
-    { name: "Kiel", div: "IT", score: 98 },
-    { name: "Edra", div: "Media", score: 95 },
-    { name: "Yoga", div: "Desain", score: 92 },
-  ];
+  const [globalStats, setGlobalStats] = useState({ activeInterns: 0, totalDivisions: 0, pendingApprovals: 0, systemHealth: "Optimal" });
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [divisionPerformance, setDivisionPerformance] = useState([]);
+  const [topInterns, setTopInterns] = useState([]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // 2. Fetch data dari backend saat komponen dimuat
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      try {
+        // Asumsi semua data dashboard diambil dari satu endpoint agar efisien
+        const response = await api.get('/dashboard/superadmin');
+        const data = response.data?.data || response.data;
+
+        // Isi state dengan data asli dari database
+        setGlobalStats({
+          activeInterns: data.activeInterns || 0,
+          totalDivisions: data.totalDivisions || 0,
+          pendingApprovals: data.pendingApprovals || 0,
+          systemHealth: "Optimal" // Bisa juga diambil dari API jika ada
+        });
+        setDivisionPerformance(data.divisionPerformance || []);
+        setTopInterns(data.topInterns || []);
+        setAuditLogs(data.auditLogs || []);
+
+      } catch (error) {
+        console.error("Gagal memuat data Superadmin:", error);
+        toast.error("Gagal memuat data dashboard. Coba refresh halaman.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
   }, []);
 
   const formatDate = (date) => {
@@ -62,6 +71,17 @@ const SuperadminDashboard = () => {
       );
     }
     return null;
+  };
+
+  // Fungsi bantuan untuk format waktu relatif pada log
+  const formatRelativeTime = (timestamp) => {
+    // Untuk production, disarankan menggunakan library seperti `date-fns`
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffSeconds = Math.round((now - date) / 1000);
+    if (diffSeconds < 60) return "Baru saja";
+    if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)} mnt lalu`;
+    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -163,7 +183,7 @@ const SuperadminDashboard = () => {
 
           {/* Compact Leaderboard */}
           <div className="mt-auto">
-             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-400 mb-3 flex items-center gap-2">
+             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-400 mb-3 flex items-center gap-2 animate-pulse">
                <i className="fa-solid fa-fire text-orange-500"></i> Top 3 Interns Global
              </h3>
              <div className="grid grid-cols-3 gap-3">
@@ -176,8 +196,8 @@ const SuperadminDashboard = () => {
                       }`}>
                         {i === 0 ? <i className="fa-solid fa-trophy"></i> : `#${i + 1}`}
                       </span>
-                      <p className="text-xs font-black text-white truncate w-full text-center leading-none">{intern.name}</p>
-                      <p className={`text-[9px] font-bold mt-1 uppercase tracking-wider ${i === 0 ? 'text-amber-400' : 'text-emerald-400'}`}>{intern.score}%</p>
+                      <p className="text-xs font-black text-white truncate w-full text-center leading-none">{loading ? '...' : intern.name}</p>
+                      <p className={`text-[9px] font-bold mt-1 uppercase tracking-wider ${i === 0 ? 'text-amber-400' : 'text-emerald-400'}`}>{loading ? '...' : `${intern.score}%`}</p>
                    </div>
                 ))}
              </div>
@@ -204,7 +224,7 @@ const SuperadminDashboard = () => {
           </div>
           
           <div className="flex items-center gap-3 mb-6 relative z-10 flex-1">
-             <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">{globalStats.activeInterns}</h3>
+             <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">{loading ? '...' : globalStats.activeInterns}</h3>
              <span className="text-[10px] font-black text-purple-700 bg-purple-100 px-2.5 py-1 rounded-lg uppercase tracking-widest border border-purple-200 shadow-sm">Aktif</span>
           </div>
 
@@ -227,7 +247,7 @@ const SuperadminDashboard = () => {
           </div>
           
           <div className="flex items-center gap-3 mb-6 relative z-10 flex-1">
-             <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">{globalStats.totalDivisions}</h3>
+             <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">{loading ? '...' : globalStats.totalDivisions}</h3>
              <span className="text-[10px] font-black text-blue-700 bg-blue-100 px-2.5 py-1 rounded-lg uppercase tracking-widest border border-blue-200 shadow-sm">Unit</span>
           </div>
 
@@ -250,7 +270,7 @@ const SuperadminDashboard = () => {
           </div>
           
           <div className="flex items-center gap-3 mb-6 relative z-10 flex-1">
-             <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">{globalStats.pendingApprovals}</h3>
+             <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">{loading ? '...' : globalStats.pendingApprovals}</h3>
              <span className="text-[10px] font-black text-amber-700 bg-amber-100 px-2.5 py-1 rounded-lg uppercase tracking-widest border border-amber-200 shadow-sm">Antrean</span>
           </div>
 
@@ -353,17 +373,17 @@ const SuperadminDashboard = () => {
               
               {auditLogs.map((log, index) => {
                  let roleStyle = "bg-slate-800 text-slate-400 border-slate-700";
-                 if (log.actorRole === "superadmin") roleStyle = "bg-purple-500/20 text-purple-400 border-purple-500/30";
-                 if (log.actorRole === "admin") roleStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-                 if (log.actorRole === "system") roleStyle = "bg-blue-500/10 text-blue-400 border-blue-500/20";
+                 if (log.actor_role === "super_admin") roleStyle = "bg-purple-500/20 text-purple-400 border-purple-500/30";
+                 if (log.actor_role === "admin") roleStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+                 if (log.actor_role === "system") roleStyle = "bg-blue-500/10 text-blue-400 border-blue-500/20";
 
                  return (
-                   <div key={log.id} className="flex flex-col sm:flex-row sm:items-start gap-3 border-b border-white/5 pb-4 hover:bg-white/[0.03] transition-colors p-2 rounded-lg">
-                      <div className="text-purple-300/50 text-[11px] shrink-0 pt-0.5 w-[80px]">[{log.timestamp}]</div>
+                   <div key={log.id || index} className="flex flex-col sm:flex-row sm:items-start gap-3 border-b border-white/5 pb-4 hover:bg-white/[0.03] transition-colors p-2 rounded-lg">
+                      <div className="text-purple-300/50 text-[11px] shrink-0 pt-0.5 w-[80px]">[{formatRelativeTime(log.created_at)}]</div>
                       <div>
                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                           <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-widest ${roleStyle}`}>{log.actorRole}</span>
-                           <span className="text-white font-bold">{log.actorName}</span>
+                           <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-widest ${roleStyle}`}>{log.actor_role}</span>
+                           <span className="text-white font-bold">{log.actor?.full_name || 'System'}</span>
                          </div>
                          <p className="text-purple-200/70 text-xs leading-relaxed">{log.action}</p>
                       </div>

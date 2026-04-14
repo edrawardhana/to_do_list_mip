@@ -1,23 +1,38 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 const ManageAccountIntern = () => {
   const { user, isAdmin, isSuperAdmin, isDeveloper } = useAuth();
   
   // Tentukan kasta & batasan wilayah
   const canViewAll = isSuperAdmin || isDeveloper;
-  const myDivision = user?.division_name || "IT Support";
+  const myDivision = user?.division?.name || user?.division_name || "IT Support";
 
   // ==========================================
   // DUMMY DATA ANAK MAGANG
   // ==========================================
-  const [interns, setInterns] = useState([
-    { id: "usr-001", name: "Kiel", email: "kiel@mcc.com", division: "IT Support", is_verified: true, is_locked: false, joinDate: "10 Jan 2026" },
-    { id: "usr-002", name: "Nabil", email: "nabil@mcc.com", division: "IT Support", is_verified: false, is_locked: false, joinDate: "05 Apr 2026" },
-    { id: "usr-003", name: "Edra", email: "edra@mcc.com", division: "Multimedia", is_verified: true, is_locked: false, joinDate: "15 Feb 2026" },
-    { id: "usr-004", name: "Siti", email: "siti@mcc.com", division: "Public Relation", is_verified: true, is_locked: true, joinDate: "20 Mar 2026" },
-    { id: "usr-005", name: "Budi", email: "budi@mcc.com", division: "Creative Design", is_verified: false, is_locked: false, joinDate: "04 Apr 2026" },
-  ]);
+  const [interns, setInterns] = useState([]);
+
+  const fetchInterns = async () => {
+    try {
+      const res = await api.get('/profiles'); 
+      const data = res.data?.data || res.data || [];
+      const normalized = data.map(i => ({
+        ...i,
+        name: i.name || i.full_name || "Unknown",
+        division: i.division?.name || i.division_name || (typeof i.division === 'string' ? i.division : "Unknown")
+      }));
+      setInterns(normalized);
+    } catch (error) {
+      console.error("Gagal memuat data akun:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchInterns();
+  }, []);
 
   // State Filter & Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,22 +73,40 @@ const ManageAccountIntern = () => {
   // ==========================================
   // ACTION HANDLERS
   // ==========================================
-  const handleVerify = (id, name) => {
+  const handleVerify = async (id, name) => {
     if (window.confirm(`Yakin ingin memverifikasi akun ${name}?`)) {
-      setInterns(prev => prev.map(intern => intern.id === id ? { ...intern, is_verified: true } : intern));
+      try {
+        await api.put(`/profiles/${id}/verify`, { is_verified: true });
+        toast.success(`Akun ${name} telah terverifikasi`);
+        fetchInterns();
+      } catch (error) {
+        toast.error("Gagal memverifikasi akun");
+      }
     }
   };
 
-  const handleToggleLock = (id, name, currentStatus) => {
+  const handleToggleLock = async (id, name, currentStatus) => {
     const action = currentStatus ? "Membuka Gembok" : "Menggembok";
     if (window.confirm(`Yakin ingin ${action} akun ${name} secara individual?`)) {
-      setInterns(prev => prev.map(intern => intern.id === id ? { ...intern, is_locked: !currentStatus } : intern));
+      try {
+        await api.put(`/profiles/${id}/lock`, { is_locked: !currentStatus });
+        toast.success(`Berhasil ${action} akun ${name}`);
+        fetchInterns();
+      } catch (error) {
+        toast.error("Gagal mengubah status gembok");
+      }
     }
   };
 
-  const handleDelete = (id, name) => {
+  const handleDelete = async (id, name) => {
     if (window.confirm(`BAHAYA! Yakin ingin menghapus permanen akun ${name}?`)) {
-      setInterns(prev => prev.filter(intern => intern.id !== id));
+      try {
+        await api.delete(`/profiles/${id}`);
+        toast.success(`Akun ${name} telah dihapus permanen`);
+        fetchInterns();
+      } catch (error) {
+        toast.error("Gagal menghapus akun");
+      }
     }
   };
 

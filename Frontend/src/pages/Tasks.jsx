@@ -4,17 +4,12 @@ import InternTasks from "./intern/InternTasks"; // Path sesuaikan ke file checkl
 import AdminTaskCRUD from "./admin/AdminTaskCRUD"; // Path sesuaikan ke file admin lu
 
 const Tasks = () => {
-  const { user, isLoading } = useAuth();
+  const { isLoading, isAnyAdmin } = useAuth();
 
   if (isLoading) return <div>Loading...</div>;
 
-  // Normalisasi role (jaga-jaga kalo format textnya beda)
-  const rawRole = user?.role?.toLowerCase().replace(/_|\s/g, "") || "intern";
-  
-  // Jika dia Admin, Superadmin, atau Developer, kasih tampilan CRUD
-  const isAdminLevel = ["admin", "superadmin", "developer"].includes(rawRole);
-
-  if (isAdminLevel) {
+  // Gunakan variabel isAnyAdmin dari AuthContext biar rapi dan otomatis mendeteksi role
+  if (isAnyAdmin) {
     return <AdminTaskCRUD />;
   }
 

@@ -1,26 +1,39 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 const Reports = () => {
   const { user, isSuperAdmin, isDeveloper } = useAuth();
   
   // Tentukan bos atau bukan
   const canViewAll = isSuperAdmin || isDeveloper;
-  const myDivision = user?.division_name || "IT Support";
+  const myDivision = user?.division?.name || user?.division_name || "IT Support";
 
   // State Filter (Kalo Admin biasa, defaultnya langsung divisinya dia)
   const [filterDivision, setFilterDivision] = useState(canViewAll ? "Semua" : myDivision);
   const [filterMonth, setFilterMonth] = useState("2026-04");
   const [isExporting, setIsExporting] = useState(false);
 
-  // Dummy Data Rekap Performa Anak Magang
-  const rawData = [
-    { id: 1, name: "Kiel", division: "IT Support", attendance: 95, tasksCompleted: 42, tasksTotal: 45, leaveCount: 1, status: "Excellent" },
-    { id: 2, name: "Nabil", division: "IT Support", attendance: 88, tasksCompleted: 38, tasksTotal: 45, leaveCount: 3, status: "Good" },
-    { id: 3, name: "Edra", division: "Multimedia", attendance: 100, tasksCompleted: 50, tasksTotal: 50, leaveCount: 0, status: "Excellent" },
-    { id: 4, name: "Siti", division: "Public Relation", attendance: 75, tasksCompleted: 20, tasksTotal: 30, leaveCount: 5, status: "Warning" },
-    { id: 5, name: "Budi", division: "Creative Design", attendance: 92, tasksCompleted: 40, tasksTotal: 45, leaveCount: 2, status: "Good" },
-  ];
+  const [rawData, setRawData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      setIsLoading(true);
+      try {
+        const res = await api.get('/reports', { params: { month: filterMonth } });
+        const data = res.data?.data || res.data || [];
+        // Normalisasi data dari DB untuk menyesuaikan nama field di UI Frontend
+        setRawData(data.map(item => ({ ...item, name: item.name || item.full_name, division: item.division?.name || item.division_name || item.division })));
+      } catch (error) {
+        console.error("Gagal mengambil data laporan:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchReports();
+  }, [filterMonth]);
 
   // Logic Filter Sakti
   const filteredData = useMemo(() => {
@@ -57,11 +70,20 @@ const Reports = () => {
   // Simulasi Export PDF
   const handleExportPDF = async () => {
     setIsExporting(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsExporting(false);
-    
-    const targetDiv = canViewAll ? filterDivision : myDivision;
-    alert(`Laporan Performa ${targetDiv} (${filterMonth}) berhasil di-download sebagai PDF!`);
+    try {
+      const res = await api.get('/reports/export-pdf', { params: { month: filterMonth, division: canViewAll ? filterDivision : myDivision }, responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Laporan_Performa_${filterMonth}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      toast.success("Laporan PDF berhasil diunduh");
+    } catch(e) {
+      toast.error("Gagal mengekspor PDF");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (

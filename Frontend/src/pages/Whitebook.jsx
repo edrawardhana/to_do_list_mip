@@ -1,5 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import api from "../api/axios";
+import toast from "react-hot-toast";
 
 const Whitebook = () => {
   const { user, isAdmin, isSuperAdmin, isDeveloper } = useAuth();
@@ -7,7 +9,7 @@ const Whitebook = () => {
   // HANYA Admin Divisi yang bisa Edit (Superadmin & Dev cuma mantau)
   const canEdit = isAdmin && !isSuperAdmin && !isDeveloper; 
   const canViewAll = isSuperAdmin || isDeveloper;
-  const myDivision = user?.division_name || "IT Support";
+  const myDivision = user?.division?.name || user?.division_name || "IT Support";
 
   // ==========================================
   // LOGIC WARNA TEMA DINAMIS KASTA TERTINGGI
@@ -19,30 +21,30 @@ const Whitebook = () => {
   // ==========================================
   // DUMMY DATA
   // ==========================================
-  const [documents, setDocuments] = useState([
-    {
-      id: 1, title: "SOP Reset Router & Switch", category: "IT Support",
-      icon: "fa-network-wired", author: "Admin CPG", date: "10 Apr 2026",
-      content: "Panduan langkah demi langkah mereset dan mengkonfigurasi ulang router Mikrotik di lantai 2 dan 3.\n\n### Langkah 1\nPastikan membackup konfigurasi sebelum melakukan hard reset.\n\n### Langkah 2\n- Colok kabel LAN ke ether2.\n- Buka Winbox, login dengan MAC Address.\n- Pilih menu System > Reset Configuration."
-    },
-    {
-      id: 2, title: "Standard Tone of Voice", category: "Public Relation",
-      icon: "fa-comments", author: "Mbak Rina", date: "05 Apr 2026",
-      content: "Panduan gaya bahasa untuk membalas pesan di media sosial MCC.\n\n- Gunakan bahasa semi-formal.\n- Hindari singkatan alay (yg, kyk, bgt).\n- Akhiri setiap balasan dengan salam hangat."
-    },
-    {
-      id: 3, title: "Aturan Cuti & Izin", category: "General",
-      icon: "fa-envelope-open-text", author: "HRD", date: "12 Apr 2026",
-      content: "Semua pengajuan izin wajib dilakukan melalui portal H-1.\n\n- Sakit wajib lampirkan surat dokter.\n- Tukar shift wajib persetujuan kedua belah pihak."
-    },
-  ]);
+  const [documents, setDocuments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // State UI
   const [selectedDiv, setSelectedDiv] = useState(canViewAll ? "IT Support" : myDivision);
   const [activeDocId, setActiveDocId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [formData, setFormData] = useState({ id: null, title: "", category: "", content: "" });
+  const [formData, setFormData] = useState({ id: null, title: "", type: "link", file_url: "" });
+
+  // FETCH DATA SOP DARI BACKEND
+  const fetchWhitebooks = async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.get('/whiteboards');
+      setDocuments(res.data?.data || res.data || []);
+    } catch (error) {
+      console.error("Gagal memuat SOP:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchWhitebooks(); }, []);
 
   // Logic Filter
   const sideMenuItems = useMemo(() => {
@@ -61,29 +63,36 @@ const Whitebook = () => {
   }, [activeDocId, sideMenuItems]);
 
   // --- FUNGSI CRUD ---
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    if (formData.id) {
-      setDocuments(prev => prev.map(d => d.id === formData.id ? { ...d, ...formData, date: "Barusan diupdate" } : d));
-    } else {
-      const iconMap = { "IT Support": "fa-desktop", "Multimedia": "fa-video", "Public Relation": "fa-bullhorn", "General": "fa-file-lines" };
-      const newDoc = { 
-        ...formData, 
-        id: Date.now(), 
-        author: user?.nickname || "Admin", 
-        date: "Baru saja", 
-        icon: iconMap[formData.category] || "fa-book" 
-      };
-      setDocuments([newDoc, ...documents]);
-      setActiveDocId(newDoc.id);
+    try {
+      if (formData.id) {
+        await api.put(`/whiteboards/${formData.id}`, formData);
+        toast.success("SOP berhasil diperbarui!");
+      } else {
+        const iconMap = { "pdf": "fa-file-pdf", "image": "fa-image", "link": "fa-link" };
+        const payload = { ...formData, icon: iconMap[formData.type] || "fa-book" };
+        await api.post('/whiteboards', payload);
+        toast.success("SOP baru berhasil ditambahkan!");
+      }
+      fetchWhitebooks();
+      setIsFormOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast.error("Gagal menyimpan SOP.");
     }
-    setIsFormOpen(false);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm("Yakin ingin menghapus dokumen ini secara permanen?")) {
-      setDocuments(prev => prev.filter(d => d.id !== id));
-      setActiveDocId(null);
+      try {
+        await api.delete(`/whiteboards/${id}`);
+        toast.success("SOP berhasil dihapus!");
+        fetchWhitebooks();
+        setActiveDocId(null);
+      } catch (error) {
+        toast.error("Gagal menghapus SOP.");
+      }
     }
   };
 
@@ -93,7 +102,7 @@ const Whitebook = () => {
   };
 
   const openCreateForm = () => {
-    setFormData({ id: null, title: "", category: myDivision, content: "" });
+    setFormData({ id: null, title: "", type: "link", file_url: "" });
     setIsFormOpen(true);
   };
 
@@ -395,37 +404,22 @@ const Whitebook = () => {
               </div>
 
               {/* ISI KONTEN */}
-              <div className="px-8 py-5 md:px-12 md:py-8 flex-1 overflow-y-auto custom-scrollbar">
-                <article className="max-w-none">
-                  {activeDoc.content.split('\n').map((line, index) => {
-                    if (line.trim() === '') return null;
-                    if (line.startsWith('### ')) {
-                      return (
-                        <h3 key={index} className={`text-xl md:text-2xl font-black mt-6 mb-3 tracking-tight ${
-                          isDeveloperTheme ? "text-zinc-100" : "text-slate-800"
-                        }`}>
-                          {line.replace('### ', '')}
-                        </h3>
-                      );
-                    }
-                    if (line.startsWith('- ')) {
-                      return (
-                        <li key={index} className={`text-[15px] md:text-[16px] leading-[1.8] font-normal font-sans antialiased ml-5 list-disc mb-1.5 ${
-                          isDeveloperTheme ? "text-zinc-300" : "text-slate-700"
-                        }`}>
-                          {line.replace('- ', '')}
-                        </li>
-                      );
-                    }
-                    return (
-                      <p key={index} className={`text-[15px] md:text-[16px] leading-[1.8] font-normal font-sans antialiased mb-4 ${
-                        isDeveloperTheme ? "text-zinc-300" : "text-slate-700"
-                      }`}>
-                        {line}
-                      </p>
-                    );
-                  })}
-                </article>
+              <div className="px-8 py-5 md:px-12 md:py-8 flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+                {activeDoc.type === 'image' && (
+                   <img src={activeDoc.file_url} alt={activeDoc.title} className="max-w-full rounded-xl border border-slate-200 shadow-sm mx-auto" />
+                )}
+                {activeDoc.type === 'pdf' && (
+                   <iframe src={activeDoc.file_url} className="w-full h-[600px] rounded-xl border border-slate-200 shadow-sm"></iframe>
+                )}
+                {(!activeDoc.type || activeDoc.type === 'link') && (
+                   <div className="text-center py-12 m-auto">
+                     <i className={`fa-solid fa-link text-5xl mb-4 ${isDeveloperTheme ? 'text-zinc-700' : 'text-slate-200'}`}></i>
+                     <p className={`mb-6 text-sm font-medium ${isDeveloperTheme ? 'text-zinc-400' : 'text-slate-500'}`}>Dokumen ini berupa tautan eksternal (Google Drive / Web).</p>
+                     <a href={activeDoc.file_url} target="_blank" rel="noreferrer" className={`px-6 py-3 text-white rounded-xl font-bold shadow-md transition-colors ${isDeveloperTheme ? 'bg-zinc-700 hover:bg-zinc-600' : isPurpleTheme ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                       Buka Tautan <i className="fa-solid fa-arrow-up-right-from-square ml-2"></i>
+                     </a>
+                   </div>
+                )}
               </div>
             </>
           ) : (
@@ -436,6 +430,59 @@ const Whitebook = () => {
           )}
         </main>
       </div>
+
+      {/* MODAL FORM */}
+      {isFormOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className={`w-full max-w-lg rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 ${
+            isDeveloperTheme ? "bg-[#18181b] border border-zinc-800" : "bg-white"
+          }`}>
+            <h2 className={`text-xl font-black mb-6 ${isDeveloperTheme ? "text-zinc-100" : "text-slate-800"}`}>
+              {formData.id ? "Edit SOP" : "Tambah SOP Baru"}
+            </h2>
+            
+            <form onSubmit={handleSave} className="space-y-4">
+              <div>
+                <label className={`text-xs font-bold uppercase tracking-widest mb-1 block ${isDeveloperTheme ? 'text-zinc-500' : 'text-slate-500'}`}>Judul SOP</label>
+                <input 
+                  type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})}
+                  className={`w-full p-3 rounded-xl border outline-none text-sm ${isDeveloperTheme ? 'bg-zinc-900 border-zinc-700 text-zinc-200' : 'bg-slate-50 border-slate-200'}`}
+                />
+              </div>
+              
+              <div>
+                <label className={`text-xs font-bold uppercase tracking-widest mb-1 block ${isDeveloperTheme ? 'text-zinc-500' : 'text-slate-500'}`}>Tipe Format</label>
+                <select 
+                  value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}
+                  className={`w-full p-3 rounded-xl border outline-none text-sm cursor-pointer ${isDeveloperTheme ? 'bg-zinc-900 border-zinc-700 text-zinc-200' : 'bg-slate-50 border-slate-200'}`}
+                >
+                  <option value="link">Link Eksternal (Google Drive / Notion)</option>
+                  <option value="pdf">PDF Dokumen</option>
+                  <option value="image">Gambar (JPEG/PNG)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={`text-xs font-bold uppercase tracking-widest mb-1 block ${isDeveloperTheme ? 'text-zinc-500' : 'text-slate-500'}`}>URL File / Tautan</label>
+                <input 
+                  type="url" required value={formData.file_url} onChange={e => setFormData({...formData, file_url: e.target.value})}
+                  placeholder="https://..."
+                  className={`w-full p-3 rounded-xl border outline-none text-sm ${isDeveloperTheme ? 'bg-zinc-900 border-zinc-700 text-zinc-200' : 'bg-slate-50 border-slate-200'}`}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setIsFormOpen(false)} className={`flex-1 py-3 rounded-xl font-bold transition-all ${isDeveloperTheme ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                  Batal
+                </button>
+                <button type="submit" className={`flex-1 py-3 text-white rounded-xl font-bold shadow-md transition-all ${isDeveloperTheme ? 'bg-blue-600 hover:bg-blue-500' : isPurpleTheme ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-600 hover:bg-blue-500'}`}>
+                  Simpan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
