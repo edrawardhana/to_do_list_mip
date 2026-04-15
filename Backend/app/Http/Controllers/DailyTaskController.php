@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\DailyTask;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\QueryException;
 use App\Models\AuditLog;
 
@@ -103,7 +104,7 @@ class DailyTaskController extends Controller
             'description' => 'sometimes|string',
             'status' => 'sometimes|in:pending,approved,rejected,revision',
             'reject_reason' => 'nullable|string',
-            'evidence_url' => 'sometimes|string',
+            'evidence_url' => 'sometimes|image|max:5120', // 5MB Max
             'confirmed_participants' => 'sometimes|array',
             'is_archived' => 'sometimes|boolean'
         ]);
@@ -114,7 +115,15 @@ class DailyTaskController extends Controller
         }
 
         try {
-            $dataToUpdate = $request->only(['description', 'status', 'reject_reason', 'evidence_url', 'confirmed_participants', 'is_archived']);
+            // Get all data except the file and method spoofing
+            $dataToUpdate = $request->except(['evidence_url', '_method']);
+
+            // Handle file upload for 'evidence_url' if it exists
+            if ($request->hasFile('evidence_url')) {
+                // Store the file in the 'public' disk under 'task_evidence' folder
+                $path = $request->file('evidence_url')->store('task_evidence', 'public');
+                $dataToUpdate['evidence_url'] = Storage::url($path);
+            }
             
             // Mark evaluated_by if admin processed it
             if ($user->role === 'admin' || $user->role === 'super_admin') {

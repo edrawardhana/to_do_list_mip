@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import InternTaskCard from "../../components/ui/InternTaskCard";
 import LiveCameraModal from "../../components/ui/LiveCameraModal";
 import { useAuth } from "../../contexts/AuthContext";
+import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 const InternTasks = () => {
   const { user } = useAuth();
@@ -15,59 +17,60 @@ const InternTasks = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
 
-  // DUMMY DATA KOMPLIT SEMUA SKENARIO (Termasuk yang udah selesai & yang nunggu konfirmasi)
-  const [tasks, setTasks] = useState([
-    { 
-      id: 1, 
-      title: "Update Software PC Admin", 
-      location: "Lantai 2 - MCC", 
-      status: "completed", // CONTOH SELESAI
-      admin_notes: "", 
-      is_urgent: false, 
-      photo: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=200", 
-      tagged_users: [] 
-    },
-    { 
-      id: 2, 
-      title: "Cek Jaringan Router Lantai 3", 
-      location: "Lantai 3 - MCC", 
-      status: "waiting_confirmation", // CONTOH DI-TAG TEMEN
-      admin_notes: "", 
-      is_urgent: false, 
-      photo: null, 
-      inviter_name: "Edra Maulana", 
-      tagged_users: [{ id: "1", has_confirmed: false }] // ID "1" itu Kiel (User saat ini)
-    },
-    { 
-      id: 3, 
-      title: "Setup Proyektor Ruang Rapat", 
-      location: "Lantai 4 - MCC", 
-      status: "revision", // CONTOH REVISI
-      admin_notes: "Foto kurang terang dek, tolong jepret ulang bagian kabel HDMI-nya ya.", 
-      is_urgent: false, 
-      photo: null, 
-      tagged_users: [] 
-    },
-    { 
-      id: 4, 
-      title: "Bantu Angkat Server Baru", 
-      location: "Ruang Server", 
-      status: "todo", // CONTOH URGENT
-      admin_notes: "", 
-      is_urgent: true, 
-      photo: null, 
-      tagged_users: [] 
-    },
-  ]);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchTasks = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/daily-tasks');
+      const data = res.data?.data || res.data || [];
+      
+      setTasks(data.map(t => {
+        let uiStatus = "todo";
+        if (t.status === "approved" || t.status === "completed") uiStatus = "completed";
+        else if (t.status === "rejected" || t.status === "revision") uiStatus = "revision";
+        else if (t.evidence_url || t.status === "waiting_confirmation") uiStatus = "waiting_confirmation";
+        
+        return {
+          id: t.id,
+          title: t.template?.title || t.description || "Tugas Harian",
+          location: "Kantor MCC",
+          status: uiStatus,
+          admin_notes: t.reject_reason || t.reviewer_notes || "",
+          is_urgent: t.template_id === null, // Urgent jika tidak punya template (Dadakan)
+          photo: t.evidence_url || null,
+          inviter_name: t.assigner?.full_name || t.assigned_by?.full_name || t.uploader?.full_name || t.uploader?.nickname || "",
+          tagged_users: Array.isArray(t.confirmed_participants) ? t.confirmed_participants : [],
+          due_date: t.due_date,
+          assign_note: t.assign_note
+        };
+      }));
+    } catch (error) {
+      console.error("Gagal memuat tugas harian:", error);
+      toast.error("Gagal memuat logbook tugas.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
 
   const regularTasks = tasks.filter(t => !t.is_urgent);
   const urgentTasks = tasks.filter(t => t.is_urgent);
 
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.status === "completed").length;
-  const progressPercent = Math.round((completedTasks / totalTasks) * 100) || 0;
+  const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   const handleOpenCamera = (task) => {
+    // Frontend lock menyesuaikan Trigger Database Supabase (Evidence Lock)
+    if (task.photo && task.status !== "revision") {
+      toast.error("Sistem Keamanan: Bukti foto tugas telah tersegel permanen oleh database.");
+      return;
+    }
     setSelectedTask(task);
     setIsCameraOpen(true);
   };
@@ -77,56 +80,51 @@ const InternTasks = () => {
     setSelectedTask(null);
   };
 
-  // LOGIC SUBMIT & ROLLBACK
-  const handleSubmitReport = async (formData) => {
-    const taskId = parseInt(formData.get("task_id"));
-    const taggedIds = JSON.parse(formData.get("tagged_user_ids"));
+  // LOGIC SUBMIT API
+  const handleSubmitReport = async (submittedData) => {
+    // Menggunakan ID dari selectedTask lebih aman daripada extract dari parameter data
+    const taskId = selectedTask?.id; 
     
-    // Anggap foto kekirim ke backend, kita simpen lokal sbg objectURL
-    const fakePhotoUrl = URL.createObjectURL(formData.get("photo"));
+    if (!taskId) {
+      toast.error("Gagal mengirim laporan: ID tugas tidak ditemukan.");
+      return;
+    }
 
-    // Ubah ke waiting_confirmation
-    setTasks(prev => prev.map(t => 
-      t.id === taskId ? { 
-        ...t, 
-        status: "waiting_confirmation", 
-        inviter_name: currentUser.name,
-        photo: fakePhotoUrl,
-        tagged_users: taggedIds.map(id => ({ id, has_confirmed: id === currentUser.id })) // Inviter otomatis true
-      } : t
-    ));
+    // Otomatis konversi ke FormData jika data dari modal berupa Object literal
+    let payload = submittedData;
+    if (!(submittedData instanceof FormData)) {
+      payload = new FormData();
+      Object.keys(submittedData).forEach(key => payload.append(key, submittedData[key]));
+    }
+    
+    // Spoofing method PUT untuk upload form-data khusus di Laravel
+    if (!payload.has("_method")) {
+      payload.append("_method", "PUT");
+    }
 
-    handleCloseCamera();
-
-    // ROLLBACK SIMULATOR (Dibuat 10 detik buat ngetes, aslinya 600000ms / 10 menit)
-    setTimeout(() => {
-      setTasks(prev => prev.map(t => {
-        if (t.id === taskId && t.status === "waiting_confirmation") {
-          // Kalo setelah timeout statusnya masih nunggu, balikin ke TODO
-          console.log(`Rollback Tugas ${t.id} karena rekan tidak konfirmasi.`);
-          return { ...t, status: "todo", photo: null, tagged_users: [] };
-        }
-        return t;
-      }));
-    }, 10000); 
+    try {
+      await api.post(`/daily-tasks/${taskId}`, payload, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      toast.success("Laporan tugas berhasil dikirim!");
+      handleCloseCamera();
+      fetchTasks();
+    } catch (error) {
+      console.error("Gagal mengirim laporan:", error);
+      toast.error(error.response?.data?.message || "Gagal mengirim laporan tugas. Pastikan bukti belum pernah diunggah.");
+    }
   };
 
-  // LOGIC ACC TEMEN YANG DI-TAG
-  const handleConfirmTask = (taskId) => {
-    setTasks(prev => prev.map(t => {
-      if (t.id === taskId) {
-        const newTags = t.tagged_users.map(u => 
-          u.id === currentUser.id ? { ...u, has_confirmed: true } : u
-        );
-        const allConfirmed = newTags.every(u => u.has_confirmed === true);
-        return { 
-          ...t, 
-          tagged_users: newTags, 
-          status: allConfirmed ? "pending" : "waiting_confirmation" 
-        };
-      }
-      return t;
-    }));
+  // LOGIC ACC TEMEN YANG DI-TAG API
+  const handleConfirmTask = async (taskId) => {
+    try {
+      await api.put(`/daily-tasks/${taskId}/confirm`);
+      toast.success("Berhasil konfirmasi tugas rekan!");
+      fetchTasks();
+    } catch (error) {
+      console.error("Gagal konfirmasi:", error);
+      toast.error("Gagal mengkonfirmasi tugas rekan.");
+    }
   };
 
   return (
@@ -164,14 +162,14 @@ const InternTasks = () => {
             <div className="relative z-10 flex justify-between items-start mb-4">
               <div>
                 <p className="text-[10px] font-bold text-sky-300 uppercase tracking-widest mb-1">Progress Harian</p>
-                <p className="text-xs font-medium text-slate-400">Total {totalTasks} Tugas</p>
+                <p className="text-xs font-medium text-slate-400">Total {loading ? "..." : totalTasks} Tugas</p>
               </div>
               <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10 text-sky-400">
                 <i className="fa-solid fa-chart-pie"></i>
               </div>
             </div>
             <div className="relative z-10 flex items-end gap-2 mb-4">
-               <h3 className="text-6xl font-black text-sky-400 leading-none tracking-tighter drop-shadow-md">{progressPercent}%</h3>
+               <h3 className="text-6xl font-black text-sky-400 leading-none tracking-tighter drop-shadow-md">{loading ? 0 : progressPercent}%</h3>
             </div>
             <div className="relative z-10 w-full h-2.5 bg-black/40 rounded-full overflow-hidden border border-white/5 shadow-inner">
               <div className="h-full bg-gradient-to-r from-sky-500 to-sky-300 rounded-full relative transition-all duration-1000 ease-out" style={{ width: `${progressPercent}%` }}>
@@ -179,7 +177,7 @@ const InternTasks = () => {
               </div>
             </div>
             <p className="relative z-10 text-[11px] font-medium text-white/60 mt-4 text-right">
-              <span className="font-bold text-white">{completedTasks}</span> dari {totalTasks} Selesai
+              <span className="font-bold text-white">{loading ? "..." : completedTasks}</span> dari {loading ? "..." : totalTasks} Selesai
             </p>
           </div>
         </div>
@@ -194,21 +192,27 @@ const InternTasks = () => {
           <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest leading-none">Rutinitas Harian</h2>
         </div>
         <div className="flex flex-col gap-3">
-          {regularTasks.map((task, index) => (
-            <InternTaskCard 
-              key={task.id} 
-              task={task} 
-              index={index} 
-              onOpenCameraModal={handleOpenCamera} 
-              onConfirmTask={handleConfirmTask}
-              currentUserId={currentUser.id}
-            />
-          ))}
+            {loading ? (
+              <p className="text-center text-sm font-bold text-slate-400 py-8"><i className="fa-solid fa-spinner fa-spin mr-2"></i>Memuat tugas harian...</p>
+            ) : regularTasks.length === 0 ? (
+              <p className="text-center text-sm font-bold text-slate-400 py-8">Belum ada tugas rutinitas hari ini.</p>
+            ) : (
+              regularTasks.map((task, index) => (
+                <InternTaskCard 
+                  key={task.id} 
+                  task={task} 
+                  index={index} 
+                  onOpenCameraModal={handleOpenCamera} 
+                  onConfirmTask={handleConfirmTask}
+                  currentUserId={currentUser.id}
+                />
+              ))
+            )}
         </div>
       </div>
 
       {/* PAPAN TUGAS URGENT */}
-      {urgentTasks.length > 0 && (
+        {!loading && urgentTasks.length > 0 && (
         <div className="bg-rose-50/30 p-2 sm:p-4 rounded-[2rem] border border-rose-100 shadow-inner relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-3xl pointer-events-none"></div>
           <div className="flex items-center gap-2 mb-4 border-b border-rose-200/60 pb-3 pl-2 pt-1">

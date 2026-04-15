@@ -98,7 +98,7 @@ const Broadcasts = () => {
 
     setIsLoading(true);
     try {
-      await api.post('/broadcasts/send', { title, message, targetType, targets: selectedTargets });
+      await api.post('/broadcasts/send', { title, content: message, targetType, targets: selectedTargets });
       toast.success("FCM Broadcast Terkirim ke Perangkat!");
       setTitle(""); setMessage(""); setSelectedTargets([]);
       fetchBroadcastData();

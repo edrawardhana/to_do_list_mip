@@ -31,9 +31,11 @@ export default function Login() {
   // --- STATE TERMINAL (GOD MODE) ---
   const [devMode, setDevMode] = useState(false);
   const [terminalInput, setTerminalInput] = useState("");
+  const [terminalAuthStep, setTerminalAuthStep] = useState("idle");
+  const [terminalUser, setTerminalUser] = useState("");
   const [terminalLogs, setTerminalLogs] = useState([
     "MCC OS v2.1.0 (Root Console)",
-    "Type 'help' for available commands or 'sudo login' to authenticate.",
+    "Type 'help' for available commands or 'sudo login <email>' to authenticate.",
   ]);
   const terminalBottomRef = useRef(null);
 
@@ -140,33 +142,71 @@ export default function Login() {
   };
 
   // --- TERMINAL COMMAND HANDLER ---
-  const handleTerminalSubmit = (e) => {
+  const handleTerminalSubmit = async (e) => {
     e.preventDefault();
-    const cmd = terminalInput.trim().toLowerCase();
-    const newLogs = [...terminalLogs, `root@mcc-sync:~# ${terminalInput}`];
+    const rawInput = terminalInput;
+    const cmd = rawInput.trim();
+    const lowerCmd = cmd.toLowerCase();
 
-    if (cmd === "clear") {
+    let newLogs = [...terminalLogs];
+
+    // Pengecekan 2-Step: Jika Terminal sedang menunggu input password
+    if (terminalAuthStep === "password") {
+      newLogs.push(`Password: ${"*".repeat(cmd.length)}`);
+      setTerminalLogs(newLogs);
+      setTerminalInput("");
+      setTerminalAuthStep("idle"); // reset state
+
+      newLogs = [...newLogs, "Authenticating Developer Credentials..."];
+      setTerminalLogs(newLogs);
+
+      try {
+        const response = await api.post("/auth/login", { email: terminalUser, password: cmd });
+        const resData = response.data?.data || response.data;
+        const token = resData?.access_token || resData?.token || response.data?.authorization?.token;
+        let userData = resData?.user || resData?.profile || (resData?.id ? resData : null);
+
+        if (token && !userData) {
+          const meRes = await api.get("/auth/me", { headers: { Authorization: `Bearer ${token}` } });
+          userData = meRes.data?.data || meRes.data?.user || meRes.data;
+        }
+
+        if (userData && userData.role === "developer") {
+          newLogs = [...newLogs, "Access Granted. Redirecting to Root Console..."];
+          setTerminalLogs(newLogs);
+          setTimeout(() => {
+            login(token, userData);
+            toast.success("Root Access Granted", { style: { background: "#050a15", color: "#34d399" } });
+            navigate("/dashboard");
+          }, 1500);
+        } else {
+          newLogs = [...newLogs, "Access Denied: User does not have developer privileges."];
+          setTerminalLogs(newLogs);
+        }
+      } catch (err) {
+        newLogs = [...newLogs, "Access Denied: Invalid credentials or server error."];
+        setTerminalLogs(newLogs);
+      }
+      return;
+    }
+
+    newLogs.push(`root@mcc-sync:~# ${rawInput}`);
+
+    if (lowerCmd === "clear") {
       setTerminalLogs([]);
-    } else if (cmd === "help") {
-      newLogs.push("Available commands: clear, help, sudo login");
+    } else if (lowerCmd === "help") {
+      newLogs.push("Available commands: clear, help, sudo login <email>");
       setTerminalLogs(newLogs);
-    } else if (cmd === "sudo login") {
-      newLogs.push("Authenticating Developer Credentials...");
-      newLogs.push("Access Granted. Redirecting to Root Console...");
-      setTerminalLogs(newLogs);
-      
-      setTimeout(() => {
-        const rootUser = {
-          id: "root-000",
-          full_name: "System Root Developer",
-          email: "root@mcc.com",
-          role: "developer",
-          is_locked: false
-        };
-        login("terminal-root-token", rootUser); 
-        toast.success("Root Access Granted", { style: { background: "#050a15", color: "#34d399" } });
-        navigate("/dashboard");
-      }, 1500);
+    } else if (lowerCmd.startsWith("sudo login")) {
+      const email = cmd.substring(10).trim();
+      if (!email) {
+        newLogs.push("Usage: sudo login <email>");
+        setTerminalLogs(newLogs);
+      } else {
+        setTerminalUser(email);
+        setTerminalAuthStep("password");
+        setTerminalLogs(newLogs);
+      }
     } else if (cmd !== "") {
       newLogs.push(`bash: ${cmd}: command not found`);
       setTerminalLogs(newLogs);
@@ -293,9 +333,11 @@ export default function Login() {
                 <div key={index} className={log.startsWith("root@mcc") ? "text-emerald-500" : "text-emerald-400/80"}>{log}</div>
               ))}
               <form onSubmit={handleTerminalSubmit} className="flex items-center gap-2 mt-2">
-                <span className="text-emerald-500 font-bold">root@mcc-sync:~#</span>
+                <span className="text-emerald-500 font-bold">
+                  {terminalAuthStep === "password" ? "Password:" : "root@mcc-sync:~#"}
+                </span>
                 <input
-                  type="text"
+                  type={terminalAuthStep === "password" ? "password" : "text"}
                   value={terminalInput}
                   onChange={(e) => setTerminalInput(e.target.value)}
                   className="flex-1 bg-transparent outline-none text-emerald-400 border-none focus:ring-0 p-0"

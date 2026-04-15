@@ -1,380 +1,392 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import api from "../../api/axios";
+import { Link } from "react-router-dom";
+import { supabase } from "../../supabaseClient";
+import { toast } from "react-hot-toast";
+import { AlertTriangle, Trash2, Unlock, RefreshCw } from "lucide-react";
 
 const DeveloperDashboard = () => {
   const { user } = useAuth();
-  const [isLockingMassive, setIsLockingMassive] = useState(false);
-  const [isClearingCache, setIsClearingCache] = useState(false);
+  
+  // States
+  const [stats, setStats] = useState({ users: 0, divisions: 0, tasks: 0, templates: 0 });
+  const [recentLogs, setRecentLogs] = useState([]);
+  const [dbOverview, setDbOverview] = useState([]);
+  const [userStats, setUserStats] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fake Live Stats State (Biar UI kerasa hidup)
-  const [sysStats, setSysStats] = useState({ cpu: 32, ram: 45, ping: 12, db: 68, api: 99.9 });
+  // Fake chart data (For visual proxy metrics)
+  const [chartData, setChartData] = useState([]);
+  
+  // Danger Zone States
+  const [isActing, setIsActing] = useState(false);
 
-  const [auditLogs, setAuditLogs] = useState([]);
+  // Fungsi untuk mengeksekusi Danger Action
+  const handleDangerAction = async (actionType, title) => {
+    const passcode = prompt(`DANGER ZONE: ${title}\n\nMasukkan Developer Passcode untuk melanjutkan:`);
+    if (!passcode) return; // Dibatalkan
+    
+    setIsActing(true);
+    const loadingToast = toast.loading(`Executing ${title}...`);
+    try {
+      const { data, error } = await supabase.rpc('fn_execute_danger_zone', {
+        action_type: actionType,
+        passcode: passcode
+      });
+
+      if (error) throw error;
+      toast.success(data || "Berhasil dieksekusi!", { id: loadingToast });
+      
+      // Refresh sedikit data agar terupdate
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Akses Ditolak atau Terjadi Kesalahan", { id: loadingToast });
+    } finally {
+      setIsActing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchAuditLogs = async () => {
+    // Generate synthetic load data for the chart (just visual candy, realistic looking)
+    const mockChart = [];
+    for(let i = 0; i < 24; i++) {
+        mockChart.push(Math.floor(Math.random() * 80) + 20); // 20-100 values
+    }
+    setChartData(mockChart);
+
+    const fetchSystemStats = async () => {
+      setLoading(true);
       try {
-        const res = await api.get('/dashboard/developer'); // Atau '/audit-logs'
-        setAuditLogs(res.data?.data?.auditLogs || res.data?.data || []);
+        const [
+          { data: entityCounts },
+          { data: logs },
+          { data: dbBytes },
+          { data: uStats }
+        ] = await Promise.all([
+          supabase.from('v_developer_entity_counts').select('*').single(),
+          supabase.from('v_developer_recent_audit').select('*').limit(6),
+          supabase.from('v_developer_db_overview').select('*'),
+          supabase.from('v_developer_user_stats').select('*')
+        ]);
+
+        const counts = entityCounts || { total_profiles: 0, total_divisions: 0, total_tasks: 0, total_templates: 0 };
+
+        setStats({
+          users: counts.total_profiles,
+          divisions: counts.total_divisions,
+          tasks: counts.total_tasks,
+          templates: counts.total_templates
+        });
+
+        setRecentLogs(logs || []);
+        setDbOverview((dbBytes || []).slice(0, 6)); 
+        setUserStats(uStats || []);
       } catch (error) {
-        console.error("Gagal mengambil audit logs:", error);
+        console.error("Gagal mengambil data sistem:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchAuditLogs();
+
+    fetchSystemStats();
   }, []);
-
-  useEffect(() => {
-    // Interval buat animasi fake stats server
-    const interval = setInterval(() => {
-      setSysStats(prev => ({
-        cpu: Math.floor(Math.random() * (45 - 20 + 1) + 20),
-        ram: Math.floor(Math.random() * (50 - 42 + 1) + 42),
-        ping: Math.floor(Math.random() * (18 - 8 + 1) + 8),
-        db: prev.db, // Static
-        api: prev.api // Static
-      }));
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // ==========================================
-  // ACTIONS: ROOT COMMANDS
-  // ==========================================
-  const handleEmergencyLock = async () => {
-    const confirmText = window.prompt(
-      "🚨 PERINGATAN DARURAT 🚨\n\nTindakan ini akan mengunci (Force Logout) SELURUH akun anak magang di MCC.\n\nKetik 'CONFIRM' untuk mengeksekusi:"
-    );
-
-    if (confirmText === "CONFIRM") {
-      setIsLockingMassive(true);
-      setTimeout(() => {
-        setIsLockingMassive(false);
-        const newLog = {
-          id: Date.now(),
-          created_at: new Date().toISOString(),
-          actor: { full_name: user?.nickname || "Developer" },
-          actor_role: "developer",
-          action: "🚨 MENGEKSEKUSI EMERGENCY MASS LOCK. Seluruh akun user dibekukan.",
-          type: "danger"
-        };
-        setAuditLogs([newLog, ...auditLogs]);
-        alert("EKSEKUSI BERHASIL: Seluruh akun anak magang telah dibekukan.");
-      }, 1500);
-    }
-  };
-
-  const handleClearCache = () => {
-    setIsClearingCache(true);
-    setTimeout(() => {
-      setIsClearingCache(false);
-      const newLog = {
-        id: Date.now(),
-        created_at: new Date().toISOString(),
-        actor: { full_name: "System" },
-        actor_role: "system",
-        action: "🧹 System Cache & Redis berhasil dibersihkan secara manual.",
-        type: "success"
-      };
-      setAuditLogs([newLog, ...auditLogs]);
-    }, 1000);
-  };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-2 max-w-7xl mx-auto">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-2 max-w-7xl mx-auto">
       
       {/* ================================================================= */}
-      {/* HERO SECTION: TERMINAL AESTHETIC                                    */}
+      {/* HERO SECTION: DEVELOPER CONSOLE THEME                             */}
       {/* ================================================================= */}
-      <div className="bg-[#09090b] rounded-[2.5rem] border border-zinc-800 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-stretch gap-6 group">
+      <div className="bg-[#09090b] rounded-[2.5rem] text-zinc-200 border border-zinc-800 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-full h-[500px] bg-gradient-to-br from-emerald-500/5 via-sky-500/5 to-transparent pointer-events-none"></div>
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-zinc-500/10 rounded-full blur-[100px] pointer-events-none"></div>
         
-        {/* Grid Background Effect */}
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-rose-600/10 rounded-full blur-[100px] pointer-events-none group-hover:bg-rose-500/20 transition-all duration-1000"></div>
+        <div className="relative z-10 p-8 md:p-12 flex flex-col lg:flex-row justify-between gap-8">
+          <div className="lg:max-w-2xl">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shadow-inner">
+                <i className="fa-solid fa-code text-xl"></i>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 bg-zinc-900/50 px-3 py-1.5 rounded-lg border border-zinc-800">Developer Root Console</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-4 leading-tight">
+              Platform Architecture.
+            </h1>
+            <p className="text-sm font-medium text-zinc-400 max-w-xl leading-relaxed">
+              Halo <span className="text-zinc-200 font-bold">{user?.full_name || 'Dev'}</span>! Pantau status database, penggunaan storage, analitik traffic, dan distribusi peran pengguna sistem secara presisi.
+            </p>
 
-        {/* Hero Content Kiri */}
-        <div className="relative z-10 p-8 md:p-10 flex-1 flex flex-col justify-center">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] border backdrop-blur-md flex items-center gap-2 bg-rose-500/10 border-rose-500/20 text-rose-400 shadow-[0_0_15px_rgba(225,29,72,0.2)]">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-rose-400"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-              </span>
-              CONNECTION SECURED
-            </span>
+            <div className="flex flex-wrap gap-4 mt-8">
+               <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <span className="relative flex h-2.5 w-2.5 mr-1">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-xs font-black uppercase tracking-wider">All Systems Operational</span>
+               </div>
+               <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400">
+                  <i className="fa-solid fa-network-wired text-xs text-sky-500"></i>
+                  <span className="text-xs font-black uppercase tracking-wider">Latency: {(Math.random() * 20 + 5).toFixed(1)}ms</span>
+               </div>
+            </div>
           </div>
           
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-4 text-white leading-tight">
-            Core Infrastructure <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-zinc-400">
-              Online & Active.
-            </span>
-          </h1>
-          
-          {/* Fake Terminal Block (Menampilkan proses login lu) */}
-          <div className="mt-4 bg-[#0f0f11] border border-zinc-800 rounded-xl p-4 font-mono text-[11px] leading-relaxed max-w-lg shadow-inner">
-             <div className="flex gap-2 mb-2 border-b border-zinc-800/50 pb-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-rose-500/50"></div>
-                <div className="w-2.5 h-2.5 rounded-full bg-amber-500/50"></div>
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/50"></div>
+          {/* TRAFFIC CHART PROXY */}
+          <div className="w-full lg:w-96 shrink-0 flex flex-col justify-end bg-zinc-900/50 border border-zinc-800/50 rounded-3xl p-6 backdrop-blur-md">
+             <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-sm font-black text-white">Distribusi Beban API (24 Jam)</h3>
+                  <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-widest mt-1">Live Load Proxy Metrics</p>
+                </div>
+                <i className="fa-solid fa-chart-column text-zinc-600 text-xl"></i>
              </div>
-             <p className="text-zinc-500">Last login: {new Date().toLocaleString('id-ID')} on ttys001</p>
-             <p className="text-zinc-400 mt-1"><span className="text-emerald-400">root@mcc-server</span><span className="text-zinc-500">:~#</span> su - {user?.nickname?.toLowerCase() || "developer"}</p>
-             <p className="text-zinc-500">Authenticating God Mode protocols...</p>
-             <p className="text-emerald-400 animate-pulse mt-1">Access Granted.</p>
+             
+             <div className="flex items-end gap-1 h-32 w-full mt-4">
+                {chartData.map((val, idx) => (
+                   <div key={idx} className="flex-1 bg-gradient-to-t from-sky-500/20 to-sky-400 rounded-t-sm transition-all duration-1000 ease-in-out hover:brightness-150 cursor-pointer relative group" style={{height: `${val}%`}}>
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-800 text-white text-[9px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                         H - {24 - idx}
+                      </div>
+                   </div>
+                ))}
+             </div>
+             <div className="flex justify-between items-center mt-3 pt-3 border-t border-zinc-800">
+                <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Normal Threshold</p>
+                <p className="text-[9px] font-bold text-zinc-500">Auto Generated</p>
+             </div>
           </div>
-        </div>
-
-        {/* Hero Stats Kanan */}
-        <div className="relative z-10 bg-[#141417] border-l border-zinc-800 p-8 md:p-10 w-full md:w-[350px] shrink-0 flex flex-col justify-center">
-           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-6 flex items-center gap-2">
-             <i className="fa-solid fa-server text-rose-500"></i> System Vitals
-           </h3>
-           
-           <div className="space-y-5">
-             <div>
-               <div className="flex justify-between text-xs font-bold mb-1.5 font-mono">
-                 <span className="text-zinc-400">CPU LOAD</span>
-                 <span className="text-emerald-400">{sysStats.cpu}%</span>
-               </div>
-               <div className="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden">
-                 <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${sysStats.cpu}%` }}></div>
-               </div>
-             </div>
-             <div>
-               <div className="flex justify-between text-xs font-bold mb-1.5 font-mono">
-                 <span className="text-zinc-400">MEMORY (RAM)</span>
-                 <span className="text-amber-400">{sysStats.ram}%</span>
-               </div>
-               <div className="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden">
-                 <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${sysStats.ram}%` }}></div>
-               </div>
-             </div>
-             <div>
-               <div className="flex justify-between text-xs font-bold mb-1.5 font-mono">
-                 <span className="text-zinc-400">DB PING</span>
-                 <span className="text-sky-400">{sysStats.ping}ms</span>
-               </div>
-               <div className="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden">
-                 <div className="h-full bg-sky-500 rounded-full transition-all duration-500" style={{ width: `${(sysStats.ping / 50) * 100}%` }}></div>
-               </div>
-             </div>
-           </div>
         </div>
       </div>
 
       {/* ================================================================= */}
-      {/* 4 SYSTEM METRICS CARDS (KHUSUS DEV)                                 */}
+      {/* DATABASE & STORAGE STATS                                          */}
       {/* ================================================================= */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-         {/* Card 1: Database */}
-         <div className="bg-[#18181b] p-6 rounded-[2rem] border border-zinc-800 shadow-sm relative overflow-hidden group hover:border-zinc-600 transition-colors flex flex-col justify-between">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
-            <div className="flex justify-between items-start mb-4">
-              <i className="fa-solid fa-database text-xl text-blue-500"></i>
-              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Online</span>
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Database Load</p>
-              <h3 className="text-2xl font-black text-zinc-200">{sysStats.db}<span className="text-sm font-bold text-zinc-500 ml-1">%</span></h3>
-            </div>
-         </div>
-
-         {/* Card 2: Storage */}
-         <div className="bg-[#18181b] p-6 rounded-[2rem] border border-zinc-800 shadow-sm relative overflow-hidden group hover:border-zinc-600 transition-colors flex flex-col justify-between">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
-            <div className="flex justify-between items-start mb-4">
-              <i className="fa-solid fa-hard-drive text-xl text-amber-500"></i>
-              <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Safe</span>
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Storage Used</p>
-              <h3 className="text-2xl font-black text-zinc-200">1.2<span className="text-sm font-bold text-zinc-500 ml-1">GB</span></h3>
-            </div>
-         </div>
-
-         {/* Card 3: API Health */}
-         <div className="bg-[#18181b] p-6 rounded-[2rem] border border-zinc-800 shadow-sm relative overflow-hidden group hover:border-zinc-600 transition-colors flex flex-col justify-between">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
-            <div className="flex justify-between items-start mb-4">
-              <i className="fa-solid fa-network-wired text-xl text-emerald-500"></i>
-              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Optimal</span>
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">API Uptime</p>
-              <h3 className="text-2xl font-black text-zinc-200">{sysStats.api}<span className="text-sm font-bold text-zinc-500 ml-1">%</span></h3>
-            </div>
-         </div>
-
-         {/* Card 4: Error Rate */}
-         <div className="bg-[#18181b] p-6 rounded-[2rem] border border-zinc-800 shadow-sm relative overflow-hidden group hover:border-zinc-600 transition-colors flex flex-col justify-between">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
-            <div className="flex justify-between items-start mb-4">
-              <i className="fa-solid fa-bug text-xl text-rose-500"></i>
-              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Clean</span>
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Exceptions</p>
-              <h3 className="text-2xl font-black text-zinc-200">0<span className="text-sm font-bold text-zinc-500 ml-1">/hr</span></h3>
-            </div>
-         </div>
-      </div>
-
-      {/* ================================================================= */}
-      {/* MAIN LAYOUT: KIRI (COMMANDS & SHORTCUTS) | KANAN (AUDIT LOGS)       */}
-      {/* ================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* KOLOM KIRI: ROOT COMMAND CENTER & SHORTCUTS */}
-        <div className="lg:col-span-5 space-y-6">
-          
-          {/* ROOT COMMAND CENTER */}
-          <div className="bg-[#141417] border border-zinc-800 rounded-[2rem] p-6 shadow-xl relative overflow-hidden">
-            <h3 className="text-xs font-black text-zinc-200 uppercase tracking-widest mb-5 flex items-center gap-2 border-b border-zinc-800/50 pb-4">
-              <i className="fa-solid fa-terminal text-rose-500"></i> Root Commands
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+         {/* KOLOM KIRI: DATABASE INFO OLEH V_DEVELOPER_DB_OVERVIEW */}
+         <div className="col-span-1 lg:col-span-7 space-y-6">
+            <h3 className="text-xl font-black text-zinc-200 flex items-center gap-3">
+              <i className="fa-solid fa-database text-sky-500"></i> Alokasi Memori & Storage Database
             </h3>
             
-            <div className="space-y-3">
-              {/* Emergency Button */}
-              <button 
-                onClick={handleEmergencyLock}
-                disabled={isLockingMassive}
-                className="w-full p-4 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 rounded-xl transition-all flex items-center justify-between group disabled:opacity-50 disabled:cursor-wait"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-rose-500/20 flex items-center justify-center text-lg">
-                    <i className={`fa-solid ${isLockingMassive ? 'fa-circle-notch fa-spin' : 'fa-radiation'} group-hover:scale-110 transition-transform`}></i>
-                  </div>
-                  <div className="text-left">
-                    <h4 className="font-bold text-sm">Emergency Lock</h4>
-                    <p className="text-[10px] text-rose-400/70 font-medium mt-0.5">Force logout semua intern</p>
-                  </div>
-                </div>
-                <i className="fa-solid fa-arrow-right opacity-0 group-hover:opacity-100 transition-opacity"></i>
-              </button>
-
-              {/* Clear Cache Button */}
-              <button 
-                onClick={handleClearCache}
-                disabled={isClearingCache}
-                className="w-full p-4 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 rounded-xl transition-all flex items-center justify-between group disabled:opacity-50 disabled:cursor-wait"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center text-lg">
-                    <i className={`fa-solid ${isClearingCache ? 'fa-circle-notch fa-spin' : 'fa-broom'} group-hover:scale-110 transition-transform`}></i>
-                  </div>
-                  <div className="text-left">
-                    <h4 className="font-bold text-sm">Clear Redis Cache</h4>
-                    <p className="text-[10px] text-amber-400/70 font-medium mt-0.5">Bersihkan memori sistem</p>
-                  </div>
-                </div>
-                <i className="fa-solid fa-arrow-right opacity-0 group-hover:opacity-100 transition-opacity"></i>
-              </button>
-
-              {/* Database Backup */}
-              <button 
-                onClick={() => alert("Simulasi: Mengirim command pg_dump ke server database...")}
-                className="w-full p-4 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-500 rounded-xl transition-all flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-sky-500/20 flex items-center justify-center text-lg">
-                    <i className="fa-solid fa-database group-hover:scale-110 transition-transform"></i>
-                  </div>
-                  <div className="text-left">
-                    <h4 className="font-bold text-sm">Force DB Backup</h4>
-                    <p className="text-[10px] text-sky-400/70 font-medium mt-0.5">Trigger manual dump SQL</p>
-                  </div>
-                </div>
-                <i className="fa-solid fa-arrow-right opacity-0 group-hover:opacity-100 transition-opacity"></i>
-              </button>
+            <div className="bg-[#18181b] rounded-[2rem] border border-zinc-800 p-6 md:p-8 shadow-sm">
+               {!loading && dbOverview.length > 0 ? (
+                 <div className="space-y-5">
+                    {dbOverview.map((item, index) => {
+                       // Estimasi visual load based on array order since Supabase usually returns highest first
+                       const fakePercentage = Math.max(10, 90 - (index * 15));
+                       return (
+                         <div key={index} className="flex flex-col gap-2">
+                            <div className="flex justify-between items-end">
+                               <p className="text-sm font-black text-zinc-200">{item.tablename}</p>
+                               <div className="text-right">
+                                  <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
+                                    {item.data_size} Data <span className="text-zinc-700 mx-1">|</span> <span className="text-sky-400">{item.total_size} Total</span>
+                                  </p>
+                               </div>
+                            </div>
+                            <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden">
+                               <div className="bg-gradient-to-r from-sky-400 to-indigo-500 h-full rounded-full shadow-[0_0_10px_rgba(56,189,248,0.5)]" style={{width: `${fakePercentage}%`}}></div>
+                            </div>
+                         </div>
+                       )
+                    })}
+                 </div>
+               ) : (
+                 <div className="py-12 text-center">
+                    <i className="fa-solid fa-spinner fa-spin text-3xl text-zinc-700 mb-3"></i>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Menarik metrik ukuran relasional...</p>
+                 </div>
+               )}
             </div>
-          </div>
 
-          {/* QUICK SHORTCUTS */}
-          <div className="bg-[#18181b] border border-zinc-800 rounded-[2rem] p-6 shadow-sm">
-            <h3 className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-4">Master Shortcuts</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <Link to="/manage-admin" className="p-4 bg-[#09090b] border border-zinc-800 rounded-xl hover:border-zinc-500 transition-colors flex flex-col gap-2">
-                <i className="fa-solid fa-chess-king text-purple-400 text-lg"></i>
-                <span className="text-[11px] font-bold text-zinc-300">Access Control</span>
-              </Link>
-              <Link to="/system-config" className="p-4 bg-[#09090b] border border-zinc-800 rounded-xl hover:border-zinc-500 transition-colors flex flex-col gap-2">
-                <i className="fa-solid fa-sliders text-emerald-400 text-lg"></i>
-                <span className="text-[11px] font-bold text-zinc-300">Sys Config</span>
-              </Link>
-              <Link to="/division-analytics" className="p-4 bg-[#09090b] border border-zinc-800 rounded-xl hover:border-zinc-500 transition-colors flex flex-col gap-2">
-                <i className="fa-solid fa-sitemap text-blue-400 text-lg"></i>
-                <span className="text-[11px] font-bold text-zinc-300">Analytics</span>
-              </Link>
-              <Link to="/broadcasts" className="p-4 bg-[#09090b] border border-zinc-800 rounded-xl hover:border-zinc-500 transition-colors flex flex-col gap-2">
-                <i className="fa-solid fa-bullhorn text-amber-400 text-lg"></i>
-                <span className="text-[11px] font-bold text-zinc-300">Broadcast</span>
-              </Link>
+            {/* QUICK STATS MICRO-CARDS */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+              <div className="bg-[#18181b] border text-center border-zinc-800 rounded-[1.5rem] p-4 shadow-sm hover:border-zinc-600 transition-colors">
+                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Entitas</p>
+                 <h3 className="text-3xl font-black text-zinc-200">{loading ? "..." : stats.users + stats.divisions}</h3>
+              </div>
+              <div className="bg-[#18181b] border text-center border-zinc-800 rounded-[1.5rem] p-4 shadow-sm hover:border-zinc-600 transition-colors">
+                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Log Dailies</p>
+                 <h3 className="text-3xl font-black text-emerald-400">{loading ? "..." : stats.tasks}</h3>
+              </div>
+              <div className="bg-[#18181b] border text-center border-zinc-800 rounded-[1.5rem] p-4 shadow-sm hover:border-zinc-600 transition-colors">
+                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Auto Blueprint</p>
+                 <h3 className="text-3xl font-black text-blue-400">{loading ? "..." : stats.templates}</h3>
+              </div>
+              <div className="bg-[#18181b] border border-zinc-800 text-center rounded-[1.5rem] px-4 pt-5 shadow-sm transform hover:-translate-y-1 transition-all">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-rose-500/80 mb-1 cursor-help" title="Database Integrity Health Score">Integritas DB</p>
+                  <h3 className="text-3xl font-black text-rose-500">99<span className="text-lg text-rose-600">%</span></h3>
+              </div>
             </div>
-          </div>
+         </div>
 
-        </div>
-
-        {/* KOLOM KANAN: GLOBAL AUDIT LOG (Terminal Style) */}
-        <div className="lg:col-span-7 bg-[#09090b] rounded-[2rem] border border-zinc-800 shadow-xl overflow-hidden flex flex-col h-[700px]">
-          <div className="px-6 py-5 border-b border-zinc-800 bg-[#141417] flex justify-between items-center shrink-0">
-            <h3 className="text-sm font-black text-zinc-200 flex items-center gap-3">
-              <i className="fa-solid fa-list-ul text-emerald-500"></i> Global Audit Stream
+         {/* KOLOM KANAN: STATUS AKUN PENGGUNA OLEH V_DEVELOPER_USER_STATS */}
+         <div className="col-span-1 lg:col-span-5 space-y-6">
+            <h3 className="text-xl font-black text-zinc-200 flex items-center gap-3">
+              <i className="fa-solid fa-users-gear text-purple-400"></i> Distribusi Peran Sistem
             </h3>
-            <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest px-2.5 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span> Live
-            </span>
-          </div>
-          
-          {/* List Log Terminal */}
-          <div className="p-4 flex-1 overflow-y-auto custom-scrollbar font-mono text-sm bg-[#09090b]">
-            <div className="space-y-1">
-              {loading ? (
-                 <div className="text-zinc-500 text-xs text-center py-4"><i className="fa-solid fa-spinner fa-spin mr-2"></i> Mengumpulkan Log...</div>
-              ) : auditLogs.length === 0 ? (
-                 <div className="text-zinc-500 text-xs text-center py-4">Data Stream Kosong</div>
-              ) : auditLogs.map((log) => {
-                // Pewarnaan berdasarkan Tipe
-                const colorMap = {
-                  system: "text-blue-400",
-                  warning: "text-amber-400",
-                  danger: "text-rose-500",
-                  info: "text-zinc-400",
-                  success: "text-emerald-400"
-                };
-                const logColor = colorMap[log.type] || "text-zinc-400";
+            
+            <div className="bg-[#18181b] rounded-[2rem] border border-zinc-800 p-6 shadow-sm overflow-hidden text-zinc-200">
+               {!loading && userStats.length > 0 ? (
+                 <div className="space-y-4">
+                    {userStats.map((roleInfo, index) => {
+                       const badgeProps = 
+                         roleInfo.role === 'super_admin' ? { bg: 'bg-purple-500/10 text-purple-400 border-purple-500/20', i: 'fa-chess-king' } :
+                         roleInfo.role === 'developer' ? { bg: 'bg-rose-500/10 text-rose-400 border-rose-500/20', i: 'fa-code' } :
+                         roleInfo.role === 'admin' ? { bg: 'bg-blue-500/10 text-blue-400 border-blue-500/20', i: 'fa-shield-halved' } :
+                         roleInfo.role === 'user' ? { bg: 'bg-zinc-800 text-zinc-300 border-zinc-700', i: 'fa-user' } : 
+                         { bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', i: 'fa-user-graduate' };
 
-                return (
-                  <div key={log.id} className="p-2.5 hover:bg-zinc-900/50 rounded-lg transition-colors border border-transparent hover:border-zinc-800/50 flex flex-col gap-1 group">
-                    <div className="flex flex-wrap items-center gap-2 text-[10px] opacity-70 group-hover:opacity-100 transition-opacity">
-                      <span className="text-zinc-500">[{new Date(log.created_at || new Date()).toLocaleTimeString('id-ID')}]</span>
-                      <span className={`uppercase font-black px-1.5 rounded bg-zinc-800 border border-zinc-700 ${
-                        log.actor_role?.toLowerCase() === 'super_admin' ? 'text-purple-400' :
-                        log.actor_role?.toLowerCase() === 'developer' ? 'text-zinc-300' :
-                        log.actor_role?.toLowerCase() === 'admin' ? 'text-blue-400' : 
-                        log.actor_role?.toLowerCase() === 'system' ? 'text-emerald-400' : 'text-slate-400'
-                      }`}>
-                        {log.actor_role || "User"}
-                      </span>
-                      <span className="text-zinc-300 font-bold">{log.actorName || log.actor?.full_name || "System"}</span>
+                       return (
+                       <div key={index} className="flex items-center justify-between p-4 rounded-[1.5rem] bg-[#09090b] border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+                          <div className="flex items-center gap-4">
+                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg shadow-inner border ${badgeProps.bg}`}>
+                               <i className={`fa-solid ${badgeProps.i}`}></i>
+                             </div>
+                             <div>
+                               <p className="text-sm font-black uppercase tracking-widest text-zinc-200">{roleInfo.role.replace(/_/g, ' ')}</p>
+                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500"><span className="text-emerald-400 mr-1.5">●</span>{roleInfo.active} Aktif</span>
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500"><span className="text-rose-500 mr-1.5">●</span>{roleInfo.locked} Locked</span>
+                               </div>
+                             </div>
+                          </div>
+                          <div className="text-center bg-zinc-800/50 border border-zinc-700 rounded-xl w-14 py-2 shrink-0">
+                             <span className="text-xl font-black text-white">{roleInfo.total}</span>
+                          </div>
+                       </div>
+                    )})}
+                 </div>
+               ) : (
+                 <div className="py-12 text-center">
+                    <i className="fa-solid fa-compass fa-spin text-3xl text-zinc-800 mb-3"></i>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Sinkronisasi peran...</p>
+                 </div>
+               )}
+            </div>
+         </div>
+      </div>
+
+      {/* ================================================================= */}
+      {/* PUSAT KOMANDO / DANGER ZONE                                       */}
+      {/* ================================================================= */}
+      <div className="bg-[#18181b] border border-rose-900/30 rounded-[2.5rem] overflow-hidden shadow-sm mt-8 relative">
+         {/* Background Danger Accent */}
+         <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-r from-transparent via-rose-500/5 to-rose-500/10 pointer-events-none"></div>
+         
+         <div className="px-8 py-6 border-b border-rose-900/30 bg-rose-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+           <h3 className="font-black text-rose-500 flex items-center gap-3">
+             <div className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center">
+               <AlertTriangle size={16} strokeWidth={3} />
+             </div>
+             Danger Zone (Restricted Access)
+           </h3>
+           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-400/50">Developer Only</span>
+         </div>
+
+         <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+            {/* Action 1: Force Reset */}
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 group hover:border-orange-500/50 hover:bg-orange-500/5 transition-all">
+               <div className="w-12 h-12 bg-orange-500/10 text-orange-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <RefreshCw size={24} />
+               </div>
+               <h4 className="text-zinc-200 font-bold mb-2">Force Reset Daily Tasks</h4>
+               <p className="text-xs text-zinc-500 mb-6 min-h-[40px]">Memaksa sistem melakukan arsip harian ('pending' ke 'failed') dan me-regenerasi template tanpa menunggu Cron Tengah Malam.</p>
+               <button 
+                  disabled={isActing}
+                  onClick={() => handleDangerAction('reset_daily', 'Force Reset Daily Tasks')}
+                  className="w-full py-2.5 px-4 rounded-xl bg-zinc-800 text-orange-400 text-xs font-black uppercase tracking-widest hover:bg-orange-500/20 hover:text-orange-300 transition-colors border border-orange-500/20 disabled:opacity-50"
+               >
+                  Execute Reset
+               </button>
+            </div>
+
+            {/* Action 2: Purge Old Logs */}
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 group hover:border-rose-500/50 hover:bg-rose-500/5 transition-all">
+               <div className="w-12 h-12 bg-rose-500/10 text-rose-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Trash2 size={24} />
+               </div>
+               <h4 className="text-zinc-200 font-bold mb-2">Purge Old Logs</h4>
+               <p className="text-xs text-zinc-500 mb-6 min-h-[40px]">Menghapus secara permanen `audit_logs` yang lebih lama dari 30 hari untuk membersihkan kapasitas disk/memori database.</p>
+               <button 
+                  disabled={isActing}
+                  onClick={() => handleDangerAction('purge_logs', 'Purge Old Logs (> 30 days)')}
+                  className="w-full py-2.5 px-4 rounded-xl bg-zinc-800 text-rose-400 text-xs font-black uppercase tracking-widest hover:bg-rose-500/20 hover:text-rose-300 transition-colors border border-rose-500/20 disabled:opacity-50"
+               >
+                  Purge Storage
+               </button>
+            </div>
+
+            {/* Action 3: Unlock Interns */}
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 group hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all">
+               <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Unlock size={24} />
+               </div>
+               <h4 className="text-zinc-200 font-bold mb-2">Unlock All Users</h4>
+               <p className="text-xs text-zinc-500 mb-6 min-h-[40px]">Aksi sapu bersih. Melepas blokir (is_locked = false) dari semua akun user 'intern' yang ditahan aksesnya oleh Admin.</p>
+               <button 
+                  disabled={isActing}
+                  onClick={() => handleDangerAction('unlock_users', 'Unlock All Locked Sub-Users')}
+                  className="w-full py-2.5 px-4 rounded-xl bg-zinc-800 text-emerald-400 text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 hover:text-emerald-300 transition-colors border border-emerald-500/20 disabled:opacity-50"
+               >
+                  Force Unlock
+               </button>
+            </div>
+         </div>
+      </div>
+
+      {/* ================================================================= */}
+      {/* AUDIT LOGS / RECENT ACTIVITY                                      */}
+      {/* ================================================================= */}
+      <div className="bg-[#18181b] border border-zinc-800 rounded-[2.5rem] overflow-hidden shadow-sm mt-4">
+        <div className="px-8 py-6 border-b border-zinc-800/50 bg-zinc-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <h3 className="font-black text-zinc-200 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+              <i className="fa-solid fa-clock-rotate-left text-xs"></i>
+            </div>
+            Terminal Audit Log
+          </h3>
+          <Link to="/audit-log" className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-colors bg-zinc-800/80 px-5 py-2.5 rounded-xl border border-zinc-700">
+            Open Full Log Viewer <i className="fa-solid fa-arrow-right ml-1"></i>
+          </Link>
+        </div>
+        
+        <div className="p-6 md:p-8">
+          {loading ? (
+            <div className="text-center py-10 text-zinc-600">
+              <i className="fa-solid fa-circle-notch fa-spin text-3xl mb-4"></i>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Executing Table Scan...</p>
+            </div>
+          ) : recentLogs.length === 0 ? (
+            <div className="text-center py-12 text-zinc-700">
+              <i className="fa-solid fa-server text-5xl mb-4 opacity-50"></i>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em]">Log Kosong</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentLogs.map((log, index) => (
+                <div key={index} className="flex flex-col md:flex-row md:items-center justify-between p-5 rounded-[1.5rem] bg-[#09090b]/50 border border-zinc-800/80 hover:border-zinc-700 transition-all gap-4 group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center text-zinc-400 shrink-0 group-hover:bg-zinc-700 group-hover:text-zinc-200 transition-colors">
+                      <i className="fa-solid fa-terminal text-xs"></i>
                     </div>
-                    <div className="flex items-start gap-2.5 pl-1">
-                      <i className={`fa-solid fa-angle-right mt-1 text-[9px] ${logColor}`}></i>
-                      <p className={`${logColor} leading-relaxed text-[12px] ${log.action?.toLowerCase().includes('danger') ? 'bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20 mt-0.5' : ''}`}>
-                        {log.action}
+                    <div>
+                      <p className="text-[15px] font-black text-zinc-200 tracking-tight uppercase">[{log.table_name}] <span className="text-sky-400">{log.action || "Execute"}</span></p>
+                      <p className="text-[12px] font-medium text-zinc-500 mt-1 line-clamp-1 font-mono">
+                        Aktor: <span className="text-zinc-300 font-bold">{log.actor_name || "System"}</span> | Payload: {JSON.stringify(log.new_values)}
                       </p>
                     </div>
                   </div>
-                );
-              })}
+                  <div className="text-left md:text-right shrink-0 pl-14 md:pl-0">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600 mb-1.5">Timestamp Exec</p>
+                    <p className="text-[11px] font-bold text-zinc-300 bg-zinc-800/50 px-3 py-1.5 rounded-lg border border-zinc-800">{new Date(log.created_at).toLocaleString('id-ID')}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
-
       </div>
 
     </div>

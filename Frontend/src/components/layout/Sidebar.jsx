@@ -27,6 +27,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
       // 👇 INI YANG UDAH DIBENERIN (Pakai 'label' bukan 'title')
       { path: "/system-config", label: "System Config", icon: "fa-server", roles: ["developer"] },
+      { path: "/audit-log", label: "Audit Log", icon: "fa-clipboard-list", roles: ["admin", "superadmin", "developer"] },
       
       // LAIN-LAIN
       { path: "/broadcasts", label: "Broadcast", icon: "fa-tower-broadcast", roles: ["admin", "superadmin", "developer"] },

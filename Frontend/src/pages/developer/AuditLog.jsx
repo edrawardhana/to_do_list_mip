@@ -1,6 +1,5 @@
-// src/pages/AuditLog.jsx
 import React, { useEffect, useState } from "react";
-import { getAuditLogs } from "../../services/supabaseClient";
+import { supabase } from "../../supabaseClient";
 import { toast } from "react-hot-toast";
 
 const AuditLog = () => {
@@ -16,20 +15,22 @@ const AuditLog = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const result = await getAuditLogs();
-    if (result.success) {
-      setLogs(result.data);
+    const { data, error } = await supabase
+      .from("v_developer_recent_audit")
+      .select("*");
+      
+    if (error) {
+      toast.error("Gagal mengambil data log: " + error.message);
     } else {
-      toast.error("Gagal mengambil data log: " + result.error);
+      setLogs(data || []);
     }
     setLoading(false);
   };
 
   // 2. Logika Filtering
   const filteredLogs = logs.filter((log) => {
-    // Karena kita pakai JOIN, nama user ada di log.actor.full_name
-    const actorName = log.actor?.full_name || "System";
-    const targetName = log.target?.full_name || "N/A";
+    const actorName = log.actor_name || "System";
+    const targetName = log.target_name || "N/A";
     const actionText = log.action || "";
 
     const matchesText =
@@ -158,35 +159,35 @@ const AuditLog = () => {
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log) => (
+                filteredLogs.map((log, index) => (
                   <tr
-                    key={log.id}
+                    key={index}
                     className="hover:bg-slate-50/50 transition-colors"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-black text-xs uppercase">
-                          {log.actor?.full_name?.substring(0, 2) || "SY"}
+                          {log.actor_name?.substring(0, 2) || "SY"}
                         </div>
                         <div>
                           <p className="text-sm font-black">
-                            {log.actor?.full_name || "System"}
+                            {log.actor_name || "System"}
                           </p>
                           <p className="text-[10px] text-slate-400">
-                            {log.actor_role}
+                            {log.actor_role || "Dev/Admin"}
                           </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <span
-                        className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight ${getBadgeStyle(log.action)}`}
+                        className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight ${getBadgeStyle(log.action || '')}`}
                       >
-                        {log.action.replace(/_/g, " ")}
+                        {(log.action || 'SISTEM').replace(/_/g, " ")}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm font-bold text-slate-600">
-                      {log.target?.full_name || "-"}
+                      {log.target_name || "-"}
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-[11px] font-bold">

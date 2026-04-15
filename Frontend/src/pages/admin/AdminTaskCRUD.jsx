@@ -1,9 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import { useAuth } from "../../contexts/AuthContext";
 
 const AdminTaskCRUD = () => {
+  const { user, isSuperAdmin, isDeveloper } = useAuth();
+  const canManageAll = isSuperAdmin || isDeveloper;
+  const myDivisionId = user?.division_id || user?.division?.id;
+  const myDivisionName = user?.division?.name || user?.division_name || "IT Support";
+
   const [activeTab, setActiveTab] = useState("template"); // 'template' atau 'live'
 
   // State Modals
@@ -14,32 +20,134 @@ const AdminTaskCRUD = () => {
   const [taskName, setTaskName] = useState("");
   const [taskDetail, setTaskDetail] = useState("");
   const [assignee, setAssignee] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [assignNote, setAssignNote] = useState("");
+  const [taskDivisionId, setTaskDivisionId] = useState(myDivisionId || "");
 
-  // Data Template (Blueprint Rutin)
-  const [taskTemplates, setTaskTemplates] = useState([
-    { id: 1, title: "Cek Suhu Ruang Server", shift: "Pagi", detail: "Pastikan AC menyala di 18 derajat." },
-    { id: 2, title: "Clear Cache PC Pelayanan", shift: "Sore", detail: "Gunakan CCleaner di PC 1-5." },
-    { id: 3, title: "Cek Koneksi Mikrotik Lantai 3", shift: "Pagi", detail: "Ping ke gateway 8.8.8.8 pastikan stabil." },
-  ]);
+  const [taskTemplates, setTaskTemplates] = useState([]);
+  const [liveTasks, setLiveTasks] = useState([]);
+  const [interns, setInterns] = useState([]);
+  const [divisions, setDivisions] = useState([]);
+  const [filterDivision, setFilterDivision] = useState(canManageAll ? "Semua" : (myDivisionId || myDivisionName));
+  const [loading, setLoading] = useState(true);
 
-  // Data Tugas Dadakan (Urgent)
-  const [liveTasks, setLiveTasks] = useState([
-    { id: 101, title: "Bantu Angkat Server Baru", assignee: "Nabil", time: "10:30 WIB" },
-    { id: 102, title: "Setup Sound System Ruang Rapat", assignee: "Kiel", time: "13:15 WIB" },
-  ]);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [tplRes, tasksRes, profRes, divRes] = await Promise.all([
+        api.get('/task-templates'),
+        api.get('/daily-tasks'),
+        api.get('/profiles'),
+        canManageAll ? api.get('/divisions') : Promise.resolve({ data: [] })
+      ]);
+      
+      setTaskTemplates(tplRes.data?.data || tplRes.data || []);
+      
+      const allTasks = tasksRes.data?.data || tasksRes.data || [];
+      setLiveTasks(allTasks.filter(t => t.template_id === null)); // Urgent task = no template
+      
+      const allProfiles = profRes.data?.data || profRes.data || [];
+      setInterns(allProfiles.filter(p => p.role === 'intern' || p.role === 'user'));
+
+      if (canManageAll) {
+        setDivisions(divRes.data?.data || divRes.data || []);
+      }
+    } catch (error) {
+      console.error("Gagal memuat data tasks:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Filter data berdasarkan divisi
+  const filteredTemplates = useMemo(() => {
+    let data = taskTemplates;
+    if (canManageAll && filterDivision !== "Semua") {
+      data = data.filter(t => t.division_id === filterDivision);
+    } else if (!canManageAll) {
+      data = data.filter(t => t.division_id === myDivisionId || t.division?.name === myDivisionName);
+    }
+    return data;
+  }, [taskTemplates, filterDivision, canManageAll, myDivisionId, myDivisionName]);
+
+  const filteredLiveTasks = useMemo(() => {
+    let data = liveTasks;
+    if (canManageAll && filterDivision !== "Semua") {
+      data = data.filter(t => t.division_id === filterDivision);
+    } else if (!canManageAll) {
+      data = data.filter(t => t.division_id === myDivisionId || t.division?.name === myDivisionName);
+    }
+    return data;
+  }, [liveTasks, filterDivision, canManageAll, myDivisionId, myDivisionName]);
+
+  // Filter interns untuk dropdown form penugasan
+  const modalInterns = useMemo(() => {
+    return interns.filter(i => {
+      const internDivId = i.division_id || i.division?.id;
+      if (canManageAll) {
+        return taskDivisionId ? internDivId === taskDivisionId : true;
+      }
+      return internDivId === myDivisionId || i.division?.name === myDivisionName || i.division === myDivisionName;
+    });
+  }, [interns, taskDivisionId, canManageAll, myDivisionId, myDivisionName]);
 
   // Handler Submit
-  const handleSubmitTask = (e) => {
+  const handleSubmitTask = async (e) => {
     e.preventDefault();
-    setShowAddModal(false);
-    setShowSuccessModal(true);
-    setTaskName("");
-    setTaskDetail("");
-    setAssignee("");
-    
-    setTimeout(() => {
-      setShowSuccessModal(false);
-    }, 2000);
+    try {
+      if (activeTab === "template") {
+        await api.post('/task-templates', { 
+          title: taskName, 
+          description: taskDetail,
+          division_id: canManageAll ? taskDivisionId : myDivisionId
+        });
+      } else {
+        await api.post('/daily-tasks', {
+          uploader_id: assignee, 
+          description: taskName,
+          due_date: dueDate,
+          assign_note: assignNote,
+          division_id: canManageAll ? taskDivisionId : myDivisionId
+        });
+      }
+      setShowAddModal(false);
+      setShowSuccessModal(true);
+      setTaskName("");
+      setTaskDetail("");
+      setAssignee("");
+      setDueDate("");
+      setAssignNote("");
+      fetchData();
+      setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 2000);
+    } catch (error) {
+      toast.error("Gagal menyimpan tugas!");
+    }
+  };
+
+  const handleDeleteTemplate = async (id) => {
+    if(window.confirm("Hapus blueprint ini secara permanen?")) {
+      try {
+        await api.delete(`/task-templates/${id}`);
+        toast.success("Blueprint dihapus");
+        fetchData();
+      } catch(e) { toast.error("Gagal menghapus blueprint"); }
+    }
+  };
+
+  const handleDeleteLiveTask = async (id) => {
+    if(window.confirm("Hapus tugas urgent ini?")) {
+      try {
+        await api.delete(`/daily-tasks/${id}`);
+        toast.success("Tugas urgent dihapus");
+        fetchData();
+      } catch(e) { toast.error("Gagal menghapus tugas"); }
+    }
   };
 
   return (
@@ -134,6 +242,21 @@ const AdminTaskCRUD = () => {
         </div>
       </div>
 
+      {/* FILTER DIVISI KHUSUS VVIP */}
+      {canManageAll && (
+        <div className="flex justify-end mb-4 px-2">
+          <div className="relative w-full sm:w-64">
+            <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer shadow-sm">
+              <option value="Semua">Semua Divisi</option>
+              {divisions.map((div) => (
+                <option key={div.id} value={div.id}>{div.name}</option>
+              ))}
+            </select>
+            <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+          </div>
+        </div>
+      )}
+
       {/* Header Info List (Pemisah Gede) */}
       <div className={`px-4 sm:px-6 py-4 flex items-center gap-4 border border-slate-200 rounded-3xl ${activeTab === "template" ? "bg-blue-50/50" : "bg-rose-50/50"}`}>
          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner shrink-0 ${activeTab === "template" ? "bg-blue-100 text-blue-600" : "bg-rose-100 text-rose-500"}`}>
@@ -157,25 +280,28 @@ const AdminTaskCRUD = () => {
       <div className="space-y-6">
           
           {/* JIKA DATA KOSONG */}
-          {(activeTab === "template" ? taskTemplates : liveTasks).length === 0 && (
+          {(activeTab === "template" ? filteredTemplates : filteredLiveTasks).length === 0 && (
             <div className="p-16 text-center flex flex-col items-center justify-center bg-white border border-slate-200 rounded-[2.5rem]">
               <div className="w-20 h-20 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center text-4xl mb-4 shadow-inner border border-slate-100">
                 <i className="fa-solid fa-folder-open"></i>
               </div>
-              <p className="text-slate-500 font-bold text-sm mb-1">Belum ada data.</p>
+              <p className="text-slate-500 font-bold text-sm mb-1">{loading ? "Memuat data..." : "Belum ada data."}</p>
               <p className="text-xs font-medium text-slate-400">Tekan tombol di Hero buat nambahin.</p>
             </div>
           )}
 
           {/* RENDER TEMPLATE SEBAGAI SEBUAH CARD UTUH (Nggak Flat) */}
-          {activeTab === "template" && taskTemplates.map((task) => (
+          {activeTab === "template" && filteredTemplates.map((task) => (
             <div key={task.id} className="bg-white p-7 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-lg hover:border-blue-200 transition-all group flex flex-col gap-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex-1 space-y-3">
                       <div className="flex items-center gap-3">
                         <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-blue-100">
-                            Shift {task.shift} Pelaksanaan
+                            Rutin (Sistem)
                         </span>
+                        {canManageAll && task.division?.name && (
+                          <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-200">{task.division?.name}</span>
+                        )}
                         <p className="text-xs font-black text-slate-400 uppercase tracking-widest leading-none mt-0.5">Blueprint Rutin</p>
                       </div>
                       <h3 className="font-bold text-slate-800 text-[18px] leading-tight mb-1">{task.title}</h3>
@@ -199,14 +325,14 @@ const AdminTaskCRUD = () => {
                     </div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Instruksi Pelaksanaan Besok</p>
-                        <p className="text-xs font-medium text-slate-600 leading-relaxed italic">"{task.detail}"</p>
+                        <p className="text-xs font-medium text-slate-600 leading-relaxed italic">"{task.description || 'Tidak ada instruksi detail.'}"</p>
                     </div>
                 </div>
             </div>
           ))}
 
           {/* RENDER TUGAS URGENT SEBAGAI SEBUAH CARD UTUH (Nggak Flat) */}
-          {activeTab === "live" && liveTasks.map((task) => (
+          {activeTab === "live" && filteredLiveTasks.map((task) => (
             <div key={task.id} className="bg-white p-7 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-lg hover:border-rose-200 transition-all group flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
                 {/* Ping Accent */}
                 <span className="absolute top-0 right-0 w-2 h-2 rounded-bl-lg bg-rose-500 animate-pulse"></span>
@@ -216,13 +342,22 @@ const AdminTaskCRUD = () => {
                         <i className="fa-solid fa-bolt animate-pulse"></i>
                     </div>
                     <div>
-                        <h3 className="font-bold text-slate-800 text-[18px] leading-tight mb-1.5">{task.title}</h3>
+                        <h3 className="font-bold text-slate-800 text-[18px] leading-tight mb-1.5">{task.description || "Tugas Urgent"}</h3>
                         <div className="flex items-center gap-2">
                             <span className="bg-rose-50 text-rose-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-rose-100">
-                                Dibuat Jam: {task.time}
+                                Dibuat Jam: {new Date(task.created_at).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})} WIB
                             </span>
+                            <span className="bg-amber-50 text-amber-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-amber-100">
+                                Due: {task.due_date ? new Date(task.due_date).toLocaleDateString('id-ID') : "Hari Ini"}
+                            </span>
+                            {canManageAll && task.division?.name && (
+                              <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-200">{task.division?.name}</span>
+                            )}
                             <span className="text-[10px] font-bold text-rose-400 uppercase tracking-widest leading-none mt-0.5">Tugas Urgent (Dadakan)</span>
                         </div>
+                        {task.assign_note && (
+                          <p className="text-[11px] mt-2 text-slate-500 italic">"{task.assign_note}"</p>
+                        )}
                     </div>
                 </div>
 
@@ -230,11 +365,11 @@ const AdminTaskCRUD = () => {
                     {/* Assignee Badge */}
                     <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-4 py-2 rounded-2xl shadow-inner w-full sm:w-auto">
                         <div className="w-7 h-7 rounded-lg bg-slate-300 text-white flex items-center justify-center text-xs font-black shadow-sm shrink-0 border border-white">
-                            {task.assignee.charAt(0)}
+                            {(task.uploader?.full_name || "I").charAt(0)}
                         </div>
                         <div>
                             <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Ditugaskan Ke</p>
-                            <span className="text-[13px] font-black text-slate-800">{task.assignee} (IT)</span>
+                            <span className="text-[13px] font-black text-slate-800">{task.uploader?.full_name || "Intern"}</span>
                         </div>
                     </div>
 
@@ -284,21 +419,27 @@ const AdminTaskCRUD = () => {
                   />
                 </div>
 
+                {/* PILIH DIVISI KHUSUS VVIP */}
+                {canManageAll && (
+                  <div>
+                    <label className="text-[11px] font-black uppercase text-slate-500 block mb-2 tracking-widest">
+                      Untuk Divisi <span className="text-rose-500">*</span>
+                    </label>
+                    <select required value={taskDivisionId} onChange={(e) => setTaskDivisionId(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer">
+                      <option value="">Pilih Divisi...</option>
+                      {divisions.map((div) => (
+                        <option key={div.id} value={div.id}>{div.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 {/* FORM KHUSUS TEMPLATE RUTIN (Automation Setup) */}
                 {activeTab === "template" && (
                   <>
                     <div className="bg-blue-50 border border-blue-100 p-5 rounded-xl flex gap-3.5 items-start">
                         <i className="fa-solid fa-circle-info text-blue-500 text-sm mt-0.5"></i>
                         <p className="text-blue-800 text-xs font-medium leading-relaxed">Isian di bawah ini akan digunakan oleh sistem untuk meng-copy tugas otomatis setiap hari besok.</p>
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-black uppercase text-slate-500 block mb-2 tracking-widest">Waktu Pelaksanaan (Shift)</label>
-                      <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer">
-                        <option>Pilih Shift...</option>
-                        <option>Pagi (08:00 - 15:00)</option>
-                        <option>Siang (15:00 - 21:00)</option>
-                        <option>Fleksibel (Sepanjang Hari)</option>
-                      </select>
                     </div>
                     <div>
                       <label className="text-[11px] font-black uppercase text-slate-500 block mb-2 tracking-widest flex justify-between">
@@ -315,17 +456,31 @@ const AdminTaskCRUD = () => {
 
                 {/* FORM KHUSUS TUGAS URGENT (Live Assign) */}
                 {activeTab === "live" && (
+                  <>
                   <div>
                     <label className="text-[11px] font-black uppercase text-slate-500 block mb-2 tracking-widest">
                       Tugaskan Kepada <span className="text-rose-500">*</span>
                     </label>
                     <select required value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer">
                       <option value="">Pilih Intern (Yang Sedang Aktif)...</option>
-                      <option value="Kiel">Kiel (IT Tech)</option>
-                      <option value="Nabil">Nabil (Jaringan)</option>
-                      <option value="Broadcast">Broadcast Semua Intern Aktif</option>
+                      {modalInterns.map((intern) => (
+                        <option key={intern.id} value={intern.id}>{intern.full_name || intern.username}</option>
+                      ))}
                     </select>
                   </div>
+                  <div>
+                    <label className="text-[11px] font-black uppercase text-slate-500 block mb-2 tracking-widest">
+                      Tenggat Waktu (Due Date) <span className="text-rose-500">*</span>
+                    </label>
+                    <input type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 transition-all" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-black uppercase text-slate-500 block mb-2 tracking-widest flex justify-between">
+                      Catatan Penugasan <span className="text-slate-400 font-medium normal-case tracking-normal">Opsional</span>
+                    </label>
+                    <textarea value={assignNote} onChange={(e) => setAssignNote(e.target.value)} rows="3" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none" placeholder="Contoh: Pastikan bawa kabel HDMI cadangan."></textarea>
+                  </div>
+                  </>
                 )}
               </form>
             </div>

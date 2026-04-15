@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 const LeaveRequest = () => {
   const { user } = useAuth();
@@ -12,25 +14,53 @@ const LeaveRequest = () => {
 
   // State Form
   const [leaveType, setLeaveType] = useState("sakit");
+  const [permissionDate, setPermissionDate] = useState("");
+  const [replacementDate, setReplacementDate] = useState("");
+  const [description, setDescription] = useState("");
+  const [evidence, setEvidence] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Dummy History (Sekarang pake status dari alur lu)
-  const [history] = useState([
-    { id: 1, type: "Swap Shift", status: "pending", date: "Hari ini, 10:00 WIB", note: "Tukar ke tgl 15 Apr", info: "Pindah Shift" },
-    { id: 2, type: "Sakit", status: "approved", date: "08 Apr 2026", note: "Demam tinggi", info: "Surat Dokter" },
-  ]);
+  const [history, setHistory] = useState([]);
+
+  const fetchHistory = async () => {
+    try {
+      const res = await api.get('/exceptions/my-history');
+      const data = res.data?.data || res.data || [];
+      setHistory(data.map(item => ({
+        id: item.id,
+        type: item.type === 'swap_shift' ? 'Swap Shift' : item.type === 'tugas_luar' ? 'Tugas Luar' : item.type === 'izin' ? 'Izin Biasa' : 'Sakit',
+        status: item.status,
+        date: new Date(item.permission_date).toLocaleDateString('id-ID', { dateStyle: 'medium' }),
+        note: item.description,
+      })));
+    } catch (error) {
+      console.error("Gagal memuat riwayat izin:", error);
+    }
+  };
+
+  useEffect(() => { fetchHistory(); }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulasi Payload ke Backend sesuai alur lu
-    // [ID_User, Tipe_Izin, Alasan, Foto, Tgl_Pengganti (jika swap)]
-    console.log("Mengirim data ke tabel EXCEPTIONS...");
-    
-    await new Promise(resolve => setTimeout(resolve, 2000)); 
-    setIsLoading(false);
-    alert("Request berhasil dikirim! Status sekarang: Pending di Dashboard Admin.");
+    const formData = new FormData();
+    formData.append("type", leaveType);
+    formData.append("permission_date", permissionDate);
+    if (leaveType === "swap_shift") formData.append("replacement_date", replacementDate);
+    formData.append("description", description);
+    if (evidence) formData.append("evidence_url", evidence);
+
+    try {
+      await api.post('/exceptions', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success("Pengajuan berhasil dikirim!");
+      setPermissionDate(""); setReplacementDate(""); setDescription(""); setEvidence(null);
+      fetchHistory();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Gagal mengirim pengajuan");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -105,7 +135,7 @@ const LeaveRequest = () => {
                     <option value="sakit">🏥 Sakit (Wajib Bukti)</option>
                     <option value="izin">📝 Izin Biasa</option>
                     <option value="swap_shift">🔄 Swap Shift (Tukar Hari)</option>
-                    <option value="unlock">🔓 Unlock (Masuk Darurat)</option>
+                    <option value="tugas_luar">🏢 Tugas Luar (Dinas)</option>
                   </select>
                   <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
                 </div>
@@ -117,43 +147,28 @@ const LeaveRequest = () => {
                   <label className="text-[11px] font-bold uppercase tracking-widest text-rose-500 block mb-1.5 ml-1">
                     <i className="fa-solid fa-calendar-day mr-1"></i> Tanggal Pengganti
                   </label>
-                  <input type="date" className="w-full bg-rose-50/30 border border-rose-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none" required />
+                  <input type="date" value={replacementDate} onChange={e => setReplacementDate(e.target.value)} className="w-full bg-rose-50/30 border border-rose-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none" required={leaveType === 'swap_shift'} />
                   <p className="text-[10px] text-slate-400 mt-2 ml-1 italic">*Jadwal lama akan otomatis terhapus jika di-ACC.</p>
                 </div>
               )}
 
-              {/* INFO UNLOCK - Muncul cuma kalo Unlock */}
-              {leaveType === "unlock" && (
-                <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl animate-in fade-in">
-                  <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
-                    <i className="fa-solid fa-circle-info mr-1"></i> 
-                    Gunakan ini jika Anda disuruh masuk mendadak di hari libur. Dashboard akan otomatis terbuka setelah Admin melakukan <b>ACC Unlock</b>.
-                  </p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">Mulai Tgl</label>
-                  <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none" required />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">Sampai Tgl</label>
-                  <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none" required />
-                </div>
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">Tanggal Izin / Sakit / Dinas</label>
+                <input type="date" value={permissionDate} onChange={e => setPermissionDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none" required />
               </div>
 
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">Alasan</label>
-                <textarea rows="3" placeholder="Jelaskan secara singkat..." className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-medium text-slate-700 outline-none resize-none" required></textarea>
+                <textarea value={description} onChange={e => setDescription(e.target.value)} rows="3" placeholder="Jelaskan secara singkat..." className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-medium text-slate-700 outline-none resize-none" required></textarea>
               </div>
 
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">Bukti Foto</label>
-                <div className="w-full border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:bg-slate-50 cursor-pointer transition-colors group">
+                <label className="w-full border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:bg-slate-50 cursor-pointer transition-colors group block">
                   <i className="fa-solid fa-camera text-2xl text-slate-300 group-hover:text-blue-500 mb-2"></i>
-                  <p className="text-[10px] font-bold text-slate-500">Ambil Foto / Upload Bukti</p>
-                </div>
+                  <p className="text-[10px] font-bold text-slate-500">{evidence ? evidence.name : "Ambil Foto / Upload Bukti"}</p>
+                  <input type="file" className="hidden" accept="image/*" onChange={e => setEvidence(e.target.files[0])} />
+                </label>
               </div>
 
               <button 

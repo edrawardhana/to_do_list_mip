@@ -14,17 +14,32 @@ const ManageAccountIntern = () => {
   // DUMMY DATA ANAK MAGANG
   // ==========================================
   const [interns, setInterns] = useState([]);
+  const [divisions, setDivisions] = useState([]); // State tambahan untuk filter divisi dinamis
 
   const fetchInterns = async () => {
     try {
-      const res = await api.get('/profiles'); 
+      // Tarik data profil dan divisi secara serentak dari database
+      const [res, divRes] = await Promise.all([
+        api.get('/profiles'),
+        canViewAll ? api.get('/divisions') : Promise.resolve({ data: [] })
+      ]);
+      
       const data = res.data?.data || res.data || [];
-      const normalized = data.map(i => ({
+      
+      // Filter murni HANYA role intern/user (Mencegah admin/superadmin masuk ke tabel ini)
+      const internsData = data.filter(u => u.role === 'intern' || u.role === 'user');
+      
+      const normalized = internsData.map(i => ({
         ...i,
         name: i.name || i.full_name || "Unknown",
         division: i.division?.name || i.division_name || (typeof i.division === 'string' ? i.division : "Unknown")
       }));
       setInterns(normalized);
+
+      if (canViewAll) {
+        const divsData = divRes.data?.data || divRes.data || [];
+        setDivisions(divsData.map(d => d.name));
+      }
     } catch (error) {
       console.error("Gagal memuat data akun:", error);
     }
@@ -125,10 +140,9 @@ const ManageAccountIntern = () => {
           <div className="relative w-full sm:w-auto">
             <select value={filterDivision} onChange={e => setFilterDivision(e.target.value)} className="w-full sm:w-48 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer">
               <option value="Semua">Semua Divisi</option>
-              <option value="IT Support">IT Support</option>
-              <option value="Multimedia">Multimedia</option>
-              <option value="Public Relation">Public Relation</option>
-              <option value="Creative Design">Creative Design</option>
+              {divisions.map((divName, idx) => (
+                <option key={idx} value={divName}>{divName}</option>
+              ))}
             </select>
             <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
           </div>

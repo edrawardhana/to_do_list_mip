@@ -24,13 +24,22 @@ const Approval = () => {
     try {
       const [tasksRes, leavesRes] = await Promise.all([
         api.get('/daily-tasks/pending'),
-        api.get('/attendance-schedules/pending')
+        api.get('/exceptions/pending')
       ]);
       
       const tData = tasksRes.data?.data || tasksRes.data || [];
       const lData = leavesRes.data?.data || leavesRes.data || [];
 
-      setPendingTasks(tData.map(t => ({ ...t, internName: t.uploader?.full_name || t.user?.full_name || t.internName || "Sistem", division: t.division?.name || t.division_name || (typeof t.division === 'string' ? t.division : "Unknown"), taskTitle: t.task_name || t.description || "Logbook", photo: t.evidence_url })));
+      setPendingTasks(tData.map(t => ({ 
+        ...t, 
+        internName: t.uploader?.full_name || "Sistem", 
+        division: t.division?.name || "Unknown", 
+        // For title, prioritize template. For live tasks, description is the title before submission, but becomes notes after.
+        // We'll show a generic title for live tasks here to avoid showing intern's notes as title.
+        taskTitle: t.template?.title || t.task_name || "Laporan Tugas Harian", 
+        notes: t.description, // The intern's report notes
+        photo: t.evidence_url 
+      })));
       setPendingLeaves(lData.map(l => ({ ...l, internName: l.user?.full_name || l.internName || "Sistem", division: l.division?.name || l.division_name || (typeof l.division === 'string' ? l.division : "Unknown"), reason: l.description || l.reason || l.notes, dateReq: l.permission_date || l.start_date, proof: l.evidence_url || l.proof_url })));
     } catch (error) {
       console.error("Gagal mengambil antrean data approval:", error);
@@ -65,15 +74,21 @@ const Approval = () => {
     let notes = "";
     if (action === 'reject') {
       notes = prompt("Kasih alasan revisi ke anak magangnya:");
-      if (!notes) return;
+      if (notes === null) return; // Handle cancel button on prompt
     }
     
+    const payload = {
+      status: action === 'acc' ? 'approved' : 'rejected',
+      reject_reason: notes,
+    };
+
     try {
-      await api.put(`/daily-tasks/${id}/status`, { status: action === 'acc' ? 'approved' : 'rejected', reviewer_notes: notes });
+      await api.put(`/daily-tasks/${id}`, payload);
       toast.success(action === 'acc' ? "Tugas Logbook Di-ACC" : "Tugas Dikembalikan untuk Revisi");
       fetchApprovals();
     } catch (error) {
       toast.error("Gagal memproses tugas");
+      console.error("Gagal memproses approval:", error);
     }
   };
 
@@ -87,7 +102,7 @@ const Approval = () => {
     }
 
     try {
-      await api.put(`/attendance-schedules/${id}/status`, { is_approved: action === 'acc', review_notes: notes });
+      await api.put(`/exceptions/${id}/status`, { status: action === 'acc' ? 'approved' : 'rejected', description: notes });
       toast.success(action === 'acc' ? "Izin / Perubahan Shift di-ACC" : "Pengajuan Izin Ditolak");
       fetchApprovals();
     } catch (error) {
@@ -166,7 +181,7 @@ const Approval = () => {
                   )}
                 </div>
                 <p className="text-[12px] text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 font-medium italic">
-                  "{task.notes}"
+                  "{task.notes || 'Tidak ada catatan laporan.'}"
                 </p>
               </div>
 

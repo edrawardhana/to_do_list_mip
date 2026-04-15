@@ -1,16 +1,33 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../supabaseClient";
+import { toast } from "react-hot-toast";
 
 const SystemConfig = () => {
   const { isDeveloper } = useAuth();
 
-  // Simulasi data dari tabel SYSTEM_CONFIG (Key-Value)
-  const [configs, setConfigs] = useState([
-    { key: "maintenance_mode", value: "false", type: "boolean", desc: "Kunci aplikasi dari semua user selain Developer." },
-    { key: "allow_registration", value: "true", type: "boolean", desc: "Buka tutup pendaftaran akun intern baru." },
-    { key: "max_file_size_mb", value: "5", type: "number", desc: "Batas maksimal upload file laporan tugas (MB)." },
-    { key: "app_version", value: "1.0.0-beta", type: "string", desc: "Versi rilis aplikasi saat ini." }
-  ]);
+  // Data dari tabel system_configs (Key-Value)
+  const [configs, setConfigs] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchConfigs();
+  }, []);
+
+  const fetchConfigs = async () => {
+    const { data, error } = await supabase.from('system_configs').select('*');
+    if (error) {
+      toast.error("Gagal mengambil konfigurasi: " + error.message);
+    } else {
+      const formatted = data.map(c => ({
+        key: c.key,
+        value: c.value,
+        desc: c.description || "",
+        type: (c.value === 'true' || c.value === 'false') ? 'boolean' : (!isNaN(Number(c.value)) && c.value.trim() !== '') ? 'number' : 'string',
+      }));
+      setConfigs(formatted);
+    }
+  };
 
   // Fungsi handle perubahan
   const handleToggle = (key, currentValue) => {
@@ -22,8 +39,23 @@ const SystemConfig = () => {
     setConfigs(prev => prev.map(c => c.key === key ? { ...c, value: newValue } : c));
   };
 
-  const handleSave = () => {
-    alert("Konfigurasi Sistem Berhasil Disimpan! (Simulasi Update ke Database)");
+  const handleSave = async () => {
+    setSaving(true);
+    let hasError = false;
+    for (const conf of configs) {
+      const { error } = await supabase
+        .from('system_configs')
+        .update({ value: String(conf.value) })
+        .eq('key', conf.key);
+      if (error) hasError = true;
+    }
+    
+    if (!hasError) {
+      toast.success("Konfigurasi Sistem Berhasil Disimpan!");
+    } else {
+      toast.error("Beberapa perubahan gagal disimpan.");
+    }
+    setSaving(false);
   };
 
   if (!isDeveloper) {
@@ -154,8 +186,13 @@ const SystemConfig = () => {
         
         {/* --- FOOTER ACTION --- */}
         <div className="p-8 md:p-10 border-t border-zinc-800 bg-[#09090b]/80 backdrop-blur-sm relative z-10 flex justify-end">
-           <button onClick={handleSave} className="w-full md:w-auto px-10 py-4 bg-zinc-100 hover:bg-white text-zinc-900 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95">
-             <i className="fa-solid fa-cloud-arrow-up"></i> Deploy Configuration
+           <button 
+             onClick={handleSave} 
+             disabled={saving}
+             className="w-full md:w-auto px-10 py-4 bg-zinc-100 hover:bg-white text-zinc-900 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95 disabled:opacity-50"
+           >
+             {saving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-cloud-arrow-up"></i>} 
+             Deploy Configuration
            </button>
         </div>
 
