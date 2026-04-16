@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../supabaseClient";
 import { toast } from "react-hot-toast";
+import ConfirmModal from "../../components/ui/ConfirmModal";
 
 const SystemConfig = () => {
   const { isDeveloper } = useAuth();
@@ -9,6 +10,10 @@ const SystemConfig = () => {
   // Data dari tabel system_configs (Key-Value)
   const [configs, setConfigs] = useState([]);
   const [saving, setSaving] = useState(false);
+
+  // Modal State untuk Danger Zone
+  const [modalState, setModalState] = useState({ isOpen: false, type: "danger", title: "", message: "", actionText: "Ya", onConfirm: () => {} });
+  const closeModal = () => setModalState(s => ({ ...s, isOpen: false }));
 
   useEffect(() => {
     fetchConfigs();
@@ -56,6 +61,32 @@ const SystemConfig = () => {
       toast.error("Beberapa perubahan gagal disimpan.");
     }
     setSaving(false);
+  };
+
+  const handleClearCache = () => {
+    setModalState({
+      isOpen: true,
+      type: "delete",
+      title: "Wipe System Cache",
+      message: "DANGER: Tindakan ini akan menghapus seluruh data cache lokal di browser Anda dan memaksa sinkronisasi ulang koneksi Master API. Sesi log in Anda akan dipertahankan. Lanjutkan?",
+      actionText: "Ya, Wipe System!",
+      onConfirm: async () => {
+        try {
+          const jwt = localStorage.getItem("jwt_token");
+          const user_data = localStorage.getItem("user_data");
+          localStorage.clear();
+          if (jwt) localStorage.setItem("jwt_token", jwt);
+          if (user_data) localStorage.setItem("user_data", user_data);
+          
+          toast.success("System Cache Flushed! Rebooting interface...");
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } catch (error) {
+          toast.error("Gagal melakukan wipe system cache!");
+        }
+      }
+    });
   };
 
   if (!isDeveloper) {
@@ -175,9 +206,12 @@ const SystemConfig = () => {
                <h4 className="text-xs font-black text-rose-500 uppercase tracking-widest mb-1.5 flex items-center gap-2">
                  <i className="fa-solid fa-skull-crossbones"></i> Danger Zone
                </h4>
-               <p className="text-[11px] font-medium text-rose-500/70">Bersihkan seluruh cache memori aplikasi dan paksa sinkronisasi ulang.</p>
+               <p className="text-[11px] font-medium text-rose-500/70">Bersihkan seluruh cache aplikasi frontend dan paksa sinkronisasi ulang API server.</p>
              </div>
-             <button className="px-5 py-2.5 bg-rose-900/30 hover:bg-rose-600 text-rose-400 hover:text-white rounded-xl text-xs font-black transition-all border border-rose-800 hover:border-rose-500 shrink-0">
+             <button 
+               onClick={handleClearCache}
+               className="px-5 py-2.5 bg-rose-900/30 hover:bg-rose-600 text-rose-400 hover:text-white rounded-xl text-xs font-black transition-all border border-rose-800 hover:border-rose-500 shadow-[0_0_15px_rgba(225,29,72,0.1)] shrink-0"
+             >
                Clear System Cache
              </button>
           </div>
@@ -195,8 +229,15 @@ const SystemConfig = () => {
              Deploy Configuration
            </button>
         </div>
-
       </div>
+
+      {/* MODAL GLOBAL */}
+      <ConfirmModal 
+        {...modalState} 
+        onClose={closeModal} 
+        isDark={true} 
+      />
+
     </div>
   );
 };

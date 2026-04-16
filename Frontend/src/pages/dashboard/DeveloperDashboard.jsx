@@ -3,7 +3,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import { toast } from "react-hot-toast";
-import { AlertTriangle, Trash2, Unlock, RefreshCw } from "lucide-react";
+import { AlertTriangle, Trash2, Unlock, RefreshCw, Activity, Terminal, Settings } from "lucide-react";
 
 const DeveloperDashboard = () => {
   const { user } = useAuth();
@@ -14,6 +14,7 @@ const DeveloperDashboard = () => {
   const [dbOverview, setDbOverview] = useState([]);
   const [userStats, setUserStats] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [apiLatency, setApiLatency] = useState(0);
 
   // Fake chart data (For visual proxy metrics)
   const [chartData, setChartData] = useState([]);
@@ -90,6 +91,21 @@ const DeveloperDashboard = () => {
     };
 
     fetchSystemStats();
+
+    // Setup Live Ping Monitor
+    const interval = setInterval(async () => {
+       const start = performance.now();
+       try {
+          // Minimal lightweight query to test DB latency
+          await supabase.from('v_developer_entity_counts').select('total_profiles').limit(1);
+          const end = performance.now();
+          setApiLatency(Math.round(end - start));
+       } catch (e) {
+          setApiLatency(-1);
+       }
+    }, 5000); // Ping every 5 seconds
+
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -117,17 +133,35 @@ const DeveloperDashboard = () => {
               Halo <span className="text-zinc-200 font-bold">{user?.full_name || 'Dev'}</span>! Pantau status database, penggunaan storage, analitik traffic, dan distribusi peran pengguna sistem secara presisi.
             </p>
 
-            <div className="flex flex-wrap gap-4 mt-8">
+             <div className="flex flex-wrap gap-4 mt-8">
+               {/* Environment Radar */}
+               <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                  <span className="text-[10px] font-black uppercase tracking-wider">
+                     {import.meta.env.MODE === 'development' ? '🔧 DEV MODE' : '🚀 PROD MODE'}
+                  </span>
+               </div>
+               <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                  <span className="text-[10px] font-black uppercase tracking-wider">
+                    DB: {import.meta.env.VITE_SUPABASE_URL ? import.meta.env.VITE_SUPABASE_URL.split('//')[1].split('.')[0] : 'UNKNOWN'}
+                  </span>
+               </div>
+
                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
                   <span className="relative flex h-2.5 w-2.5 mr-1">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                   </span>
-                  <span className="text-xs font-black uppercase tracking-wider">All Systems Operational</span>
+                  <span className="text-xs font-black uppercase tracking-wider">Token Auth Hooked</span>
                </div>
-               <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400">
-                  <i className="fa-solid fa-network-wired text-xs text-sky-500"></i>
-                  <span className="text-xs font-black uppercase tracking-wider">Latency: {(Math.random() * 20 + 5).toFixed(1)}ms</span>
+               <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-colors ${
+                  apiLatency === -1 ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' :
+                  apiLatency > 400 ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' :
+                  'bg-zinc-900 border-zinc-800 text-sky-400'
+               }`}>
+                  <Activity size={14} className={apiLatency !== -1 ? 'animate-pulse' : ''} />
+                  <span className="text-xs font-black uppercase tracking-wider">
+                     Ping: {apiLatency === -1 ? 'OFFLINE' : apiLatency === 0 ? '...' : `${apiLatency}ms`}
+                  </span>
                </div>
             </div>
           </div>
@@ -157,6 +191,47 @@ const DeveloperDashboard = () => {
              </div>
           </div>
         </div>
+      </div>
+
+      {/* ================================================================= */}
+      {/* DEVELOPER MODULES NAV HUB                                         */}
+      {/* ================================================================= */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+         <Link to="/system-config" className="group relative overflow-hidden bg-[#18181b] border border-zinc-800 rounded-[2rem] p-6 hover:border-zinc-600 transition-all">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-full blur-3xl group-hover:bg-sky-500/10 transition-colors"></div>
+            <div className="flex items-center justify-between relative z-10">
+               <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-[#09090b] border border-zinc-700 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform shadow-inner">
+                     <Settings size={28} />
+                  </div>
+                  <div>
+                     <h3 className="text-lg font-black text-zinc-200">System Parameters</h3>
+                     <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Global Configs Editor & Limits</p>
+                  </div>
+               </div>
+               <div className="text-zinc-600 group-hover:text-sky-400 group-hover:translate-x-2 transition-all">
+                  <i className="fa-solid fa-arrow-right text-xl"></i>
+               </div>
+            </div>
+         </Link>
+
+         <Link to="/audit-log" className="group relative overflow-hidden bg-[#18181b] border border-zinc-800 rounded-[2rem] p-6 hover:border-zinc-600 transition-all">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-colors"></div>
+            <div className="flex items-center justify-between relative z-10">
+               <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-[#09090b] border border-zinc-700 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform shadow-inner">
+                     <Terminal size={28} />
+                  </div>
+                  <div>
+                     <h3 className="text-lg font-black text-zinc-200">Security Audit Logs</h3>
+                     <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Full Server Tracing & Search Viewer</p>
+                  </div>
+               </div>
+               <div className="text-zinc-600 group-hover:text-indigo-400 group-hover:translate-x-2 transition-all">
+                  <i className="fa-solid fa-arrow-right text-xl"></i>
+               </div>
+            </div>
+         </Link>
       </div>
 
       {/* ================================================================= */}

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import ConfirmModal from "../../components/ui/ConfirmModal";
 
 const ManageAdmin = () => {
   const { user, isSuperAdmin, isDeveloper } = useAuth();
@@ -23,6 +24,10 @@ const ManageAdmin = () => {
   const [filterRole, setFilterRole] = useState("semua");
   const [filterDivision, setFilterDivision] = useState("semua");
 
+  // Modal State
+  const [modalState, setModalState] = useState({ isOpen: false, type: "danger", title: "", message: "", actionText: "Ya", onConfirm: () => {} });
+  const closeModal = () => setModalState(s => ({ ...s, isOpen: false }));
+
   const fetchData = async () => {
     try {
       const [usersRes, divsRes] = await Promise.all([
@@ -38,7 +43,8 @@ const ManageAdmin = () => {
         name: u.full_name || u.name || "Unknown",
         email: u.email,
         division: u.division?.name || u.division_name || u.division || "Unknown",
-        role: u.role
+        role: u.role,
+        is_locked: u.is_locked || false
       })));
       
       if (divsData.length > 0) {
@@ -106,15 +112,61 @@ const ManageAdmin = () => {
     if (roleHierarchy[newRole] > roleHierarchy[currentRole]) actionText = "MENGANGKAT (Promote)";
     if (roleHierarchy[newRole] < roleHierarchy[currentRole]) actionText = "MENURUNKAN (Demote)";
 
-    if (window.confirm(`Yakin ingin ${actionText} ${name} menjadi ${newRole.toUpperCase()}?`)) {
-      try {
-        await api.put(`/profiles/${id}/role`, { role: newRole });
-        toast.success(`Sukses! ${name} sekarang adalah ${newRole.toUpperCase()}.`);
-        fetchData();
-      } catch (error) {
-        toast.error("Gagal mengubah role pengguna");
+    setModalState({
+      isOpen: true,
+      type: "promote",
+      title: "Ubah Kasta",
+      message: `Yakin ingin ${actionText} ${name} menjadi ${newRole.toUpperCase()}?`,
+      actionText: "Ya, Ubah!",
+      onConfirm: async () => {
+        try {
+          await api.put(`/profiles/${id}/role`, { role: newRole });
+          toast.success(`Sukses! ${name} sekarang adalah ${newRole.toUpperCase()}.`);
+          fetchData();
+        } catch (error) {
+          toast.error("Gagal mengubah role pengguna");
+        }
       }
-    }
+    });
+  };
+
+  const handleToggleLock = (id, name, currentStatus) => {
+    const action = currentStatus ? "Membuka Gembok" : "Menggembok";
+    setModalState({
+      isOpen: true,
+      type: currentStatus ? "unlock" : "lock",
+      title: `${action} Akun`,
+      message: `Tindakan proteksi keamanan. Yakin ingin ${action} akun ${name}?`,
+      actionText: currentStatus ? "Ya, Buka" : "Ya, Kunci",
+      onConfirm: async () => {
+        try {
+          await api.put(`/profiles/${id}/lock`, { is_locked: !currentStatus });
+          toast.success(`Berhasil ${action} akun ${name}`);
+          fetchData();
+        } catch (error) {
+          toast.error("Gagal mengubah status gembok");
+        }
+      }
+    });
+  };
+
+  const handleDelete = (id, name) => {
+    setModalState({
+      isOpen: true,
+      type: "delete",
+      title: "Hapus Permanen",
+      message: `BAHAYA! Yakin ingin menghapus permanen akun ${name}? Tindakan ini tidak dapat dibatalkan.`,
+      actionText: "Ya, Hapus!",
+      onConfirm: async () => {
+        try {
+          await api.delete(`/profiles/${id}`);
+          toast.success(`Akun ${name} telah dihapus permanen`);
+          fetchData();
+        } catch (error) {
+          toast.error("Gagal menghapus akun");
+        }
+      }
+    });
   };
 
   return (
@@ -296,9 +348,10 @@ const ManageAdmin = () => {
               isDeveloperTheme ? "bg-[#18181b] border-zinc-800 text-zinc-500" : "bg-white border-slate-100 text-slate-400"
             }`}>
               <tr>
-                <th className="px-6 py-5">Identitas Pengguna</th>
-                <th className="px-6 py-5">Divisi / Penempatan</th>
-                <th className="px-6 py-5 text-right">Manajemen Kasta</th>
+                <th className="px-6 py-5 border-r border-white/5">Identitas Pengguna</th>
+                <th className="px-6 py-5 border-r border-white/5">Divisi / Penempatan</th>
+                <th className="px-6 py-5 text-center border-r border-white/5">Status Gembok</th>
+                <th className="px-6 py-5 text-right">Manajemen & Aksi</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${isDeveloperTheme ? "divide-zinc-800" : "divide-slate-50"}`}>
@@ -345,31 +398,67 @@ const ManageAdmin = () => {
                       </span>
                     </td>
 
+                    <td className="px-6 py-4 text-center">
+                      {u.is_locked ? (
+                        <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border inline-flex items-center justify-center gap-1.5 w-max ${
+                          isDeveloperTheme ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-rose-50 text-rose-600 border-rose-100"
+                        }`}>
+                          <i className="fa-solid fa-lock"></i> Terkunci
+                        </span>
+                      ) : (
+                        <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border inline-flex items-center justify-center gap-1.5 w-max ${
+                          isDeveloperTheme ? "bg-zinc-800 text-zinc-400 border-zinc-700" : "bg-slate-50 text-slate-500 border-slate-200"
+                        }`}>
+                          <i className="fa-solid fa-unlock"></i> Aman
+                        </span>
+                      )}
+                    </td>
+
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
+                        {/* Lock/Unlock Switch */}
+                        <button 
+                          onClick={() => handleToggleLock(u.id, u.name, u.is_locked)}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm border transition-colors shrink-0 ${
+                            u.is_locked 
+                              ? (isDeveloperTheme ? "bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/40" : "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100") 
+                              : (isDeveloperTheme ? "bg-rose-500/20 text-rose-400 border-rose-500/30 hover:bg-rose-500/40" : "bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100")
+                          }`}
+                          title={u.is_locked ? "Buka Gembok Akun" : "Kunci Akun"}
+                        >
+                          <i className={`fa-solid ${u.is_locked ? "fa-unlock" : "fa-lock"}`}></i>
+                        </button>
+
                         {/* Badge Status Saat Ini (Kiri) */}
                         <div className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${badge.bg} ${badge.text}`}>
                           <i className={`fa-solid ${badge.icon}`}></i> {badge.label}
                         </div>
 
-                        <i className={`fa-solid fa-arrow-right-arrow-left hidden sm:block mx-1 ${isDeveloperTheme ? "text-zinc-700" : "text-slate-300"}`}></i>
+                        <i className={`fa-solid fa-arrow-right-arrow-left hidden lg:block mx-1 ${isDeveloperTheme ? "text-zinc-700" : "text-slate-300"}`}></i>
 
                         {/* Dropdown Ubah Kasta (Kanan) */}
-                        <div className="relative">
+                        <div className="relative w-32 shrink-0">
                           <select
                             value={u.role}
                             onChange={(e) => handleRoleChange(u.id, u.name, u.role, e.target.value)}
-                            className={`border rounded-xl pl-4 pr-8 py-2.5 text-xs font-bold outline-none focus:ring-2 appearance-none cursor-pointer shadow-sm transition-all ${
-                              isDeveloperTheme ? "bg-[#09090b] border-zinc-700 text-zinc-300 hover:border-zinc-500 focus:ring-zinc-600" : 
-                              "bg-white border-slate-200 text-slate-700 hover:border-purple-400 focus:ring-purple-500"
+                            className={`w-full border rounded-xl pl-3 pr-8 py-2.5 text-[11px] font-bold outline-none appearance-none cursor-pointer shadow-sm transition-all ${
+                              isDeveloperTheme ? "bg-[#09090b] border-zinc-700 text-zinc-300 hover:border-zinc-500" : 
+                              "bg-white border-slate-200 text-slate-700 hover:border-purple-400"
                             }`}
                           >
-                            <option value="user">Set Intern</option>
-                            <option value="admin">Set Admin</option>
-                            <option value="super_admin">Set Superadmin</option>
+                            <option value="user">USER/INTERN</option>
+                            <option value="admin">ADMIN</option>
+                            <option value="super_admin">SUPER</option>
                           </select>
                           <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
                         </div>
+
+                        {/* Tombol Hapus */}
+                        <button onClick={() => handleDelete(u.id, u.name)} className={`w-8 h-8 shrink-0 rounded-lg transition-all shadow-sm border flex items-center justify-center ${
+                           isDeveloperTheme ? "bg-zinc-900 border-zinc-700 text-zinc-500 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30" : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-rose-500 hover:text-white"
+                        }`} title="Hapus Akun Permanen">
+                           <i className="fa-solid fa-trash-can"></i>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -393,6 +482,12 @@ const ManageAdmin = () => {
           </table>
         </div>
       </div>
+
+      <ConfirmModal 
+        {...modalState} 
+        onClose={closeModal} 
+        isDark={isDeveloperTheme} 
+      />
 
     </div>
   );

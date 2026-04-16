@@ -234,12 +234,20 @@ export default function Login() {
         
         /* Transisi blur buat Dev Mode */
         .page-wrapper {
-          transition: all 0.7s cubic-bezier(0.87,0,0.13,1);
+          transition: all 0.8s cubic-bezier(0.87,0,0.13,1);
         }
         .page-wrapper.dev-active {
-          filter: blur(8px) brightness(0.4);
-          transform: scale(0.98);
+          filter: blur(12px) brightness(0.25);
+          transform: scale(0.96);
         }
+
+        /* Custom Terminal Scrollbar */
+        .terminal-scroll::-webkit-scrollbar { width: 6px; }
+        .terminal-scroll::-webkit-scrollbar-track { background: transparent; }
+        .terminal-scroll::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.2); border-radius: 10px; }
+        .terminal-scroll::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.4); }
+        .terminal-scroll { scrollbar-width: thin; scrollbar-color: rgba(16, 185, 129, 0.2) transparent; }
+        .radial-vignette { background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.8) 120%); }
 
         .page {
           min-height: 100vh; display: flex; align-items: center; justify-content: center;
@@ -316,40 +324,76 @@ export default function Login() {
       {/* Muncul kalo Ctrl+Shift+X dipencet */}
       {/* ========================================= */}
       <div 
-        className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ease-[cubic-bezier(0.87,0,0.13,1)] ${
-          devMode ? "opacity-100" : "opacity-0 pointer-events-none"
+        className={`fixed inset-0 z-[100] flex items-center justify-center transition-all duration-700 ease-[cubic-bezier(0.87,0,0.13,1)] p-4 sm:p-8 ${
+          devMode ? "opacity-100 backdrop-blur-sm" : "opacity-0 pointer-events-none"
         }`}
       >
-        <div className="w-full max-w-4xl p-8 absolute z-20">
-          <div className="bg-black/90 rounded-2xl border border-white/10 shadow-2xl overflow-hidden font-mono text-sm h-[60vh] flex flex-col relative">
-            <div className="bg-white/5 px-4 py-2 border-b border-white/5 flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-rose-500 cursor-pointer" onClick={() => setDevMode(false)}></div>
-              <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-              <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-              <span className="ml-4 text-slate-500 text-xs">root@mcc-sync:~</span>
+        <div className="w-full max-w-4xl absolute z-20 perspective-[2000px]">
+          <div 
+            className="bg-[#0a0a0f]/95 backdrop-blur-2xl rounded-xl border border-black overflow-hidden font-mono text-sm sm:text-base h-[65vh] flex flex-col relative transition-all duration-700 delay-75 shadow-2xl"
+            style={{ 
+              transform: devMode ? 'rotateX(0deg) translateY(0) scale(1)' : 'rotateX(10deg) translateY(40px) scale(0.95)',
+              boxShadow: devMode ? '0 25px 80px -10px rgba(0, 0, 0, 0.9), 0 0 60px rgba(16, 185, 129, 0.15)' : 'none'
+            }}
+          >
+            {/* Window Controls / Header */}
+            <div className="bg-[#12121a] px-4 py-3 flex items-center justify-between border-b border-white/5 relative z-20">
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-3.5 h-3.5 rounded-full bg-rose-500/90 hover:bg-rose-400 cursor-pointer transition-all shadow-[0_0_10px_rgba(244,63,94,0.4)]" 
+                  onClick={() => setDevMode(false)}
+                  title="Close Terminal"
+                />
+                <div className="w-3.5 h-3.5 rounded-full bg-amber-500/90 shadow-[0_0_10px_rgba(245,158,11,0.4)]" />
+                <div className="w-3.5 h-3.5 rounded-full bg-emerald-500/90 shadow-[0_0_10px_rgba(16,185,129,0.4)]" />
+              </div>
+              <div className="text-slate-400/80 text-xs tracking-[0.2em] font-medium absolute left-1/2 -translate-x-1/2">
+                MCC_OS_ROOT_TERM
+              </div>
+              <div className="w-10" />
             </div>
-            <div className="flex-1 p-6 overflow-y-auto text-emerald-400 space-y-2 relative z-10">
-              {terminalLogs.map((log, index) => (
-                <div key={index} className={log.startsWith("root@mcc") ? "text-emerald-500" : "text-emerald-400/80"}>{log}</div>
-              ))}
-              <form onSubmit={handleTerminalSubmit} className="flex items-center gap-2 mt-2">
-                <span className="text-emerald-500 font-bold">
+
+            {/* Terminal Body */}
+            <div className="flex-1 p-6 sm:p-8 overflow-y-auto text-emerald-400/90 space-y-2.5 relative z-10 terminal-scroll">
+              {terminalLogs.map((log, index) => {
+                const isPrompt = log.startsWith("root@mcc");
+                const isError = log.toLowerCase().includes("denied") || log.toLowerCase().includes("not found");
+                const isSuccess = log.toLowerCase().includes("granted") || log.toLowerCase().includes("unlocked");
+                const isIntro = log.includes("v2.1.0") || log.includes("Type 'help'");
+                
+                return (
+                  <div key={index} className={`leading-relaxed tracking-wide ${
+                    isPrompt ? "text-emerald-300 font-semibold mt-5" : 
+                    isError ? "text-rose-400" : 
+                    isSuccess ? "text-teal-300 animate-pulse drop-shadow-[0_0_8px_rgba(45,212,191,0.5)]" :
+                    isIntro ? "text-emerald-500/70 italic" : "text-emerald-500/90"
+                  }`}>
+                    {log}
+                  </div>
+                );
+              })}
+              
+              <form onSubmit={handleTerminalSubmit} className="flex items-center mt-4 group">
+                <span className="text-emerald-300 font-semibold mr-3 shrink-0 drop-shadow-[0_0_8px_rgba(110,231,183,0.3)]">
                   {terminalAuthStep === "password" ? "Password:" : "root@mcc-sync:~#"}
                 </span>
                 <input
                   type={terminalAuthStep === "password" ? "password" : "text"}
                   value={terminalInput}
                   onChange={(e) => setTerminalInput(e.target.value)}
-                  className="flex-1 bg-transparent outline-none text-emerald-400 border-none focus:ring-0 p-0"
+                  className="flex-1 bg-transparent outline-none text-emerald-100 border-none focus:ring-0 p-0 transform translate-y-[1px] caret-emerald-400 font-medium placeholder-emerald-800/40"
                   autoFocus={devMode}
                   autoComplete="off"
                   spellCheck="false"
+                  placeholder={terminalAuthStep === "idle" ? "Enter command..." : ""}
                 />
               </form>
-              <div ref={terminalBottomRef} />
+              <div ref={terminalBottomRef} className="h-4" />
             </div>
-            {/* Efek Garis Terminal */}
-            <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] z-0 opacity-20"></div>
+
+            {/* CRT TV scanline & vignette effects */}
+            <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.15)_50%)] bg-[length:100%_4px] z-0 opacity-40 mix-blend-overlay"></div>
+            <div className="absolute inset-0 pointer-events-none radial-vignette opacity-80 z-0"></div>
           </div>
         </div>
       </div>
