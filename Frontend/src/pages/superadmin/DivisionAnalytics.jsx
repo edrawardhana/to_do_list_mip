@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import ConfirmModal from "../../components/ui/ConfirmModal";
 
 const DivisionAnalytics = () => {
   const { user, isAdmin, isSuperAdmin, isDeveloper } = useAuth();
@@ -16,6 +17,9 @@ const DivisionAnalytics = () => {
   const isBlueTheme = isAdmin && !isSuperAdmin && !isDeveloperTheme; // Tema Biru
 
   const [divisions, setDivisions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modalState, setModalState] = useState({ isOpen: false, type: "danger", title: "", message: "", actionText: "Ya", onConfirm: () => {} });
+  const closeModal = () => setModalState(s => ({ ...s, isOpen: false }));
 
   // State UI
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,11 +28,18 @@ const DivisionAnalytics = () => {
   const [formData, setFormData] = useState({ id: null, name: "", icon: "fa-building", color: "blue", head: "", description: "" });
 
   const fetchDivisions = async () => {
+    setLoading(true);
     try {
-      // Asumsi ada endpoint /divisions/analytics untuk data komprehensif, atau fallback ke /divisions
-      const res = await api.get('/divisions/analytics').catch(() => api.get('/divisions'));
-      const data = res.data?.data || res.data || [];
-      setDivisions(data.map(d => ({
+      // Coba endpoint analytics dulu, fallback ke /divisions biasa
+      let res;
+      try {
+        res = await api.get('/divisions/analytics');
+      } catch {
+        res = await api.get('/divisions');
+      }
+      // Backend analytics returns plain array, /divisions returns array or {data:[]}
+      const raw = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      setDivisions(raw.map(d => ({
         id: d.id,
         name: d.name,
         icon: d.icon || 'fa-building',
@@ -44,6 +55,8 @@ const DivisionAnalytics = () => {
     } catch (error) {
       console.error("Gagal memuat data divisi:", error);
       toast.error("Gagal memuat data analitik divisi");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -54,9 +67,11 @@ const DivisionAnalytics = () => {
   // Filter
   const filteredDivisions = useMemo(() => {
     if (!searchQuery) return divisions;
-    return divisions.filter(div => 
-      div.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      div.head.toLowerCase().includes(searchQuery.toLowerCase())
+    const q = searchQuery.toLowerCase();
+    return divisions.filter(div =>
+      (div.name || "").toLowerCase().includes(q) ||
+      (div.head || "").toLowerCase().includes(q) ||
+      (div.description || "").toLowerCase().includes(q)
     );
   }, [divisions, searchQuery]);
 
@@ -71,20 +86,27 @@ const DivisionAnalytics = () => {
     setIsFormOpen(true);
   };
 
-  const handleDelete = async (id, name, internCount) => {
+  const handleDelete = (id, name, internCount) => {
     if (internCount > 0) {
-      toast.error(`GAK BISA DIHAPUS BROK! Masih ada ${internCount} anak magang di divisi ${name}.`);
+      toast.error(`Tidak bisa dihapus! Masih ada ${internCount} anggota di divisi ${name}.`);
       return;
     }
-    if (window.confirm(`Yakin ingin menghapus divisi ${name} secara permanen?`)) {
-      try {
-        await api.delete(`/divisions/${id}`);
-        toast.success(`Divisi ${name} berhasil dihapus.`);
-        fetchDivisions();
-      } catch (error) {
-        toast.error("Gagal menghapus divisi");
+    setModalState({
+      isOpen: true,
+      type: "delete",
+      title: "Hapus Divisi",
+      message: `Yakin ingin menghapus divisi "${name}" secara permanen? Tindakan ini tidak dapat dibatalkan.`,
+      actionText: "Ya, Hapus!",
+      onConfirm: async () => {
+        try {
+          await api.delete(`/divisions/${id}`);
+          toast.success(`Divisi ${name} berhasil dihapus.`);
+          fetchDivisions();
+        } catch (error) {
+          toast.error("Gagal menghapus divisi");
+        }
       }
-    }
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -128,7 +150,7 @@ const DivisionAnalytics = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-2 max-w-7xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 sm:pt-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       
       {/* HERO SECTION ANALYTICS & TOOLBAR */}
       <div className={`rounded-[2.5rem] text-white shadow-xl border border-white/5 relative overflow-hidden flex flex-col ${
@@ -139,7 +161,7 @@ const DivisionAnalytics = () => {
           isDeveloperTheme ? "bg-zinc-600/10" : isPurpleTheme ? "bg-purple-500/20" : "bg-sky-500/20"
         }`}></div>
         
-        <div className="relative z-10 p-8 md:p-10">
+        <div className="relative z-10 p-6 sm:p-8 md:p-10">
           <div className="flex items-center gap-3 mb-4">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shadow-inner backdrop-blur-md ${
               isDeveloperTheme ? "bg-zinc-800/50 border-zinc-700 text-zinc-300" : 
@@ -177,7 +199,7 @@ const DivisionAnalytics = () => {
         </div>
 
         {/* Toolbar Bawah */}
-        <div className={`relative z-10 border-t px-8 py-5 flex flex-col sm:flex-row justify-between items-center gap-4 backdrop-blur-xl ${
+        <div className={`relative z-10 border-t px-5 sm:px-8 py-4 sm:py-5 flex flex-col sm:flex-row justify-between items-center gap-4 backdrop-blur-xl ${
            isDeveloperTheme ? "bg-[#18181b] border-zinc-800" : 
            isPurpleTheme ? "bg-[#18112a] border-[#342459]" : "bg-white/5 border-white/10"
         }`}>
@@ -214,7 +236,49 @@ const DivisionAnalytics = () => {
 
       {/* GRID CARDS (2 Kolom) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {filteredDivisions.map((div) => {
+
+        {/* Loading Skeletons */}
+        {loading && Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className={`rounded-[2rem] border p-8 animate-pulse ${
+            isDeveloperTheme ? "bg-[#18181b] border-zinc-800" :
+            isPurpleTheme ? "bg-white border-slate-200" : "bg-white border-slate-200"
+          }`}>
+            <div className="flex justify-between items-start mb-6">
+              <div className={`w-16 h-16 rounded-2xl ${isDeveloperTheme ? "bg-zinc-800" : "bg-slate-100"}`} />
+              <div className="text-right space-y-2">
+                <div className={`h-2 w-16 rounded ${isDeveloperTheme ? "bg-zinc-800" : "bg-slate-100"}`} />
+                <div className={`h-6 w-12 rounded ${isDeveloperTheme ? "bg-zinc-800" : "bg-slate-100"}`} />
+              </div>
+            </div>
+            <div className={`h-5 w-2/3 rounded mb-3 ${isDeveloperTheme ? "bg-zinc-800" : "bg-slate-100"}`} />
+            <div className={`h-3 w-full rounded mb-2 ${isDeveloperTheme ? "bg-zinc-900" : "bg-slate-50"}`} />
+            <div className={`h-3 w-4/5 rounded mb-6 ${isDeveloperTheme ? "bg-zinc-900" : "bg-slate-50"}`} />
+            <div className={`h-14 w-full rounded-2xl ${isDeveloperTheme ? "bg-zinc-900" : "bg-slate-50"}`} />
+          </div>
+        ))}
+
+        {/* Empty State */}
+        {!loading && filteredDivisions.length === 0 && (
+          <div className={`col-span-2 py-20 rounded-[2rem] border flex flex-col items-center justify-center gap-4 ${
+            isDeveloperTheme ? "bg-[#18181b] border-zinc-800" : "bg-white border-slate-100"
+          }`}>
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center border ${
+              isDeveloperTheme ? "bg-zinc-900 border-zinc-800 text-zinc-700" : "bg-slate-50 border-slate-100 text-slate-300"
+            }`}>
+              <i className="fa-solid fa-building text-2xl" />
+            </div>
+            <div className="text-center">
+              <p className={`font-black ${isDeveloperTheme ? "text-zinc-400" : "text-slate-700"}`}>
+                {searchQuery ? "Divisi tidak ditemukan" : "Belum ada divisi"}
+              </p>
+              <p className={`text-xs font-medium mt-1 ${isDeveloperTheme ? "text-zinc-600" : "text-slate-400"}`}>
+                {searchQuery ? "Coba kata kunci lain." : "Tambahkan divisi pertama Anda."}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!loading && filteredDivisions.map((div) => {
           const badgeClass = getBadgeColors(div.color);
 
           return (
@@ -326,6 +390,13 @@ const DivisionAnalytics = () => {
           );
         })}
       </div>
+
+      {/* Confirm Modal untuk hapus */}
+      <ConfirmModal
+        {...modalState}
+        onClose={closeModal}
+        isDark={isDeveloperTheme}
+      />
 
       {/* ================================================================= */}
       {/* MODAL FORM TAMBAH / EDIT DIVISI                                     */}
@@ -445,30 +516,30 @@ const DivisionAnalytics = () => {
         }`}>
           
           {/* Top Bar Header Fullscreen */}
-          <div className={`px-6 md:px-10 py-5 border-b shadow-sm flex justify-between items-center shrink-0 ${
+          <div className={`px-4 sm:px-6 md:px-10 py-4 sm:py-5 border-b shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 ${
             isDeveloperTheme ? "bg-[#18181b] border-zinc-800" : "bg-white border-slate-200"
           }`}>
-             <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-2xl text-white flex items-center justify-center text-xl shadow-lg ${
-                  isDeveloperTheme ? 'bg-zinc-800 shadow-zinc-900/50 border border-zinc-700' : 
-                  isPurpleTheme ? 'bg-purple-600 shadow-purple-600/30' : 'bg-blue-600 shadow-blue-600/30'
-                }`}>
-                  <i className={`fa-solid ${selectedDivision.icon}`}></i>
-                </div>
-                <div>
-                  <h2 className={`text-2xl font-black leading-tight ${isDeveloperTheme ? "text-zinc-100" : "text-slate-800"}`}>{selectedDivision.name}</h2>
-                  <p className={`text-[10px] font-black uppercase tracking-widest mt-1 ${isDeveloperTheme ? "text-zinc-500" : "text-slate-400"}`}>Profil Lengkap Divisi</p>
-                </div>
-             </div>
-             <button onClick={() => setSelectedDivision(null)} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-colors ${
-               isDeveloperTheme ? "bg-zinc-800 text-zinc-300 hover:bg-rose-500/10 hover:text-rose-500 border border-zinc-700" : "bg-slate-100 text-slate-600 hover:bg-rose-100 hover:text-rose-600"
-             }`}>
-               <i className="fa-solid fa-arrow-left"></i> Kembali
-             </button>
+            <div className="flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl text-white shadow-lg ${
+                isDeveloperTheme ? 'bg-zinc-800 shadow-zinc-900/50 border border-zinc-700' : 
+                isPurpleTheme ? 'bg-purple-600 shadow-purple-600/30' : 'bg-blue-600 shadow-blue-600/30'
+              }`}>
+                <i className={`fa-solid ${selectedDivision.icon}`}></i>
+              </div>
+              <div>
+                <h2 className={`text-2xl font-black leading-tight ${isDeveloperTheme ? "text-zinc-100" : "text-slate-800"}`}>{selectedDivision.name}</h2>
+                <p className={`text-[10px] font-black uppercase tracking-widest mt-1 ${isDeveloperTheme ? "text-zinc-500" : "text-slate-400"}`}>Profil Lengkap Divisi</p>
+              </div>
+            </div>
+            <button onClick={() => setSelectedDivision(null)} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-colors ${
+              isDeveloperTheme ? "bg-zinc-800 text-zinc-300 hover:bg-rose-500/10 hover:text-rose-500 border border-zinc-700" : "bg-slate-100 text-slate-600 hover:bg-rose-100 hover:text-rose-600"
+            }`}>
+              <i className="fa-solid fa-arrow-left"></i> Kembali
+            </button>
           </div>
 
           {/* Fullscreen Body Content (REDESIGNED: Clean Profile View without percentages) */}
-          <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 custom-scrollbar">
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
               
               {/* KOLOM KIRI (Info Divisi & Jobdesk Utama) */}
@@ -593,15 +664,15 @@ const DivisionAnalytics = () => {
                             }`}>
                               {idx === 0 ? <i className="fa-solid fa-trophy text-[10px]"></i> : idx + 1}
                             </div>
-                            <div>
-                              <p className={`text-sm font-black leading-tight ${
+                             <div className="min-w-0">
+                              <p className={`text-sm font-black leading-tight truncate max-w-[150px] sm:max-w-xs ${
                                 isDeveloperTheme && idx === 0 ? "text-orange-400" : 
                                 isDeveloperTheme ? "text-zinc-200" : "text-slate-800"
                               }`}>{intern.name}</p>
-                              <p className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${
+                              <p className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 whitespace-nowrap ${
                                 intern.status === 'Warning' ? 'text-rose-500' : (isDeveloperTheme ? 'text-zinc-500' : 'text-slate-400')
                               }`}>{intern.status}</p>
-                            </div>
+                             </div>
                           </div>
                        </div>
                      )) : (

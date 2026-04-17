@@ -118,4 +118,47 @@ class ProfileController extends Controller
             'data' => $profile
         ]);
     }
+
+    /**
+     * Delete a user account permanently (Superadmin / Developer only)
+     */
+    public function destroy($id)
+    {
+        $authUser = Auth::user();
+
+        // Only super_admin or developer can delete accounts
+        if (!in_array($authUser->role, ['super_admin', 'developer'])) {
+            return response()->json(['status' => 'error', 'message' => 'Hanya Superadmin atau Developer yang dapat menghapus akun.'], 403);
+        }
+
+        // Prevent self-deletion
+        if ($authUser->id === $id) {
+            return response()->json(['status' => 'error', 'message' => 'Anda tidak bisa menghapus akun Anda sendiri.'], 403);
+        }
+
+        $profile = User::findOrFail($id);
+
+        // Prevent deleting another super_admin or developer
+        if (in_array($profile->role, ['super_admin', 'developer']) && $authUser->role !== 'developer') {
+            return response()->json(['status' => 'error', 'message' => 'Tidak dapat menghapus akun Superadmin atau Developer.'], 403);
+        }
+
+        $profileData = $profile->toArray();
+
+        $profile->delete(); // SoftDeletes aktif di model
+
+        AuditLog::record(
+            $authUser->id,
+            $authUser->role,
+            'Hapus Akun Pengguna',
+            [],
+            $profileData,
+            $id
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Akun berhasil dihapus.'
+        ]);
+    }
 }

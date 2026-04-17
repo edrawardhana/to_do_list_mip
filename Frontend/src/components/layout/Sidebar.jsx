@@ -89,7 +89,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         <div className="fixed inset-0 bg-black/50 z-[60] lg:hidden backdrop-blur-sm transition-opacity" onClick={() => setMobileOpen(false)} />
       )}
 
-      <aside className={`fixed lg:sticky top-0 left-0 h-screen z-[100] w-[260px] flex-shrink-0 flex flex-col transition-colors duration-500 ease-in-out ${theme.sidebarBg} ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+      <aside className={`fixed lg:sticky top-0 left-0 h-screen z-[100] w-[260px] flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out ${theme.sidebarBg} ${mobileOpen ? "translate-x-0 shadow-2xl shadow-sky-900/20" : "-translate-x-full lg:translate-x-0"}`}>
         
         {/* LOGO */}
         <div className="h-28 flex items-center justify-center shrink-0 border-b border-white/5 px-6 py-4">

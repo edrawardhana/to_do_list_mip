@@ -31,6 +31,60 @@ class BroadcastController extends Controller
     }
 
     /**
+     * Get broadcast history formatted mapping for frontend UI.
+     */
+    public function history()
+    {
+        $broadcasts = Broadcast::with('author')->orderBy('created_at', 'desc')->get();
+        
+        $formatted = $broadcasts->map(function($b) {
+            return [
+                'id' => $b->id,
+                'title' => $b->title,
+                'date' => $b->created_at ? $b->created_at->format('d M Y, H:i') : now()->format('d M Y, H:i'),
+                'target' => 'Global (Semua Intern)', // default mapping
+                'sender' => $b->author ? ($b->author->full_name ?? 'Admin') : 'Superadmin',
+            ];
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $formatted
+        ]);
+    }
+
+    /**
+     * Send Broadcast Notifications (Mock for FCM)
+     */
+    public function send(Request $request)
+    {
+        $user = Auth::user();
+
+        $request->validate([
+            'title' => 'required|string',
+            'content' => 'required|string',
+            'targetType' => 'required|string'
+        ]);
+
+        $broadcast = Broadcast::create([
+            'author_id' => $user->id,
+            'title' => $request->title,
+            'content' => $request->content,
+            'category' => 'info',
+            'expires_at' => now()->addDays(7), // dummy expiration
+            'created_at' => now()
+        ]);
+
+        AuditLog::record($user->id, $user->role, 'Send Broadcast FCM', $broadcast->toArray());
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Broadcast berhasil dikirim.',
+            'data' => $broadcast
+        ], 201);
+    }
+
+    /**
      * Create a Broadcast
      */
     public function store(Request $request)

@@ -1,224 +1,467 @@
-import React, { useEffect, useState } from "react";
-import { supabase } from "../../supabaseClient";
+import React, { useEffect, useState, useCallback } from "react";
+import api from "../../api/axios";
 import { toast } from "react-hot-toast";
+
+const ITEMS_PER_PAGE = 15;
 
 const AuditLog = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [expandedRow, setExpandedRow] = useState(null);
 
-  // 1. Fetch data dari Supabase saat komponen dimuat
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  // -----------------------------------------------
+  // Fetch data dari Laravel API
+  // -----------------------------------------------
+  const fetchData = useCallback(async (page = 1) => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("v_developer_recent_audit")
-      .select("*");
-      
-    if (error) {
-      toast.error("Gagal mengambil data log: " + error.message);
-    } else {
-      setLogs(data || []);
+    try {
+      const params = { page };
+      if (search) params.search = search;
+      if (dateFilter) params.date = dateFilter;
+
+      const res = await api.get("/audit-logs", { params });
+      const body = res.data;
+
+      setLogs(body.data || []);
+      setTotal(body.total || 0);
+      setTotalPages(body.last_page || 1);
+      setCurrentPage(body.current_page || 1);
+    } catch (err) {
+      toast.error("Gagal mengambil audit log");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
+  }, [search, dateFilter]);
+
+  useEffect(() => {
+    fetchData(1);
+  }, [fetchData]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setSearch(searchInput);
   };
 
-  // 2. Logika Filtering
-  const filteredLogs = logs.filter((log) => {
-    const actorName = log.actor_name || "System";
-    const targetName = log.target_name || "N/A";
-    const actionText = log.action || "";
+  const handleClearFilters = () => {
+    setSearchInput("");
+    setSearch("");
+    setDateFilter("");
+  };
 
-    const matchesText =
-      filter === "" ||
-      actorName.toLowerCase().includes(filter.toLowerCase()) ||
-      actionText.toLowerCase().includes(filter.toLowerCase()) ||
-      targetName.toLowerCase().includes(filter.toLowerCase());
-
-    const matchesDate =
-      dateFilter === "" || log.created_at.startsWith(dateFilter);
-
-    return matchesText && matchesDate;
-  });
-
-  // 3. Helper untuk styling badge aksi
-  const getBadgeStyle = (action) => {
+  // -----------------------------------------------
+  // Badge styling per action
+  // -----------------------------------------------
+  const getActionBadge = (action = "") => {
     const act = action.toLowerCase();
-    if (act.includes("login")) return "bg-emerald-100 text-emerald-600";
-    if (act.includes("logout")) return "bg-slate-100 text-slate-600";
-    if (act.includes("lock")) return "bg-purple-100 text-purple-600";
-    if (act.includes("unlock")) return "bg-teal-100 text-teal-600";
+    if (act.includes("login"))
+      return { cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", icon: "fa-right-to-bracket" };
+    if (act.includes("logout"))
+      return { cls: "bg-zinc-600/30 text-zinc-400 border-zinc-600/40", icon: "fa-right-from-bracket" };
     if (act.includes("hapus") || act.includes("delete"))
-      return "bg-rose-100 text-rose-600";
-    if (act.includes("update") || act.includes("edit"))
-      return "bg-amber-100 text-amber-600";
-    return "bg-indigo-100 text-indigo-600";
+      return { cls: "bg-rose-500/15 text-rose-400 border-rose-500/30", icon: "fa-trash-can" };
+    if (act.includes("lock") || act.includes("kunci"))
+      return { cls: "bg-orange-500/15 text-orange-400 border-orange-500/30", icon: "fa-lock" };
+    if (act.includes("unlock") || act.includes("buka"))
+      return { cls: "bg-sky-500/15 text-sky-400 border-sky-500/30", icon: "fa-unlock" };
+    if (act.includes("update") || act.includes("edit") || act.includes("ubah") || act.includes("profil"))
+      return { cls: "bg-amber-500/15 text-amber-400 border-amber-500/30", icon: "fa-pen-to-square" };
+    if (act.includes("role") || act.includes("promote") || act.includes("kasta"))
+      return { cls: "bg-purple-500/15 text-purple-400 border-purple-500/30", icon: "fa-crown" };
+    if (act.includes("tambah") || act.includes("create") || act.includes("register"))
+      return { cls: "bg-teal-500/15 text-teal-400 border-teal-500/30", icon: "fa-plus-circle" };
+    return { cls: "bg-indigo-500/15 text-indigo-400 border-indigo-500/30", icon: "fa-bolt" };
   };
 
-  return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-[#1b254b] uppercase tracking-tight">
-            System Audit Log
-          </h1>
-          <p className="text-sm text-slate-400">
-            Melacak seluruh aktivitas perubahan sistem.
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={fetchData}
-            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition flex items-center gap-2 shadow-sm"
-          >
-            <i
-              className={`fa-solid fa-rotate ${loading ? "animate-spin" : ""}`}
-            ></i>{" "}
-            Refresh
-          </button>
-          <button className="px-4 py-2 bg-[#1b254b] text-white rounded-xl text-sm font-bold hover:opacity-90 transition flex items-center gap-2 shadow-lg shadow-indigo-100">
-            <i className="fa-solid fa-download"></i> Ekspor CSV
-          </button>
-        </div>
-      </div>
+  const formatDate = (iso) => {
+    if (!iso) return "-";
+    const d = new Date(iso);
+    return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+  };
+  const formatTime = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB";
+  };
 
-      {/* Filter Section */}
-      <div className="bg-white p-6 rounded-[2rem] border border-slate-50 flex flex-col md:flex-row gap-4 shadow-sm">
-        <div className="flex-1">
-          <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 ml-1">
-            Cari Aktivitas
-          </label>
-          <div className="relative">
-            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
-            <input
-              type="text"
-              placeholder="Cari admin, aksi, atau target user..."
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-3 outline-none focus:ring-2 focus:ring-indigo-100 font-medium transition-all"
-            />
+  // -----------------------------------------------
+  // Pagination helpers
+  // -----------------------------------------------
+  const getPageNumbers = () => {
+    const pages = [];
+    const delta = 2;
+    for (let i = Math.max(1, currentPage - delta); i <= Math.min(totalPages, currentPage + delta); i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
+
+  // -----------------------------------------------
+  // RENDER
+  // -----------------------------------------------
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 pb-12 pt-8 px-2 max-w-7xl mx-auto">
+
+      {/* ================================================================= */}
+      {/* HERO HEADER                                                         */}
+      {/* ================================================================= */}
+      <div className="rounded-[2.5rem] bg-[#09090b] border border-[#27272a] shadow-2xl relative overflow-hidden flex flex-col text-white">
+        {/* Glow */}
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-zinc-500/10 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none" />
+
+        {/* Header */}
+        <div className="p-8 md:p-10 relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8 border-b border-zinc-800">
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-zinc-800/80 border border-zinc-700 text-zinc-300 shadow-inner">
+                <i className="fa-solid fa-shield-halved text-lg" />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                System Security Monitor
+              </span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-100">
+              Audit Log.
+            </h1>
+            <p className="text-zinc-500 text-sm font-medium mt-2">
+              Seluruh aktivitas sistem tercatat di sini secara real-time.
+            </p>
+          </div>
+
+          {/* Widget Status + Counter */}
+          <div className="flex items-center gap-5 bg-[#18181b]/80 border border-zinc-800 px-6 py-4 rounded-3xl backdrop-blur-md shadow-inner shrink-0">
+            <div className="relative w-14 h-14 flex items-center justify-center">
+              <div className="absolute inset-0 border-[3px] border-zinc-800 border-t-zinc-400 rounded-full animate-[spin_2s_linear_infinite]" />
+              <div className="absolute inset-1.5 border-[3px] border-zinc-800 border-b-indigo-500 rounded-full animate-[spin_3s_linear_infinite_reverse]" />
+              <i className="fa-solid fa-shield-halved text-zinc-200 text-lg animate-pulse" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2.5 bg-zinc-900/80 px-3 py-1.5 rounded-lg border border-zinc-800">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-300">Logger Active</span>
+              </div>
+              <div className="flex items-center gap-2.5 bg-zinc-900/80 px-3 py-1.5 rounded-lg border border-zinc-800">
+                <i className="fa-solid fa-list-check text-[9px] text-indigo-400" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-300">
+                  {total.toLocaleString()} Record{total !== 1 ? "s" : ""}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="md:w-56">
-          <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 ml-1">
-            Filter Tanggal
-          </label>
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-100 font-medium transition-all"
-          />
+
+        {/* Filter Section */}
+        <div className="p-6 md:p-8 relative z-10">
+          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 items-end">
+            {/* Search */}
+            <div className="flex-1">
+              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block mb-2">
+                Cari Aktivitas
+              </label>
+              <div className="relative group">
+                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-zinc-400 transition-colors text-sm" />
+                <input
+                  type="text"
+                  placeholder="Cari admin, aksi, atau target user..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="w-full bg-[#18181b] border border-zinc-800 hover:border-zinc-700 focus:border-zinc-600 rounded-xl pl-11 pr-4 py-3 text-sm font-medium text-zinc-200 outline-none transition-all placeholder:text-zinc-600"
+                />
+              </div>
+            </div>
+
+            {/* Date Filter */}
+            <div className="md:w-52">
+              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block mb-2">
+                Filter Tanggal
+              </label>
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="w-full bg-[#18181b] border border-zinc-800 hover:border-zinc-700 focus:border-zinc-600 rounded-xl px-4 py-3 text-sm font-medium text-zinc-200 outline-none transition-all [color-scheme:dark]"
+              />
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3 shrink-0">
+              <button
+                type="submit"
+                className="px-6 py-3 bg-zinc-100 hover:bg-white text-zinc-900 rounded-xl text-sm font-black transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.08)] active:scale-95"
+              >
+                <i className="fa-solid fa-search" /> Cari
+              </button>
+              {(search || dateFilter) && (
+                <button
+                  type="button"
+                  onClick={handleClearFilters}
+                  className="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-xl text-sm font-bold transition-all border border-zinc-700 flex items-center gap-2"
+                >
+                  <i className="fa-solid fa-xmark" /> Reset
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => fetchData(currentPage)}
+                className="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-xl text-sm font-bold transition-all border border-zinc-700 flex items-center gap-2"
+                title="Refresh"
+              >
+                <i className={`fa-solid fa-rotate ${loading ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
-      {/* Tabel Log */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-50 overflow-hidden shadow-sm">
+      {/* ================================================================= */}
+      {/* TABEL LOG                                                           */}
+      {/* ================================================================= */}
+      <div className="rounded-[2rem] bg-[#0f0f11] border border-zinc-800 shadow-2xl overflow-hidden">
+
+        {/* Table Header Bar */}
+        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between gap-4 bg-[#18181b]">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center">
+              <i className="fa-solid fa-table-list text-xs text-zinc-400" />
+            </div>
+            <h3 className="font-black text-zinc-200 text-sm">Event Timeline</h3>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-800">
+            {loading ? "Memuat..." : `${total} total log`}
+          </span>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50/50 border-b border-slate-50">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-600 bg-[#18181b]">
               <tr>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Admin (Actor)
-                </th>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Aksi
-                </th>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Target
-                </th>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Waktu
-                </th>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Data Details
-                </th>
+                <th className="px-6 py-4 whitespace-nowrap">Actor</th>
+                <th className="px-6 py-4 whitespace-nowrap">Aksi</th>
+                <th className="px-6 py-4 whitespace-nowrap">Target</th>
+                <th className="px-6 py-4 whitespace-nowrap">Waktu</th>
+                <th className="px-6 py-4 whitespace-nowrap text-center">Detail</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50 text-[#1b254b]">
+            <tbody className="divide-y divide-zinc-800/60">
               {loading ? (
+                // Skeleton loading rows
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-zinc-800" />
+                        <div className="space-y-1.5">
+                          <div className="h-3 w-28 bg-zinc-800 rounded" />
+                          <div className="h-2 w-16 bg-zinc-900 rounded" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4"><div className="h-6 w-32 bg-zinc-800 rounded-full" /></td>
+                    <td className="px-6 py-4"><div className="h-3 w-24 bg-zinc-800 rounded" /></td>
+                    <td className="px-6 py-4"><div className="space-y-1"><div className="h-3 w-20 bg-zinc-800 rounded" /><div className="h-2 w-14 bg-zinc-900 rounded" /></div></td>
+                    <td className="px-6 py-4 text-center"><div className="h-7 w-7 bg-zinc-800 rounded-lg mx-auto" /></td>
+                  </tr>
+                ))
+              ) : logs.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan="5"
-                    className="py-20 text-center text-slate-400 font-medium"
-                  >
-                    Memuat data log...
-                  </td>
-                </tr>
-              ) : filteredLogs.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan="5"
-                    className="py-20 text-center text-slate-400 font-medium"
-                  >
-                    Tidak ada aktivitas yang ditemukan.
+                  <td colSpan="5" className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                        <i className="fa-solid fa-inbox text-2xl text-zinc-700" />
+                      </div>
+                      <div>
+                        <p className="font-black text-zinc-400">Tidak ada log ditemukan.</p>
+                        <p className="text-xs text-zinc-600 font-medium mt-1">Coba ubah filter pencarian.</p>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log, index) => (
-                  <tr
-                    key={index}
-                    className="hover:bg-slate-50/50 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-black text-xs uppercase">
-                          {log.actor_name?.substring(0, 2) || "SY"}
-                        </div>
-                        <div>
-                          <p className="text-sm font-black">
-                            {log.actor_name || "System"}
-                          </p>
-                          <p className="text-[10px] text-slate-400">
-                            {log.actor_role || "Dev/Admin"}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight ${getBadgeStyle(log.action || '')}`}
-                      >
-                        {(log.action || 'SISTEM').replace(/_/g, " ")}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-bold text-slate-600">
-                      {log.target_name || "-"}
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-[11px] font-bold">
-                        {new Date(log.created_at).toLocaleDateString("id-ID", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </p>
-                      <p className="text-[10px] text-slate-400 font-medium">
-                        {new Date(log.created_at).toLocaleTimeString("id-ID", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}{" "}
-                        WIB
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div
-                        className="max-w-[150px] truncate text-[10px] bg-slate-50 p-2 rounded-lg font-mono text-slate-400 hover:max-w-none transition-all cursor-help"
-                        title={JSON.stringify(log.new_values)}
-                      >
-                        {JSON.stringify(log.new_values)}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                logs.map((log, idx) => {
+                  const badge = getActionBadge(log.action);
+                  const actorName = log.actor?.full_name || log.actor_name || "System";
+                  const actorRole = log.actor?.role || log.actor_role || "system";
+                  const targetName = log.target?.full_name || log.target_name || "—";
+                  const isExpanded = expandedRow === idx;
+
+                  return (
+                    <React.Fragment key={log.id || idx}>
+                      <tr className="hover:bg-zinc-800/30 transition-colors group">
+                        {/* Actor */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 border ${badge.cls}`}>
+                              {actorName.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-black text-zinc-200 whitespace-nowrap">{actorName}</p>
+                              <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider">{actorRole}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Aksi Badge */}
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border whitespace-nowrap ${badge.cls}`}>
+                            <i className={`fa-solid ${badge.icon}`} />
+                            {(log.action || "System").replace(/_/g, " ")}
+                          </span>
+                        </td>
+
+                        {/* Target */}
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-bold text-zinc-400 whitespace-nowrap">{targetName}</span>
+                        </td>
+
+                        {/* Waktu */}
+                        <td className="px-6 py-4">
+                          <p className="text-[11px] font-black text-zinc-300 whitespace-nowrap">{formatDate(log.created_at)}</p>
+                          <p className="text-[10px] font-bold text-zinc-600 whitespace-nowrap">{formatTime(log.created_at)}</p>
+                        </td>
+
+                        {/* Toggle Detail */}
+                        <td className="px-6 py-4 text-center">
+                          {(log.new_values || log.old_values) && (
+                            <button
+                              onClick={() => setExpandedRow(isExpanded ? null : idx)}
+                              className={`w-8 h-8 rounded-lg border flex items-center justify-center mx-auto transition-all text-xs ${
+                                isExpanded
+                                  ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-400"
+                                  : "bg-zinc-800/50 border-zinc-700 text-zinc-600 hover:text-zinc-300 hover:border-zinc-500"
+                              }`}
+                              title="Lihat detail perubahan"
+                            >
+                              <i className={`fa-solid ${isExpanded ? "fa-chevron-up" : "fa-chevron-down"}`} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+
+                      {/* Expanded Detail Row */}
+                      {isExpanded && (
+                        <tr className="bg-[#09090b]">
+                          <td colSpan="5" className="px-6 py-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {log.old_values && Object.keys(log.old_values).length > 0 && (
+                                <div>
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-rose-500 mb-2 flex items-center gap-1.5">
+                                    <i className="fa-solid fa-circle-minus" /> Sebelum
+                                  </p>
+                                  <pre className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-[10px] font-mono text-zinc-400 overflow-x-auto leading-relaxed">
+                                    {JSON.stringify(log.old_values, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                              {log.new_values && Object.keys(log.new_values).length > 0 && (
+                                <div>
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500 mb-2 flex items-center gap-1.5">
+                                    <i className="fa-solid fa-circle-plus" /> Sesudah
+                                  </p>
+                                  <pre className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-[10px] font-mono text-zinc-400 overflow-x-auto leading-relaxed">
+                                    {JSON.stringify(log.new_values, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
+
+        {/* ================================================================= */}
+        {/* PAGINATION                                                          */}
+        {/* ================================================================= */}
+        {!loading && totalPages > 1 && (
+          <div className="px-6 py-5 border-t border-zinc-800 bg-[#18181b] flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Info */}
+            <p className="text-[11px] font-bold text-zinc-600">
+              Halaman <span className="text-zinc-400">{currentPage}</span> dari{" "}
+              <span className="text-zinc-400">{totalPages}</span> &nbsp;·&nbsp;
+              <span className="text-zinc-400">{total}</span> total log
+            </p>
+
+            {/* Page Controls */}
+            <div className="flex items-center gap-2">
+              {/* Prev */}
+              <button
+                onClick={() => fetchData(currentPage - 1)}
+                disabled={currentPage <= 1}
+                className="w-9 h-9 rounded-xl flex items-center justify-center border border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-600 hover:text-zinc-200 transition-all disabled:opacity-30 disabled:cursor-not-allowed text-xs"
+              >
+                <i className="fa-solid fa-chevron-left" />
+              </button>
+
+              {/* First page if needed */}
+              {currentPage > 3 && (
+                <>
+                  <button
+                    onClick={() => fetchData(1)}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center border border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-600 hover:text-zinc-200 transition-all text-xs font-bold"
+                  >
+                    1
+                  </button>
+                  {currentPage > 4 && (
+                    <span className="text-zinc-700 text-xs font-bold px-1">···</span>
+                  )}
+                </>
+              )}
+
+              {/* Page numbers */}
+              {getPageNumbers().map((p) => (
+                <button
+                  key={p}
+                  onClick={() => fetchData(p)}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center border text-xs font-black transition-all ${
+                    p === currentPage
+                      ? "bg-zinc-100 text-zinc-900 border-zinc-100 shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                      : "border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-600 hover:text-zinc-200"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+
+              {/* Last page if needed */}
+              {currentPage < totalPages - 2 && (
+                <>
+                  {currentPage < totalPages - 3 && (
+                    <span className="text-zinc-700 text-xs font-bold px-1">···</span>
+                  )}
+                  <button
+                    onClick={() => fetchData(totalPages)}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center border border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-600 hover:text-zinc-200 transition-all text-xs font-bold"
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
+
+              {/* Next */}
+              <button
+                onClick={() => fetchData(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                className="w-9 h-9 rounded-xl flex items-center justify-center border border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-600 hover:text-zinc-200 transition-all disabled:opacity-30 disabled:cursor-not-allowed text-xs"
+              >
+                <i className="fa-solid fa-chevron-right" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

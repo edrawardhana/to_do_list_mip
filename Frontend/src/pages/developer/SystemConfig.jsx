@@ -20,7 +20,7 @@ const SystemConfig = () => {
   }, []);
 
   const fetchConfigs = async () => {
-    const { data, error } = await supabase.from('system_configs').select('*');
+    const { data, error } = await supabase.from('system_configs').select('*').order('key', { ascending: true });
     if (error) {
       toast.error("Gagal mengambil konfigurasi: " + error.message);
     } else {
@@ -31,6 +31,31 @@ const SystemConfig = () => {
         type: (c.value === 'true' || c.value === 'false') ? 'boolean' : (!isNaN(Number(c.value)) && c.value.trim() !== '') ? 'number' : 'string',
       }));
       setConfigs(formatted);
+    }
+  };
+
+  const initializeDefaults = async () => {
+    const defaults = [
+      { key: "MAINTENANCE_MODE", value: "false", description: "Blokir akses aplikasi menampilkan halaman server maintenance." },
+      { key: "DISABLE_REGISTRATION", value: "false", description: "Matikan rute register sementara (mencegah spam akun)." },
+      { key: "ENABLE_DARK_MODE_GLOBAL", value: "false", description: "Paksa seluruh aplikasi menggunakan UI Master Theme." },
+      { key: "MAX_LOGIN_ATTEMPTS", value: "5", description: "Batas kesalahan kata sandi sebelum akun otomatis digembok." },
+      { key: "MAX_FILE_UPLOAD_MB", value: "25", description: "Batas ukuran unggahan berkas (Storage Quota)." }
+    ];
+
+    try {
+      // Kita gunakan mekanisme upsert agar jika key sudah ada, nilainya tidak tertimpa/hanya perbarui schema
+      for (const item of defaults) {
+        // Cek dulu apakah key sudah ada
+        const { data: existing } = await supabase.from('system_configs').select('key').eq('key', item.key).single();
+        if (!existing) {
+          await supabase.from('system_configs').insert([item]);
+        }
+      }
+      toast.success("Parameter bawaan telah diinisialisasi!");
+      fetchConfigs();
+    } catch (e) {
+      toast.error("Gagal inisialisasi: " + e.message);
     }
   };
 
@@ -219,7 +244,24 @@ const SystemConfig = () => {
         </div>
         
         {/* --- FOOTER ACTION --- */}
-        <div className="p-8 md:p-10 border-t border-zinc-800 bg-[#09090b]/80 backdrop-blur-sm relative z-10 flex justify-end">
+        <div className="p-8 md:p-10 border-t border-zinc-800 bg-[#09090b]/80 backdrop-blur-sm relative z-10 flex flex-col md:flex-row justify-end items-center gap-4">
+           {configs.length === 0 && (
+             <button 
+               onClick={initializeDefaults} 
+               className="w-full md:w-auto px-8 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-3 animate-pulse"
+             >
+               <i className="fa-solid fa-wand-magic-sparkles"></i> Inject Default Params
+             </button>
+           )}
+
+           <button 
+             onClick={initializeDefaults} 
+             className="w-full md:w-auto px-6 py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-3"
+             title="Tambahkan param yang belum ada jika update versi"
+           >
+             <i className="fa-solid fa-plus"></i> Auto-Setup Missing Params
+           </button>
+
            <button 
              onClick={handleSave} 
              disabled={saving}

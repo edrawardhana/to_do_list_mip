@@ -49,7 +49,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
 
     // Employee/Profile Management (List for tagging, Update for Approval)
-    Route::apiResource('profiles', ProfileController::class)->only(['index', 'update', 'show']);
+    Route::apiResource('profiles', ProfileController::class)->only(['index', 'update', 'show', 'destroy']);
 
     // Schedules (Shift Dinamis)
     Route::apiResource('schedules', ScheduleController::class)->except(['show']);
@@ -58,10 +58,16 @@ Route::middleware('auth:api')->group(function () {
     Route::apiResource('notifications', NotificationController::class)->except(['show']);
 
     // Broadcasts (Superadmin)
+    Route::get('/broadcasts/history', [BroadcastController::class, 'history']);
+    Route::post('/broadcasts/send', [BroadcastController::class, 'send']);
     Route::apiResource('broadcasts', BroadcastController::class)->except(['show']);
 
     // System Configs (Superadmin/Admin View)
     Route::apiResource('system-configs', SystemConfigController::class)->except(['show']);
+
+    // Administrasi Divisi (Superadmin/Admin View)
+    Route::get('/divisions/analytics', [DivisionController::class, 'analytics']);
+    Route::apiResource('divisions', DivisionController::class)->except(['index', 'show']);
 
     // Reports & Analytics (Sprint 4)
     Route::get('/reports/monthly', [ReportController::class, 'monthly']);

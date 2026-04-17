@@ -154,7 +154,7 @@ const ManageAccountIntern = () => {
   const isDark = isDeveloper; // Terapkan tema gelap khusus developer
 
   return (
-    <div className={`space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-2 max-w-7xl mx-auto ${isDark ? 'text-zinc-100' : ''}`}>
+    <div className={`space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 sm:pt-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto ${isDark ? 'text-zinc-100' : ''}`}>
       
       {/* HEADER MASTER CONTROL (Jika Developer) */}
       {isDark && (
@@ -226,10 +226,10 @@ const ManageAccountIntern = () => {
               isDark ? "bg-[#18181b] border-zinc-800 text-zinc-500" : "bg-slate-50/50 border-slate-100 text-slate-400"
             }`}>
               <tr>
-                <th className="px-6 py-5">Nama & Info</th>
-                <th className="px-6 py-5">Status Verifikasi</th>
-                <th className="px-6 py-5">Status Gembok</th>
-                <th className="px-6 py-5 text-right">Aksi</th>
+                <th className="px-6 py-5 whitespace-nowrap">Nama & Info</th>
+                <th className="px-6 py-5 whitespace-nowrap">Status Verifikasi</th>
+                <th className="px-6 py-5 whitespace-nowrap">Status Gembok</th>
+                <th className="px-6 py-5 text-right whitespace-nowrap">Aksi</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? "divide-zinc-800/50" : "divide-slate-50"}`}>
@@ -242,10 +242,10 @@ const ManageAccountIntern = () => {
                       }`}>
                         {intern.name.charAt(0)}
                       </div>
-                      <div>
-                        <p className={`font-bold text-sm mb-0.5 ${isDark ? "text-zinc-200" : "text-slate-800"}`}>{intern.name}</p>
-                        <p className={`text-[10px] font-medium mb-0.5 ${isDark ? "text-zinc-500" : "text-slate-400"}`}>{intern.email}</p>
-                        <span className={`text-[9px] font-black uppercase tracking-widest ${isDark ? "text-emerald-500" : "text-blue-500"}`}>{intern.division}</span>
+                      <div className="min-w-[150px]">
+                        <p className={`font-bold text-sm mb-0.5 whitespace-nowrap ${isDark ? "text-zinc-200" : "text-slate-800"}`}>{intern.name}</p>
+                        <p className={`text-[10px] font-medium mb-0.5 whitespace-nowrap ${isDark ? "text-zinc-500" : "text-slate-400"}`}>{intern.email}</p>
+                        <span className={`text-[9px] font-black uppercase tracking-widest whitespace-nowrap ${isDark ? "text-emerald-500" : "text-blue-500"}`}>{intern.division}</span>
                       </div>
                     </div>
                   </td>
@@ -283,7 +283,7 @@ const ManageAccountIntern = () => {
                   </td>
 
                   <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-end gap-2 min-w-max opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                       
                       {!intern.is_verified && (
                         <button onClick={() => handleVerify(intern.id, intern.name)} className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-md ${
