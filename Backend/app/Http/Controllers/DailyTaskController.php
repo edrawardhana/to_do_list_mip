@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\DailyTask;
+use App\Models\TaskTemplate;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -18,6 +20,31 @@ class DailyTaskController extends Controller
     {
         $user = Auth::user();
         
+        // AUTO GENERATE TASKS FOR INTERN
+        // If the user is an intern, ensure all active templates for their division are instantiated for today.
+        if ($user->role === 'intern' && $user->division_id) {
+            $today = now()->toDateString();
+            $templates = TaskTemplate::where('division_id', $user->division_id)
+                ->where('is_active', true)
+                ->get();
+            
+            foreach ($templates as $template) {
+                // Using firstOrCreate to ensure idempotency (tasks only created once per day per template)
+                DailyTask::firstOrCreate(
+                    [
+                        'template_id' => $template->id,
+                        'uploader_id' => $user->id,
+                        'task_date'   => $today,
+                    ],
+                    [
+                        'division_id' => $user->division_id,
+                        'status'      => 'pending',
+                        'assign_note' => $template->description,
+                    ]
+                );
+            }
+        }
+
         $query = DailyTask::with(['taskTemplate', 'uploader', 'evaluator']);
 
         if ($user->role === 'intern') {
@@ -47,6 +74,11 @@ class DailyTaskController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
+
+        // Only interns can create logbook tasks for themselves
+        if ($user->role !== 'intern') {
+            return response()->json(['status' => 'error', 'message' => 'Hanya intern yang dapat membuat tugas logbook.'], 403);
+        }
 
         $request->validate([
             'template_id' => 'required|uuid',
