@@ -102,7 +102,7 @@ const ManageAccountIntern = () => {
       actionText: "Ya, Verifikasi",
       onConfirm: async () => {
         try {
-          await api.put(`/profiles/${id}/verify`, { is_verified: true });
+          await api.put(`/profiles/${id}`, { is_verified: true });
           toast.success(`Akun ${name} telah terverifikasi`);
           fetchInterns();
         } catch (error) {
@@ -122,7 +122,7 @@ const ManageAccountIntern = () => {
       actionText: currentStatus ? "Ya, Buka" : "Ya, Kunci",
       onConfirm: async () => {
         try {
-          await api.put(`/profiles/${id}/lock`, { is_locked: !currentStatus });
+          await api.put(`/profiles/${id}`, { is_locked: !currentStatus });
           toast.success(`Berhasil ${action} akun ${name}`);
           fetchInterns();
         } catch (error) {

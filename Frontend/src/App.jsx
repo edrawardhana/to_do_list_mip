@@ -22,6 +22,7 @@ import Tasks from "./pages/Tasks";
 
 // Pages - Khusus Intern
 import LeaveRequest from "./pages/intern/LeaveRequest"; 
+import InternLogbook from "./pages/intern/InternLogbook";
 
 // Pages - Manajerial (Admin & Up)
 import Approval from "./pages/admin/Approval";
@@ -68,6 +69,13 @@ function App() {
               <Route path="tasks" element={
                 <ProtectedRoute roles={["intern", "admin", "superadmin", "developer"]}>
                   <Tasks />
+                </ProtectedRoute>
+              } />
+
+              {/* Khusus Intern: Kerjakan Tugas */}
+              <Route path="logbook" element={
+                <ProtectedRoute roles={["intern", "user"]}>
+                  <InternLogbook />
                 </ProtectedRoute>
               } />
 

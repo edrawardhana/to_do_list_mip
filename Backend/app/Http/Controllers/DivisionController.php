@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Division;
+use App\Models\DailyTask;
 use Illuminate\Support\Facades\Validator;
 
 class DivisionController extends Controller
@@ -23,6 +24,18 @@ class DivisionController extends Controller
         $data = $divisions->map(function ($div) {
             $interns = $div->profiles->filter(fn($p) => in_array($p->role, ['intern', 'user']));
             $admins  = $div->profiles->filter(fn($p) => $p->role === 'admin');
+
+            // Real performance: task completion % for interns in this division
+            $internIds = $interns->pluck('id');
+            if ($internIds->isNotEmpty()) {
+                $totalTasks    = DailyTask::whereIn('uploader_id', $internIds)->count();
+                $approvedTasks = DailyTask::whereIn('uploader_id', $internIds)
+                                          ->where('status', 'approved')
+                                          ->count();
+                $performance = $totalTasks > 0 ? (int) round(($approvedTasks / $totalTasks) * 100) : 0;
+            } else {
+                $performance = 0;
+            }
 
             $members = $div->profiles->map(function ($p) {
                 return [
@@ -48,7 +61,7 @@ class DivisionController extends Controller
                 'head'            => $div->head,
                 'description'     => $div->description,
                 'internCount'     => $interns->count(),
-                'performance'     => rand(75, 98),
+                'performance'     => $performance,
                 'jobDescriptions' => is_array($div->job_descriptions)
                     ? array_map(fn($t) => is_array($t) ? $t : ['task' => $t], $div->job_descriptions)
                     : [],

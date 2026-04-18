@@ -84,6 +84,64 @@ class DailyTaskController extends Controller
     }
 
     /**
+     * Dedicated POST endpoint for intern logbook submission (supports file upload via real POST).
+     * This avoids the PHP limitation where $_FILES is empty on PUT/PATCH requests.
+     */
+    public function submit(Request $request, $id)
+    {
+        $user = Auth::user();
+        $task = DailyTask::findOrFail($id);
+
+        // Only interns / users can submit logbook (admins use update() for approval)
+        if (!in_array($user->role, ['intern', 'user'])) {
+            return response()->json(['status' => 'error', 'message' => 'Hanya intern yang dapat mengirim laporan tugas.'], 403);
+        }
+
+        // Only the task owner can submit
+        if ($task->uploader_id !== $user->id) {
+            return response()->json(['status' => 'error', 'message' => 'Anda tidak bisa mengedit tugas orang lain.'], 403);
+        }
+
+        // Already approved — don't allow re-submission
+        if ($task->status === 'approved') {
+            return response()->json(['status' => 'error', 'message' => 'Tugas sudah di-ACC dan tidak dapat diubah.'], 403);
+        }
+
+        $request->validate([
+            'description'  => 'required|string',
+            'evidence_url' => 'nullable|file|max:20480', // 20 MB, any file type
+        ]);
+
+        $old_values = $task->toArray();
+        $data = [
+            'description' => $request->description,
+            'status'      => 'pending',  // reset to pending so admin can re-review
+        ];
+
+        // Handle file upload — PHP $_FILES is properly populated for POST requests
+        if ($request->hasFile('evidence_url') && $request->file('evidence_url')->isValid()) {
+            $path = $request->file('evidence_url')->store('task_evidence', 'public');
+            $data['evidence_url'] = Storage::url($path);
+        }
+
+        $task->update($data);
+
+        AuditLog::record(
+            $user->id,
+            $user->role,
+            'Submit Logbook',
+            $task->fresh()->toArray(),
+            $old_values
+        );
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Laporan berhasil dikirim. Menunggu persetujuan Admin.',
+            'data'    => $task->fresh(),
+        ]);
+    }
+
+    /**
      * Update logbook (User updates progress/photo, Admin approves)
      */
     public function update(Request $request, $id)
@@ -101,12 +159,12 @@ class DailyTaskController extends Controller
         }
 
         $request->validate([
-            'description' => 'sometimes|string',
-            'status' => 'sometimes|in:pending,approved,rejected,revision',
-            'reject_reason' => 'nullable|string',
-            'evidence_url' => 'sometimes|image|max:5120', // 5MB Max
+            'description'           => 'sometimes|string',
+            'status'                => 'sometimes|in:pending,approved,rejected,revision',
+            'reject_reason'         => 'nullable|string',
+            'evidence_url'          => 'sometimes|file|max:20480', // 20MB, any file type
             'confirmed_participants' => 'sometimes|array',
-            'is_archived' => 'sometimes|boolean'
+            'is_archived'           => 'sometimes|boolean'
         ]);
 
         // Non-admin shouldn't change status to approved/rejected/revision
@@ -120,8 +178,9 @@ class DailyTaskController extends Controller
 
             // Handle file upload for 'evidence_url' if it exists
             if ($request->hasFile('evidence_url')) {
-                // Store the file in the 'public' disk under 'task_evidence' folder
-                $path = $request->file('evidence_url')->store('task_evidence', 'public');
+                $file = $request->file('evidence_url');
+                // Use original extension to support any file type (pdf, doc, jpg, etc)
+                $path = $file->store('task_evidence', 'public');
                 $dataToUpdate['evidence_url'] = Storage::url($path);
             }
             

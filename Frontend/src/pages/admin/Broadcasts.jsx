@@ -74,9 +74,12 @@ const Broadcasts = () => {
   const availableTargetList = useMemo(() => {
     if (targetType === "division") return allDivisions;
     if (targetType === "personal") return allInterns;
-    if (targetType === "personal_locked") return allInterns.filter(i => i.division === myDivision);
+    if (targetType === "personal_locked") return allInterns.filter(i => {
+      const divName = i.division?.name || i.division || "";
+      return divName === myDivision;
+    });
     return [];
-  }, [targetType, myDivision]);
+  }, [targetType, allDivisions, allInterns, myDivision]);
 
   const toggleTarget = (item) => {
     const isSelected = selectedTargets.includes(item);
@@ -421,34 +424,39 @@ const Broadcasts = () => {
                       <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${
                         isDeveloperTheme ? "bg-zinc-800 text-zinc-400" : "bg-slate-100 text-slate-400"
                       }`}>
-                        <i className="fa-regular fa-clock mr-1"></i> {log.date}
+                        <i className="fa-regular fa-clock mr-1" /> {log.date || new Date(log.created_at || Date.now()).toLocaleDateString('id-ID')}
                       </span>
                       <span className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border flex items-center gap-1.5 ${
                         isDeveloperTheme ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-emerald-50 text-emerald-600 border-emerald-100"
                       }`}>
-                        <i className="fa-solid fa-check-double"></i> Terkirim
+                        <i className="fa-solid fa-check-double" /> Terkirim
                       </span>
                     </div>
                     
-                    <h4 className={`text-[15px] font-bold mb-4 leading-tight ${isDeveloperTheme ? "text-zinc-200" : "text-slate-800"}`}>{log.title}</h4>
+                    <h4 className={`text-[15px] font-bold mb-2 leading-tight ${isDeveloperTheme ? "text-zinc-200" : "text-slate-800"}`}>{log.title}</h4>
+                    {log.content && (
+                      <p className={`text-xs font-medium leading-relaxed mb-3 line-clamp-2 ${isDeveloperTheme ? "text-zinc-400" : "text-slate-500"}`}>
+                        {log.content}
+                      </p>
+                    )}
                     
-                    <div className={`flex items-center justify-between mt-auto pt-4 border-t ${isDeveloperTheme ? "border-zinc-800" : "border-slate-100"}`}>
+                    <div className={`flex items-center justify-between mt-auto pt-3 border-t ${isDeveloperTheme ? "border-zinc-800" : "border-slate-100"}`}>
                       <div className="flex items-center gap-2">
                         <span className={`text-[10px] font-bold uppercase tracking-widest ${isDeveloperTheme ? "text-zinc-500" : "text-slate-400"}`}>Target:</span>
                         <span className={`text-[10px] font-black px-2.5 py-1 rounded-md border ${
                            isDeveloperTheme ? "text-zinc-300 bg-zinc-700/50 border-zinc-600" : 
                            isPurpleTheme ? "text-purple-600 bg-purple-50 border-purple-100" : "text-blue-600 bg-blue-50 border-blue-100"
                         }`}>
-                          {log.target}
+                          {log.target || 'Global'}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black border border-white ${
                           isDeveloperTheme ? "bg-zinc-700 text-zinc-300 border-zinc-600" : "bg-slate-200 text-slate-600"
                         }`}>
-                          {log.sender.charAt(0)}
+                          {(log.sender || 'A').charAt(0)}
                         </div>
-                        <span className={`text-[10px] font-bold ${isDeveloperTheme ? "text-zinc-400" : "text-slate-500"}`}>{log.sender}</span>
+                        <span className={`text-[10px] font-bold ${isDeveloperTheme ? "text-zinc-400" : "text-slate-500"}`}>{log.sender || 'Admin'}</span>
                       </div>
                     </div>
                   </div>

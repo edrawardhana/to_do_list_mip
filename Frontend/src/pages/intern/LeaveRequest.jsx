@@ -8,8 +8,8 @@ const LeaveRequest = () => {
   
   const currentUser = user ? {
     id: user.id,
-    name: user.user_metadata?.full_name || user.email?.split('@')[0] || "Anak Magang",
-    division: user.user_metadata?.division || "IT Support"
+    name: user.full_name || user.email?.split('@')[0] || "Anak Magang",
+    division: user.division?.name || user.division_name || "IT Support"
   } : { id: "1", name: "Kiel", division: "IT Support" };
 
   // State Form
@@ -24,14 +24,16 @@ const LeaveRequest = () => {
 
   const fetchHistory = async () => {
     try {
-      const res = await api.get('/exceptions/my-history');
+      const res = await api.get('/exceptions');
       const data = res.data?.data || res.data || [];
       setHistory(data.map(item => ({
         id: item.id,
         type: item.type === 'swap_shift' ? 'Swap Shift' : item.type === 'tugas_luar' ? 'Tugas Luar' : item.type === 'izin' ? 'Izin Biasa' : 'Sakit',
+        rawType: item.type,
         status: item.status,
         date: new Date(item.permission_date).toLocaleDateString('id-ID', { dateStyle: 'medium' }),
         note: item.description,
+        proof: item.evidence_url,
       })));
     } catch (error) {
       console.error("Gagal memuat riwayat izin:", error);
@@ -50,6 +52,7 @@ const LeaveRequest = () => {
     if (leaveType === "swap_shift") formData.append("replacement_date", replacementDate);
     formData.append("description", description);
     if (evidence) formData.append("evidence_url", evidence);
+    // For sakit, evidence is required — backend will validate this
 
     try {
       await api.post('/exceptions', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -163,10 +166,28 @@ const LeaveRequest = () => {
               </div>
 
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">Bukti Foto</label>
+                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">Bukti Foto {leaveType === 'sakit' && <span className="text-rose-500">*</span>}</label>
                 <label className="w-full border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:bg-slate-50 cursor-pointer transition-colors group block">
-                  <i className="fa-solid fa-camera text-2xl text-slate-300 group-hover:text-blue-500 mb-2"></i>
-                  <p className="text-[10px] font-bold text-slate-500">{evidence ? evidence.name : "Ambil Foto / Upload Bukti"}</p>
+                  {evidence ? (
+                    <div className="flex items-center gap-3 justify-center">
+                      <img src={URL.createObjectURL(evidence)} alt="preview" className="w-16 h-16 object-cover rounded-xl border border-slate-200" />
+                      <div className="text-left">
+                        <p className="text-xs font-bold text-slate-700">{evidence.name}</p>
+                        <p className="text-[10px] text-slate-400">{(evidence.size / 1024).toFixed(0)} KB</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-camera text-2xl text-slate-300 group-hover:text-blue-500 mb-2 block" />
+                      <p className="text-[11px] font-bold text-slate-500">Ambil Foto dari Kamera HP / Upload</p>
+                      <p className="text-[10px] text-slate-400 mt-1">JPG, PNG — Maks 5MB</p>
+                    </>
+                  )}
+                  <input type="file" className="hidden" accept="image/*" capture="environment" onChange={e => setEvidence(e.target.files[0])} />
+                </label>
+                {/* Tambahan: pilih dari galeri tanpa kamera */}
+                <label className="mt-2 flex items-center justify-center gap-2 text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer">
+                  <i className="fa-solid fa-images" /> Atau pilih dari galeri
                   <input type="file" className="hidden" accept="image/*" onChange={e => setEvidence(e.target.files[0])} />
                 </label>
               </div>
@@ -193,25 +214,43 @@ const LeaveRequest = () => {
 
           <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
             <div className="space-y-4">
-              {history.map((item) => (
-                <div key={item.id} className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex justify-between items-center hover:border-blue-200 transition-colors">
-                  <div className="flex gap-4 items-center">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg ${item.status === 'approved' ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'}`}>
-                      <i className={`fa-solid ${item.type === 'Sakit' ? 'fa-house-medical' : 'fa-code-compare'}`}></i>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black text-slate-800">{item.type}</h4>
-                      <p className="text-[11px] font-medium text-slate-400 mt-0.5">{item.date}</p>
-                      <p className="text-xs font-bold text-slate-600 mt-2 italic">"{item.note}"</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${item.status === 'approved' ? 'bg-emerald-100 text-emerald-600 border-emerald-200' : 'bg-amber-100 text-amber-600 border-amber-200'}`}>
-                      {item.status}
-                    </span>
-                  </div>
+              {history.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center opacity-50">
+                  <i className="fa-solid fa-envelope-open text-4xl text-slate-300 mb-3" />
+                  <p className="text-slate-500 font-bold text-sm">Belum ada riwayat pengajuan</p>
                 </div>
-              ))}
+              ) : history.map((item) => {
+                const iconMap = { 'Sakit': 'fa-house-medical', 'Swap Shift': 'fa-code-compare', 'Izin Biasa': 'fa-envelope-open-text', 'Tugas Luar': 'fa-briefcase' };
+                const statusStyle = item.status === 'approved' 
+                  ? 'bg-emerald-100 text-emerald-600 border-emerald-200'
+                  : item.status === 'rejected'
+                  ? 'bg-rose-100 text-rose-600 border-rose-200'
+                  : 'bg-amber-100 text-amber-600 border-amber-200';
+                return (
+                  <div key={item.id} className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:border-blue-200 transition-colors">
+                    <div className="flex justify-between items-start">
+                      <div className="flex gap-4 items-start">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg shrink-0 ${item.status === 'approved' ? 'bg-emerald-50 text-emerald-500' : item.status === 'rejected' ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'}`}>
+                          <i className={`fa-solid ${iconMap[item.type] || 'fa-envelope'}`} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black text-slate-800">{item.type}</h4>
+                          <p className="text-[11px] font-medium text-slate-400 mt-0.5">{item.date}</p>
+                          <p className="text-xs font-bold text-slate-600 mt-1.5 italic">"{item.note}"</p>
+                          {item.proof && (
+                            <a href={item.proof} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-blue-500 hover:text-blue-600 mt-1 flex items-center gap-1">
+                              <i className="fa-solid fa-image" /> Lihat Bukti
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shrink-0 ${statusStyle}`}>
+                        {item.status === 'approved' ? '✓ Disetujui' : item.status === 'rejected' ? '✗ Ditolak' : '⏳ Pending'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

@@ -38,14 +38,14 @@ const InternDashboard = () => {
     else setGreeting("Selamat Malam");
   }, []);
 
-  // --- LOGIC KALENDER ---
+  // --- LOGIC KALENDER (Dynamic) ---
   const date = new Date();
   const currentDay = date.getDate();
   const monthName = date.toLocaleDateString("id-ID", { month: "long" });
   const year = date.getFullYear();
   
-  const daysInMonth = 30; // April
-  const startDay = 3; // 1 April 2026 = Rabu
+  const daysInMonth = new Date(year, date.getMonth() + 1, 0).getDate();
+  const startDay = new Date(year, date.getMonth(), 1).getDay();
   const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
 
   const calendarDays = [];
@@ -249,28 +249,35 @@ const InternDashboard = () => {
         <div className="lg:col-span-2 bg-white p-7 md:p-8 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col h-full">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold text-slate-900 tracking-tight">Tugas Hari Ini</h3>
-            <Link to="/tasks" className="text-[10px] font-black text-blue-600 hover:text-blue-700 bg-blue-50 px-4 py-2.5 rounded-xl transition-colors uppercase tracking-widest">
-              Lihat Semua
+            <Link to="/logbook" className="text-[10px] font-black text-blue-600 hover:text-blue-700 bg-blue-50 px-4 py-2.5 rounded-xl transition-colors uppercase tracking-widest">
+              Kerjakan <i className="fa-solid fa-arrow-right ml-1" />
             </Link>
           </div>
           
           <div className="space-y-4 flex-1">
-            {loading ? <p className="text-center text-slate-400 text-sm font-bold py-8 mt-4"><i className="fa-solid fa-spinner fa-spin mr-2"></i> Memuat Tugas...</p> : todayTasks.length > 0 ? todayTasks.map((task) => (
-              <div key={task.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 bg-white rounded-[1.5rem] border border-slate-200 hover:border-blue-200 transition-all group gap-4">
+            {loading ? <p className="text-center text-slate-400 text-sm font-bold py-8 mt-4"><i className="fa-solid fa-spinner fa-spin mr-2" /> Memuat Tugas...</p> : todayTasks.length > 0 ? todayTasks.map((task) => (
+              <Link to="/logbook" key={task.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 bg-white rounded-[1.5rem] border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all group gap-4">
                 <div className="flex items-center gap-4 sm:gap-5 w-full">
-                  <div className="w-12 h-12 bg-blue-50/80 rounded-[14px] flex items-center justify-center text-blue-600 shrink-0 group-hover:bg-blue-100 transition-colors">
-                    <i className={`fa-solid ${task.icon} text-xl`}></i>
+                  <div className={`w-12 h-12 rounded-[14px] flex items-center justify-center shrink-0 transition-colors ${
+                    task.status === 'approved' ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100' :
+                    task.status === 'rejected' ? 'bg-rose-50 text-rose-500 group-hover:bg-rose-100' :
+                    'bg-blue-50 text-blue-600 group-hover:bg-blue-100'
+                  }`}>
+                    <i className={`fa-solid ${task.status === 'approved' ? 'fa-check-circle' : task.status === 'rejected' ? 'fa-rotate-left' : 'fa-list-check'} text-xl`} />
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-[15px] font-bold text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-1">
-                      {task.title}
-                    </h4>
-                    <p className="text-[13px] font-medium text-slate-500 mt-0.5 line-clamp-1">
-                      {task.location}
-                    </p>
+                    <h4 className="text-[15px] font-bold text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-1">{task.title}</h4>
+                    <p className="text-[13px] font-medium text-slate-500 mt-0.5 line-clamp-1">{task.location}</p>
                   </div>
+                  <span className={`text-[10px] font-black px-2.5 py-1.5 rounded-xl border shrink-0 ${
+                    task.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                    task.status === 'rejected' ? 'bg-rose-50 text-rose-600 border-rose-200' :
+                    'bg-amber-50 text-amber-600 border-amber-200'
+                  }`}>
+                    {task.status === 'approved' ? 'ACC ✓' : task.status === 'rejected' ? 'Revisi' : 'Pending'}
+                  </span>
                 </div>
-              </div>
+              </Link>
             )) : (
               <div className="flex-1 flex flex-col items-center justify-center text-slate-400 py-8">
                 <i className="fa-solid fa-mug-hot text-4xl mb-3 text-slate-200"></i>
