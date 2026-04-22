@@ -55,6 +55,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
 
     // Employee/Profile Management (List for tagging, Update for Approval)
+    Route::post('/profiles/fcm-token', [ProfileController::class, 'updateFcmToken']);
     Route::apiResource('profiles', ProfileController::class)->only(['index', 'update', 'show', 'destroy']);
 
     // Schedules (Shift Dinamis)

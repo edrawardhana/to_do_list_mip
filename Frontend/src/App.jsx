@@ -4,7 +4,7 @@ import { Toaster } from "react-hot-toast";
 
 // Layout & Guard
 import MainLayout from "./components/layout/MainLayout";
-import ProtectedRoute from "./components/guards/ProtectedRoute"; 
+import ProtectedRoute from "./components/guards/ProtectedRoute";
 import SelectiveLockGuard from "./components/guards/SelectiveLockGuard";
 
 // Pages - Public
@@ -13,26 +13,26 @@ import Register from "./pages/auth/Register";
 
 // Pages - Universal (Semua Role)
 import Dashboard from "./pages/dashboard/Dashboard";
-import Whitebook from "./pages/Whitebook"; 
+import Whitebook from "./pages/Whitebook";
 import Settings from "./pages/Settings";
-import LockedPage from "./pages/LockedPage"; 
+import LockedPage from "./pages/LockedPage";
 
 // Pages - Unified Task (Gerbang Utama)
-import Tasks from "./pages/Tasks"; 
+import Tasks from "./pages/Tasks";
 
 // Pages - Khusus Intern
-import LeaveRequest from "./pages/intern/LeaveRequest"; 
+import LeaveRequest from "./pages/intern/LeaveRequest";
 import InternLogbook from "./pages/intern/InternLogbook";
 
 // Pages - Manajerial (Admin & Up)
 import Approval from "./pages/admin/Approval";
 import ManageAccountIntern from "./pages/admin/ManageAccountIntern";
-import Broadcasts from "./pages/admin/Broadcasts"; 
+import Broadcasts from "./pages/admin/Broadcasts";
 import Reports from "./pages/admin/Reports";
 
 // Pages - VVIP (Superadmin & Up)
 import ManageAdmin from "./pages/superadmin/ManageAdmin";
-import DivisionAnalytics from "./pages/superadmin/DivisionAnalytics"; 
+import DivisionAnalytics from "./pages/superadmin/DivisionAnalytics";
 // 👇 IMPORT KOMPONEN CONFIG
 import SystemConfig from './pages/developer/SystemConfig';
 import AuditLog from './pages/developer/AuditLog';
@@ -50,7 +50,7 @@ function App() {
 
           {/* RUTE TERPROTEKSI */}
           <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-            
+
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
             {/* --- JALUR KEBAL GEMBOK --- */}
@@ -59,10 +59,9 @@ function App() {
 
             {/* --- JALUR TERGEMBOK --- */}
             <Route element={<SelectiveLockGuard />}>
-              
+
               {/* Universal */}
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="whitebook" element={<Whitebook />} />
               <Route path="settings" element={<Settings />} />
 
               {/* Multi-Role (Tugas) */}
@@ -78,7 +77,11 @@ function App() {
                   <InternLogbook />
                 </ProtectedRoute>
               } />
-
+              <Route path="whitebook" element={
+                <ProtectedRoute roles={["intern", "admin", "superadmin"]}>
+                  <Whitebook />
+                </ProtectedRoute>
+              } />
               {/* Manajerial */}
               <Route path="approval" element={
                 <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
@@ -107,7 +110,7 @@ function App() {
                   <ManageAdmin />
                 </ProtectedRoute>
               } />
-              
+
               <Route path="division-analytics" element={
                 <ProtectedRoute roles={["superadmin", "developer"]}>
                   <DivisionAnalytics />
@@ -120,20 +123,20 @@ function App() {
                   <SystemConfig />
                 </ProtectedRoute>
               } />
-              
+
               <Route path="audit-log" element={
                 <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
                   <AuditLog />
                 </ProtectedRoute>
               } />
 
-            </Route> 
-          </Route> 
+            </Route>
+          </Route>
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-        
+
       </AuthProvider>
     </BrowserRouter>
   );

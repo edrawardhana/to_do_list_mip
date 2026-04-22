@@ -1,12 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import TopNav from "./TopNav";
 import { useAuth } from "../../contexts/AuthContext";
+import { initializeFirebase, requestNotificationPermission } from "../../firebase";
+import toast from "react-hot-toast";
 
 const MainLayout = () => {
-  const { isAdmin, isSuperAdmin, isDeveloper } = useAuth();
+  const { user, isAdmin, isSuperAdmin, isDeveloper } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Initialize Firebase for Push Notifications
+  useEffect(() => {
+    const setupNotifications = async () => {
+      if (user) {
+        const firebase = await initializeFirebase();
+        if (firebase) {
+          const token = await requestNotificationPermission(firebase.messaging, firebase.vapidKey);
+          if (token) {
+            console.log("Device synchronized with Push Notification system.");
+          }
+        }
+      }
+    };
+    setupNotifications();
+  }, [user]);
 
   // LOGIC TEMA BACKGROUND HIERARKI
   let bgClass = "bg-slate-50 text-slate-900"; 

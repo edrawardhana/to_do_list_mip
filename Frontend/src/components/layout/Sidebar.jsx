@@ -9,16 +9,16 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
   const menuItems = useMemo(
     () => [
       { path: "/dashboard", label: "Dashboard", icon: "fa-chart-pie", roles: ["intern", "admin", "superadmin", "developer"] },
-      
+
       // INTERN
-      { path: "/tasks", label: "Daily Task", icon: "fa-calendar-day", roles: ["intern"] }, 
+      { path: "/tasks", label: "Daily Task", icon: "fa-calendar-day", roles: ["intern"] },
       { path: "/leave-request", label: "Leave Request", icon: "fa-envelope-open-text", roles: ["intern"] },
-      
+
       // ADMIN OPERASIONAL
       { path: "/tasks", label: "Daily Activation", icon: "fa-list-check", roles: ["admin"] },
       { path: "/approval", label: "Approval Center", icon: "fa-check-to-slot", roles: ["admin"] },
       { path: "/manage-intern", label: "Manage Intern", icon: "fa-users-gear", roles: ["admin"] },
-      
+
       // MANAJEMEN AKUN (Superadmin & Dev)
       { path: "/manage-admin", label: "Manage Akun", icon: "fa-user-gear", roles: ["superadmin", "developer"] },
 
@@ -28,17 +28,17 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       // 👇 INI YANG UDAH DIBENERIN (Pakai 'label' bukan 'title')
       { path: "/system-config", label: "System Config", icon: "fa-server", roles: ["developer"] },
       { path: "/audit-log", label: "Audit Log", icon: "fa-clipboard-list", roles: ["admin", "superadmin", "developer"] },
-      
+
       // LAIN-LAIN
       { path: "/broadcasts", label: "Broadcast", icon: "fa-tower-broadcast", roles: ["admin", "superadmin", "developer"] },
-      { path: "/whitebook", label: "Whitebook", icon: "fa-book-open", roles: ["intern", "admin", "superadmin", "developer"] },
+      { path: "/whitebook", label: "Whitebook", icon: "fa-book-open", roles: ["intern", "admin", "superadmin"] },
     ],
     [],
   );
 
   const filteredMenu = useMemo(() => {
-    const rawRole = user?.role?.toLowerCase().replace(/_|\s/g, "") || ""; 
-    
+    const rawRole = user?.role?.toLowerCase().replace(/_|\s/g, "") || "";
+
     if (rawRole === "developer") {
       return menuItems.filter((item) => item.roles.includes("developer"));
     }
@@ -48,40 +48,40 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
   // 1. TEMA DEFAULT (INTERN)
   let theme = {
-    sidebarBg: "bg-[#0b1437] border-r border-white/10", 
+    sidebarBg: "bg-[#0b1437] border-r border-white/10",
     logoText: "text-white",
     logoIconBg: "bg-gradient-to-br from-sky-400 to-indigo-600",
     navNormal: "text-white/60 hover:bg-white/10 hover:text-white",
     navActiveBg: "bg-white/10 shadow-sm border border-white/5",
     navActiveText: "text-white font-bold tracking-wide",
-    navActiveBorder: "bg-sky-400", 
+    navActiveBorder: "bg-sky-400",
   };
 
   // ===============================================
   // PENGECEKAN TEMA DARI KASTA TERTINGGI KE BAWAH
   // ===============================================
   if (isDeveloper) {
-    theme = { 
-      ...theme, 
+    theme = {
+      ...theme,
       sidebarBg: "bg-[#09090b] border-r border-zinc-800",
-      logoIconBg: "bg-zinc-600", 
-      navActiveBorder: "bg-zinc-400" 
+      logoIconBg: "bg-zinc-600",
+      navActiveBorder: "bg-zinc-400"
     };
   } else if (isSuperAdmin) {
-    theme = { 
-      ...theme, 
-      sidebarBg: "bg-[#1d1633] border-r border-purple-900/50", 
-      logoIconBg: "bg-purple-600", 
-      navActiveBorder: "bg-purple-400" 
+    theme = {
+      ...theme,
+      sidebarBg: "bg-[#1d1633] border-r border-purple-900/50",
+      logoIconBg: "bg-purple-600",
+      navActiveBorder: "bg-purple-400"
     };
   } else if (isAdmin) {
-    theme = { 
-      ...theme, 
-      sidebarBg: "bg-[#242b4d] border-r border-blue-900/50", 
-      logoIconBg: "bg-blue-600", 
-      navActiveBorder: "bg-blue-400" 
+    theme = {
+      ...theme,
+      sidebarBg: "bg-[#242b4d] border-r border-blue-900/50",
+      logoIconBg: "bg-blue-600",
+      navActiveBorder: "bg-blue-400"
     };
-  } 
+  }
 
   return (
     <>
@@ -90,13 +90,13 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       )}
 
       <aside className={`fixed lg:sticky top-0 left-0 h-screen z-[100] w-[260px] flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out ${theme.sidebarBg} ${mobileOpen ? "translate-x-0 shadow-2xl shadow-sky-900/20" : "-translate-x-full lg:translate-x-0"}`}>
-        
+
         {/* LOGO */}
         <div className="h-28 flex items-center justify-center shrink-0 border-b border-white/5 px-6 py-4">
-          <img 
+          <img
             src={LogoWhite}
-            alt="Logo Malang Creative Center" 
-            className="h-20 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" 
+            alt="Logo Malang Creative Center"
+            className="h-20 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
           />
         </div>
 
@@ -109,8 +109,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
               end={item.path === "/dashboard"}
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm group relative ${
-                  isActive ? `${theme.navActiveBg} ${theme.navActiveText}` : theme.navNormal
+                `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm group relative ${isActive ? `${theme.navActiveBg} ${theme.navActiveText}` : theme.navNormal
                 }`
               }
             >

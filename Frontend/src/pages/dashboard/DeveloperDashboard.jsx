@@ -139,11 +139,10 @@ const DeveloperDashboard = () => {
                 </span>
                 <span className="text-[10px] font-black uppercase tracking-wider">JWT Auth Active</span>
               </div>
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors ${
-                apiLatency === -1 ? "bg-rose-500/10 border-rose-500/20 text-rose-400" :
-                apiLatency > 400  ? "bg-orange-500/10 border-orange-500/20 text-orange-400" :
-                "bg-zinc-900 border-zinc-800 text-sky-400"
-              }`}>
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors ${apiLatency === -1 ? "bg-rose-500/10 border-rose-500/20 text-rose-400" :
+                  apiLatency > 400 ? "bg-orange-500/10 border-orange-500/20 text-orange-400" :
+                    "bg-zinc-900 border-zinc-800 text-sky-400"
+                }`}>
                 <i className={`fa-solid fa-wifi text-[10px] ${apiLatency !== -1 ? "animate-pulse" : ""}`} />
                 <span className="text-[10px] font-black uppercase tracking-wider">
                   Ping: {apiLatency === -1 ? "OFFLINE" : apiLatency === 0 ? "···" : `${apiLatency}ms`}
@@ -285,39 +284,39 @@ const DeveloperDashboard = () => {
       {/* ================================================================ */}
       <div className="bg-[#0f0f11] border border-zinc-800 rounded-[2rem] overflow-hidden shadow-sm">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-800 bg-[#18181b] flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+        <div className="px-4 sm:px-6 py-4 border-b border-zinc-800 bg-[#18181b] flex flex-row items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
               <i className="fa-solid fa-terminal text-xs" />
             </div>
-            <div>
-              <h3 className="font-black text-zinc-200 text-sm">Terminal Audit Log</h3>
-              <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">6 Aktivitas Terbaru</p>
+            <div className="truncate">
+              <h3 className="font-black text-zinc-200 text-xs sm:text-sm truncate">Terminal Audit Log</h3>
+              <p className="text-[9px] sm:text-[10px] font-bold text-zinc-600 uppercase tracking-widest truncate">6 Aktivitas Terbaru</p>
             </div>
           </div>
           <Link
             to="/audit-log"
-            className="text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors bg-zinc-800/80 hover:bg-zinc-700 px-4 py-2 rounded-xl border border-zinc-700 flex items-center gap-2"
+            className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors bg-zinc-800/80 hover:bg-zinc-700 px-3 py-2 sm:px-4 sm:py-2 rounded-xl border border-zinc-700 flex items-center gap-2 shrink-0"
           >
-            Full Log <i className="fa-solid fa-arrow-right" />
+            <span className="hidden sm:inline">Full</span> Log <i className="fa-solid fa-arrow-right" />
           </Link>
         </div>
 
         {/* Log list */}
-        <div className="p-4 sm:p-6 space-y-2">
+        <div className="p-3 sm:p-6 space-y-2 sm:space-y-3">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="animate-pulse flex items-center gap-4 p-4 rounded-2xl bg-[#18181b] border border-zinc-800">
                 <div className="w-10 h-10 rounded-xl bg-zinc-800 shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3 w-48 bg-zinc-800 rounded" />
-                  <div className="h-2 w-32 bg-zinc-900 rounded" />
+                <div className="flex-1 space-y-2 min-w-0">
+                  <div className="h-3 w-3/4 sm:w-48 bg-zinc-800 rounded" />
+                  <div className="h-2 w-1/2 sm:w-32 bg-zinc-900 rounded" />
                 </div>
-                <div className="h-7 w-28 bg-zinc-800 rounded-lg" />
+                <div className="hidden sm:block h-7 w-28 bg-zinc-800 rounded-lg" />
               </div>
             ))
           ) : recentLogs.length === 0 ? (
-            <div className="py-14 text-center">
+            <div className="py-14 text-center px-4">
               <div className="w-14 h-14 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-3">
                 <i className="fa-solid fa-inbox text-xl text-zinc-700" />
               </div>
@@ -328,29 +327,35 @@ const DeveloperDashboard = () => {
               const badge = getActionBadge(log.action);
               const actorName = log.actor?.full_name || log.actor_name || "System";
               const targetName = log.target?.full_name || log.target_name || null;
+
               return (
                 <div
                   key={i}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-[#18181b] border border-zinc-800 hover:border-zinc-700 transition-all gap-3 group"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-2xl bg-[#18181b] border border-zinc-800 hover:border-zinc-700 transition-all gap-3 sm:gap-4 group"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-zinc-900 border border-zinc-800 group-hover:border-zinc-700 transition-colors ${badge.cls}`}>
-                      <i className={`fa-solid ${badge.icon} text-xs`} />
+                  <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                    <div className={`mt-0.5 sm:mt-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 bg-zinc-900 border border-zinc-800 group-hover:border-zinc-700 transition-colors ${badge.cls}`}>
+                      <i className={`fa-solid ${badge.icon} text-[10px] sm:text-xs`} />
                     </div>
-                    <div>
-                      <p className="text-sm font-black text-zinc-200 leading-tight">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] sm:text-sm font-black text-zinc-200 leading-tight truncate">
                         <span className="text-zinc-500 font-bold">{actorName}</span>
-                        {" → "}
+                        <span className="text-zinc-700 mx-1">→</span>
                         <span className={badge.cls}>{log.action || "Execute"}</span>
-                        {targetName && <span className="text-zinc-400"> → {targetName}</span>}
+                        {targetName && (
+                          <>
+                            <span className="text-zinc-700 mx-1">→</span>
+                            <span className="text-zinc-400">{targetName}</span>
+                          </>
+                        )}
                       </p>
-                      <p className="text-[10px] font-mono text-zinc-700 mt-0.5 truncate max-w-xs sm:max-w-sm">
-                        {log.new_values ? JSON.stringify(log.new_values).substring(0, 80) : "—"}
+                      <p className="text-[9px] sm:text-[10px] font-mono text-zinc-700 mt-1 truncate">
+                        {log.new_values ? JSON.stringify(log.new_values) : "—"}
                       </p>
                     </div>
                   </div>
-                  <div className="shrink-0 pl-12 sm:pl-0">
-                    <p className="text-[10px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg whitespace-nowrap">
+                  <div className="shrink-0 pl-11 sm:pl-0 flex justify-start sm:justify-end">
+                    <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg whitespace-nowrap">
                       {new Date(log.created_at).toLocaleString("id-ID", {
                         day: "2-digit", month: "short", year: "numeric",
                         hour: "2-digit", minute: "2-digit"
@@ -390,8 +395,8 @@ const DeveloperDashboard = () => {
           ].map(({ icon, color, title, desc, label }) => {
             const colorMap = {
               orange: { card: "hover:border-orange-500/40 hover:bg-orange-500/5", icon: "bg-orange-500/10 text-orange-500", btn: "text-orange-400 border-orange-500/20 hover:bg-orange-500/20" },
-              rose:   { card: "hover:border-rose-500/40 hover:bg-rose-500/5",     icon: "bg-rose-500/10 text-rose-500",     btn: "text-rose-400 border-rose-500/20 hover:bg-rose-500/20"   },
-              emerald:{ card: "hover:border-emerald-500/40 hover:bg-emerald-500/5", icon: "bg-emerald-500/10 text-emerald-500", btn: "text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20" },
+              rose: { card: "hover:border-rose-500/40 hover:bg-rose-500/5", icon: "bg-rose-500/10 text-rose-500", btn: "text-rose-400 border-rose-500/20 hover:bg-rose-500/20" },
+              emerald: { card: "hover:border-emerald-500/40 hover:bg-emerald-500/5", icon: "bg-emerald-500/10 text-emerald-500", btn: "text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20" },
             };
             const c = colorMap[color];
             return (

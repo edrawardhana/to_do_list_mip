@@ -27,7 +27,8 @@ class User extends Authenticatable implements JWTSubject
         'is_verified',
         'is_locked',
         'avatar_url',
-        'phone_number'
+        'phone_number',
+        'fcm_token'
     ];
 
     protected $hidden = [

@@ -161,4 +161,24 @@ class ProfileController extends Controller
             'message' => 'Akun berhasil dihapus.'
         ]);
     }
+    /**
+     * Update FCM Token for the authenticated user
+     */
+    public function updateFcmToken(Request $request)
+    {
+        $user = Auth::user();
+
+        $request->validate([
+            'fcm_token' => 'required|string'
+        ]);
+
+        $user->update([
+            'fcm_token' => $request->fcm_token
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'FCM Token berhasil diperbarui.'
+        ]);
+    }
 }
