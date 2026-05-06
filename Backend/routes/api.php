@@ -41,6 +41,7 @@ Route::middleware('auth:api')->group(function () {
 
     // Daily Task (Logbook) Routes
     // ⚠️ Submit route MUST be before apiResource so it's not captured by {id} wildcard
+    Route::post('/daily-tasks/assign', [DailyTaskController::class, 'assignTask']);
     Route::post('/daily-tasks/{id}/submit', [DailyTaskController::class, 'submit']);
     Route::apiResource('daily-tasks', DailyTaskController::class)->except(['show']);
 

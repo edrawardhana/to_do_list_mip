@@ -66,15 +66,21 @@ return new class extends Migration
         // 6. Create daily_tasks
         Schema::create('daily_tasks', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('user_id')->constrained('profiles')->cascadeOnDelete();
+            $table->foreignUuid('uploader_id')->constrained('profiles')->cascadeOnDelete();
             $table->foreignUuid('division_id')->constrained('divisions')->cascadeOnDelete();
-            $table->foreignUuid('task_template_id')->constrained('task_templates')->cascadeOnDelete();
-            $table->string('task_name');
-            $table->string('evidence_url')->nullable();
-            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-            $table->uuid('first_uploader_id')->nullable();
-            $table->foreign('first_uploader_id')->references('id')->on('profiles')->nullOnDelete();
-            $table->timestampTz('created_at')->useCurrent();
+            $table->foreignUuid('template_id')->constrained('task_templates')->cascadeOnDelete();
+            $table->date('task_date');
+            $table->text('description')->nullable();
+            $table->enum('status', ['pending', 'approved', 'rejected', 'revision'])->default('pending');
+            $table->text('evidence_url')->nullable();
+            $table->timestampTz('captured_at')->nullable();
+            $table->json('confirmed_participants')->nullable();
+            $table->foreignUuid('evaluated_by')->nullable()->constrained('profiles')->nullOnDelete();
+            $table->text('reject_reason')->nullable();
+            $table->boolean('is_archived')->default(false);
+            $table->text('assign_note')->nullable(); // Note dari admin saat assign task
+            $table->foreignUuid('assigned_by')->nullable()->constrained('profiles')->nullOnDelete(); // Admin yang assign
+            $table->timestampsTz();
         });
 
         // 7. Create attendance_schedules

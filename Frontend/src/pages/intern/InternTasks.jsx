@@ -66,26 +66,42 @@ const InternTasks = () => {
       const res  = await api.get('/daily-tasks');
       const data = res.data?.data || res.data || [];
       setTasks(data.map(t => {
+        // Status mapping yang benar:
+        // - "approved"  → selesai (completed)
+        // - "rejected" / "revision" → perlu revisi
+        // - "pending" + ada evidence_url → sudah dikirim, menunggu ACC
+        // - "pending" + TIDAK ada evidence_url → belum dikerjakan (todo)
         let uiStatus = "todo";
-        if (t.status === "approved" || t.status === "completed") uiStatus = "completed";
-        else if (t.status === "rejected" || t.status === "revision") uiStatus = "revision";
-        else if (t.evidence_url || t.status === "waiting_confirmation") uiStatus = "waiting_confirmation";
-        else if (t.status === "pending") uiStatus = "pending";
+        if (t.status === "approved") {
+          uiStatus = "completed";
+        } else if (t.status === "rejected" || t.status === "revision") {
+          uiStatus = "revision";
+        } else if (t.status === "pending" && t.evidence_url) {
+          // Sudah submit bukti, menunggu persetujuan admin
+          uiStatus = "pending";
+        } else if (t.status === "pending" && !t.evidence_url) {
+          // Belum dikerjakan sama sekali
+          uiStatus = "todo";
+        }
+
         return {
           id:            t.id,
-          title:         t.taskTemplate?.title || t.template?.title || t.description || "Tugas Harian",
+          title:         t.taskTemplate?.title || t.taskTemplate?.task_name
+                         || t.template?.title  || t.template?.task_name
+                         || t.description      || "Tugas Harian",
           location:      "Kantor MCC",
           status:        uiStatus,
           rawStatus:     t.status,
           admin_notes:   t.reject_reason || "",
-          is_urgent:     t.template_id === null,
+          // Tugas urgent = tidak punya template (di-assign manual oleh admin)
+          is_urgent:     !t.template_id,
           photo:         t.evidence_url || null,
           description:   t.description || "",
-          inviter_name:  t.assigner?.full_name || t.uploader?.full_name || "",
+          inviter_name:  t.assignedBy?.full_name || t.assigner?.full_name || "",
           tagged_users:  Array.isArray(t.confirmed_participants) ? t.confirmed_participants : [],
           due_date:      t.due_date,
           task_date:     t.task_date,
-          assign_note:   t.assign_note,
+          assign_note:   t.assign_note || "",
         };
       }));
     } catch {
@@ -150,18 +166,29 @@ const InternTasks = () => {
 
   const handleSubmitReport = async (submittedData) => {
     const taskId = selectedTask?.id;
-    if (!taskId) { toast.error("ID tugas tidak ditemukan."); return; }
-    let payload = submittedData instanceof FormData ? submittedData : new FormData();
-    if (!(submittedData instanceof FormData))
-      Object.keys(submittedData).forEach(k => payload.append(k, submittedData[k]));
+    if (!taskId) {
+      toast.error("ID tugas tidak ditemukan.");
+      return;
+    }
+
+    // submittedData sudah FormData dari LiveCameraModal
+    if (!(submittedData instanceof FormData)) {
+      toast.error("Format data tidak valid.");
+      return;
+    }
 
     try {
-      await api.post(`/daily-tasks/${taskId}/submit`, payload);
-      toast.success("Laporan berhasil dikirim!");
+      // POST dengan FormData — axios otomatis set Content-Type: multipart/form-data
+      await api.post(`/daily-tasks/${taskId}/submit`, submittedData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success("Laporan berhasil dikirim! Menunggu persetujuan admin.");
       handleCloseCamera();
       fetchTasks();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Gagal mengirim laporan.");
+      const msg = err.response?.data?.message || "Gagal mengirim laporan.";
+      toast.error(msg);
+      console.error("Submit error:", err);
     }
   };
 

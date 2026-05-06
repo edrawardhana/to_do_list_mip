@@ -16,6 +16,7 @@ class DailyTask extends Model
         'uploader_id',
         'division_id',
         'evaluated_by',
+        'assigned_by',
         'task_date',
         'evidence_url',
         'description',
@@ -24,6 +25,7 @@ class DailyTask extends Model
         'reject_reason',
         'is_archived',
         'captured_at',
+        'assign_note',
     ];
 
     protected $casts = [
@@ -41,6 +43,11 @@ class DailyTask extends Model
     public function evaluator()
     {
         return $this->belongsTo(User::class, 'evaluated_by');
+    }
+
+    public function assignedBy()
+    {
+        return $this->belongsTo(User::class, 'assigned_by');
     }
 
     public function division()

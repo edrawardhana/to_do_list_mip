@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\QueryException;
 use App\Models\AuditLog;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Encoders\JpegEncoder;
+use Illuminate\Support\Str;
 
 class DailyTaskController extends Controller
 {
@@ -45,7 +49,7 @@ class DailyTaskController extends Controller
             }
         }
 
-        $query = DailyTask::with(['taskTemplate', 'uploader', 'evaluator']);
+        $query = DailyTask::with(['taskTemplate', 'uploader', 'evaluator', 'assignedBy']);
 
         if ($user->role === 'intern') {
             // Intern only sees their own tasks
@@ -60,12 +64,110 @@ class DailyTaskController extends Controller
             $query->whereDate('task_date', $request->date);
         }
 
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->has('uploader_id')) {
+            $query->where('uploader_id', $request->uploader_id);
+        }
+
         $tasks = $query->orderBy('created_at', 'desc')->get();
 
         return response()->json([
             'status' => 'success',
             'data' => $tasks
         ]);
+    }
+
+    /**
+     * Admin assigns task to specific intern(s)
+     */
+    public function assignTask(Request $request)
+    {
+        $user = Auth::user();
+
+        // Only admin and super_admin can assign tasks
+        if (!in_array($user->role, ['admin', 'super_admin'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Hanya Admin yang dapat membagikan tugas.'
+            ], 403);
+        }
+
+        $request->validate([
+            'template_id' => 'required|uuid|exists:task_templates,id',
+            'intern_ids' => 'required|array|min:1',
+            'intern_ids.*' => 'uuid|exists:profiles,id',
+            'task_date' => 'required|date',
+            'assign_note' => 'nullable|string|max:500',
+        ]);
+
+        $template = TaskTemplate::findOrFail($request->template_id);
+
+        // Admin can only assign tasks within their division
+        if ($user->role === 'admin' && $template->division_id !== $user->division_id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda hanya dapat membagikan tugas dalam divisi Anda.'
+            ], 403);
+        }
+
+        $createdTasks = [];
+        $errors = [];
+
+        foreach ($request->intern_ids as $internId) {
+            $intern = User::find($internId);
+
+            // Verify intern is in the same division
+            if ($user->role === 'admin' && $intern->division_id !== $user->division_id) {
+                $errors[] = "Intern {$intern->full_name} tidak dalam divisi Anda.";
+                continue;
+            }
+
+            // Check if task already exists for this intern on this date
+            $existingTask = DailyTask::where('uploader_id', $internId)
+                ->where('template_id', $request->template_id)
+                ->where('task_date', $request->task_date)
+                ->first();
+
+            if ($existingTask) {
+                $errors[] = "Tugas sudah ada untuk {$intern->full_name} pada tanggal ini.";
+                continue;
+            }
+
+            // Create task
+            $task = DailyTask::create([
+                'uploader_id' => $internId,
+                'division_id' => $template->division_id,
+                'template_id' => $request->template_id,
+                'task_date' => $request->task_date,
+                'status' => 'pending',
+                'assign_note' => $request->assign_note ?? $template->description,
+                'assigned_by' => $user->id,
+            ]);
+
+            $createdTasks[] = $task;
+
+            // Log audit
+            AuditLog::record(
+                $user->id,
+                $user->role,
+                'Assign Task ke Intern',
+                $task->toArray(),
+                null,
+                $internId
+            );
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => count($createdTasks) . ' tugas berhasil dibagikan.',
+            'data' => [
+                'created_tasks' => $createdTasks,
+                'errors' => $errors
+            ]
+        ], 201);
     }
 
     /**
@@ -118,6 +220,7 @@ class DailyTaskController extends Controller
     /**
      * Dedicated POST endpoint for intern logbook submission (supports file upload via real POST).
      * This avoids the PHP limitation where $_FILES is empty on PUT/PATCH requests.
+     * Supports image compression for evidence photos.
      */
     public function submit(Request $request, $id)
     {
@@ -141,7 +244,7 @@ class DailyTaskController extends Controller
 
         $request->validate([
             'description'  => 'required|string',
-            'evidence_url' => 'nullable|file|max:20480', // 20 MB, any file type
+            'evidence_url' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:10240', // 10 MB, image only
         ]);
 
         $old_values = $task->toArray();
@@ -150,10 +253,39 @@ class DailyTaskController extends Controller
             'status'      => 'pending',  // reset to pending so admin can re-review
         ];
 
-        // Handle file upload — PHP $_FILES is properly populated for POST requests
+        // Handle image upload with compression
         if ($request->hasFile('evidence_url') && $request->file('evidence_url')->isValid()) {
-            $path = $request->file('evidence_url')->store('task_evidence', 'public');
-            $data['evidence_url'] = Storage::url($path);
+            $file = $request->file('evidence_url');
+            
+            // Check if evidence_url is already locked (first upload already done)
+            if ($task->evidence_url) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Bukti foto sudah terkunci dan tidak dapat diubah. Hubungi Admin jika ada kesalahan.'
+                ], 403);
+            }
+
+            // Generate unique filename
+            $filename = 'task_' . $task->id . '_' . time() . '.jpg';
+            $storagePath = 'task_evidence/' . $filename;
+            
+            // Compress and save image using ImageManager
+            $manager = new ImageManager(new Driver());
+            $image = $manager->decode($file);
+            
+            // Resize if image is too large (max width 1920px, maintain aspect ratio)
+            if ($image->width() > 1920) {
+                $image->scale(width: 1920);
+            }
+            
+            // Encode to JPEG with 80% quality for compression
+            $encodedImage = $image->encode(new JpegEncoder(quality: 80));
+            
+            // Save to storage
+            Storage::disk('public')->put($storagePath, (string) $encodedImage);
+            
+            // Generate full URL for frontend access
+            $data['evidence_url'] = config('app.url') . Storage::url($storagePath);
         }
 
         $task->update($data);
@@ -194,7 +326,7 @@ class DailyTaskController extends Controller
             'description'           => 'sometimes|string',
             'status'                => 'sometimes|in:pending,approved,rejected,revision',
             'reject_reason'         => 'nullable|string',
-            'evidence_url'          => 'sometimes|file|max:20480', // 20MB, any file type
+            'evidence_url'          => 'sometimes|image|mimes:jpeg,jpg,png,gif,webp|max:10240', // 10MB, image only
             'confirmed_participants' => 'sometimes|array',
             'is_archived'           => 'sometimes|boolean'
         ]);
@@ -208,12 +340,37 @@ class DailyTaskController extends Controller
             // Get all data except the file and method spoofing
             $dataToUpdate = $request->except(['evidence_url', '_method']);
 
-            // Handle file upload for 'evidence_url' if it exists
+            // Handle image upload with compression for 'evidence_url' if it exists
             if ($request->hasFile('evidence_url')) {
                 $file = $request->file('evidence_url');
-                // Use original extension to support any file type (pdf, doc, jpg, etc)
-                $path = $file->store('task_evidence', 'public');
-                $dataToUpdate['evidence_url'] = Storage::url($path);
+                
+                // Delete old evidence if exists
+                if ($task->evidence_url) {
+                    $oldPath = str_replace('/storage/', '', parse_url($task->evidence_url, PHP_URL_PATH));
+                    Storage::disk('public')->delete($oldPath);
+                }
+
+                // Generate unique filename
+                $filename = 'task_' . $task->id . '_' . time() . '.jpg';
+                $storagePath = 'task_evidence/' . $filename;
+                
+                // Compress and save image using ImageManager
+                $manager = new ImageManager(new Driver());
+                $image = $manager->decode($file);
+                
+                // Resize if image is too large (max width 1920px, maintain aspect ratio)
+                if ($image->width() > 1920) {
+                    $image->scale(width: 1920);
+                }
+                
+                // Encode to JPEG with 80% quality for compression
+                $encodedImage = $image->encode(new JpegEncoder(quality: 80));
+                
+                // Save to storage
+                Storage::disk('public')->put($storagePath, (string) $encodedImage);
+                
+                // Generate full URL for frontend access
+                $dataToUpdate['evidence_url'] = config('app.url') . Storage::url($storagePath);
             }
             
             // Mark evaluated_by if admin processed it
