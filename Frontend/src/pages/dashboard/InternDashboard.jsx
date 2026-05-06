@@ -7,9 +7,11 @@ const InternDashboard = () => {
   const { user } = useAuth();
   const [greeting, setGreeting] = useState("");
   const [progress, setProgress] = useState({ percentage: 0, completed: 0, total: 0 });
-  const [shiftInfo, setShiftInfo] = useState({ pagi: [], siang: [], libur: [] });
+  const [shiftInfo, setShiftInfo] = useState({ pagi: [], siang: [], full: [], libur: [] });
   const [todayTasks, setTodayTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [schedules, setSchedules] = useState([]);
+  const [scheduleLoading, setScheduleLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -18,7 +20,7 @@ const InternDashboard = () => {
         const response = await api.get('/dashboard/intern');
         const data = response.data?.data || response.data || {};
         setProgress(data.progress || { percentage: 0, completed: 0, total: 0 });
-        setShiftInfo(data.shiftInfo || { pagi: [], siang: [], libur: [] });
+        setShiftInfo(data.shiftInfo || { pagi: [], siang: [], full: [], libur: [] });
         setTodayTasks(data.todayTasks || []);
       } catch (error) {
         console.error("Gagal memuat data intern:", error);
@@ -27,6 +29,37 @@ const InternDashboard = () => {
       }
     };
     fetchData();
+  }, []);
+
+  // Fetch real schedule data for calendar
+  useEffect(() => {
+    const fetchSchedules = async () => {
+      setScheduleLoading(true);
+      try {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+        const response = await api.get('/schedules');
+        const allSchedules = response.data.data || [];
+
+        // Filter for current month only
+        const monthSchedules = allSchedules.filter(s => {
+          const d = s.shift_date ? s.shift_date.substring(0, 10) : '';
+          return d >= startDate && d <= endDate;
+        });
+
+        setSchedules(monthSchedules);
+      } catch (error) {
+        console.error("Gagal memuat jadwal:", error);
+      } finally {
+        setScheduleLoading(false);
+      }
+    };
+    fetchSchedules();
   }, []);
 
   // Logic Sapaan Waktu
@@ -38,25 +71,49 @@ const InternDashboard = () => {
     else setGreeting("Selamat Malam");
   }, []);
 
-  // --- LOGIC KALENDER (Dynamic) ---
+  // --- LOGIC KALENDER (Real Data) ---
   const date = new Date();
   const currentDay = date.getDate();
   const monthName = date.toLocaleDateString("id-ID", { month: "long" });
   const year = date.getFullYear();
-  
-  const daysInMonth = new Date(year, date.getMonth() + 1, 0).getDate();
-  const startDay = new Date(year, date.getMonth(), 1).getDay();
+  const month = date.getMonth();
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startDay = new Date(year, month, 1).getDay();
   const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
 
+  // Shift config for calendar coloring
+  const shiftStyle = {
+    morning:   { bg: 'bg-emerald-50/80', text: 'text-emerald-600', hover: 'hover:bg-emerald-100', dot: 'bg-emerald-500' },
+    afternoon: { bg: 'bg-amber-50/80',   text: 'text-amber-600',   hover: 'hover:bg-amber-100',   dot: 'bg-amber-500' },
+    full:      { bg: 'bg-purple-50/80',  text: 'text-purple-600',  hover: 'hover:bg-purple-100',  dot: 'bg-purple-500' },
+  };
+
+  // Get schedule for a specific day
+  const getScheduleForDay = (day) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return schedules.find(s => {
+      const d = s.shift_date ? s.shift_date.substring(0, 10) : '';
+      return d === dateStr;
+    });
+  };
+
+  // Today's shift
+  const todaySchedule = getScheduleForDay(currentDay);
+  const todayShiftLabel = todaySchedule
+    ? { morning: 'Pagi', afternoon: 'Siang', full: 'Cuti' }[todaySchedule.shift_type] || todaySchedule.shift_type
+    : 'Libur';
+  const todayShiftTime = todaySchedule
+    ? { morning: '08:00 - 15:00', afternoon: '15:00 - 22:00', full: 'Hari Cuti' }[todaySchedule.shift_type] || '-'
+    : '-';
+
+  // Build calendar days
   const calendarDays = [];
   for (let i = 0; i < startDay; i++) {
-    calendarDays.push({ day: null, type: null });
+    calendarDays.push({ day: null, schedule: null });
   }
   for (let i = 1; i <= daysInMonth; i++) {
-    let type = 1; // 1: Masuk (Hijau)
-    if ((i + startDay - 1) % 7 === 0 || (i + startDay - 1) % 7 === 6) type = 0; // 0: Libur (Merah)
-    else if (i % 5 === 0) type = 2; // 2: Siang (Kuning)
-    calendarDays.push({ day: i, type });
+    calendarDays.push({ day: i, schedule: getScheduleForDay(i) });
   }
 
   return (
@@ -99,11 +156,24 @@ const InternDashboard = () => {
 
           <div className="mt-8 pt-6 border-t border-blue-900/5 relative z-10">
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Jadwal Shift</p>
-              <p className="text-[15px] font-bold text-slate-900 flex items-center gap-2.5">
-                <span className="px-2.5 py-1 bg-white text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-wider border border-blue-100 shadow-sm">{user?.shift || "Pagi"}</span>
-                08:00 - 15:00
-              </p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Jadwal Shift Hari Ini</p>
+              {scheduleLoading ? (
+                <p className="text-sm text-slate-400 font-bold"><i className="fa-solid fa-spinner fa-spin mr-1" /> Memuat...</p>
+              ) : todaySchedule ? (
+                <p className="text-[15px] font-bold text-slate-900 flex items-center gap-2.5">
+                  <span className={`px-2.5 py-1 bg-white rounded-lg text-[10px] font-black uppercase tracking-wider border shadow-sm ${
+                    todaySchedule.shift_type === 'morning' ? 'text-emerald-600 border-emerald-100' :
+                    todaySchedule.shift_type === 'afternoon' ? 'text-amber-600 border-amber-100' :
+                    'text-purple-600 border-purple-100'
+                  }`}>{todayShiftLabel}</span>
+                  {todayShiftTime}
+                </p>
+              ) : (
+                <p className="text-[15px] font-bold text-slate-500 flex items-center gap-2.5">
+                  <span className="px-2.5 py-1 bg-white text-slate-400 rounded-lg text-[10px] font-black uppercase tracking-wider border border-slate-100 shadow-sm">Libur</span>
+                  Tidak ada jadwal
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -173,7 +243,8 @@ const InternDashboard = () => {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* Pagi */}
           <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-6 hover:border-emerald-200 transition-colors group">
             <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
@@ -185,7 +256,7 @@ const InternDashboard = () => {
               <span className="text-[11px] font-black tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">08:00 - 15:00</span>
             </div>
             <div className="space-y-3.5">
-              {shiftInfo.pagi.length > 0 ? shiftInfo.pagi.map((nama, i) => (
+              {shiftInfo.pagi?.length > 0 ? shiftInfo.pagi.map((nama, i) => (
                 <div key={i} className="flex items-center gap-3 text-sm text-slate-700 font-bold hover:text-emerald-600 transition-colors cursor-default">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]"></div>
                   {nama}
@@ -196,6 +267,7 @@ const InternDashboard = () => {
             </div>
           </div>
 
+          {/* Siang */}
           <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-6 hover:border-amber-200 transition-colors group">
             <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
@@ -204,10 +276,10 @@ const InternDashboard = () => {
                 </div>
                 <h4 className="text-[15px] font-bold text-slate-900">Siang</h4>
               </div>
-              <span className="text-[11px] font-black tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">15:00 - 21:00</span>
+              <span className="text-[11px] font-black tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">15:00 - 22:00</span>
             </div>
             <div className="space-y-3.5">
-              {shiftInfo.siang.length > 0 ? shiftInfo.siang.map((nama, i) => (
+              {shiftInfo.siang?.length > 0 ? shiftInfo.siang.map((nama, i) => (
                 <div key={i} className="flex items-center gap-3 text-sm text-slate-700 font-bold hover:text-amber-600 transition-colors cursor-default">
                   <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)]"></div>
                   {nama}
@@ -218,6 +290,30 @@ const InternDashboard = () => {
             </div>
           </div>
 
+          {/* Full Day → Cuti */}
+          <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-6 hover:border-purple-200 transition-colors group">
+            <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-500 flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+                  <i className="fa-solid fa-umbrella-beach text-[15px]"></i>
+                </div>
+                <h4 className="text-[15px] font-bold text-slate-900">Cuti</h4>
+              </div>
+              <span className="text-[11px] font-black tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">HARI CUTI</span>
+            </div>
+            <div className="space-y-3.5">
+              {shiftInfo.full?.length > 0 ? shiftInfo.full.map((nama, i) => (
+                <div key={i} className="flex items-center gap-3 text-sm text-slate-700 font-bold hover:text-purple-600 transition-colors cursor-default">
+                  <div className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_6px_rgba(168,85,247,0.5)]"></div>
+                  {nama}
+                </div>
+              )) : (
+                <div className="text-xs text-slate-400 font-bold italic">Tidak ada</div>
+              )}
+            </div>
+          </div>
+
+          {/* Libur */}
           <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-6 hover:border-rose-200 transition-colors group">
             <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
@@ -229,7 +325,7 @@ const InternDashboard = () => {
               <span className="text-[11px] font-black tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">ISTIRAHAT</span>
             </div>
             <div className="space-y-3.5">
-              {shiftInfo.libur.length > 0 ? shiftInfo.libur.map((nama, i) => (
+              {shiftInfo.libur?.length > 0 ? shiftInfo.libur.map((nama, i) => (
                 <div key={i} className="flex items-center gap-3 text-sm text-slate-700 font-bold hover:text-rose-600 transition-colors cursor-default">
                   <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.5)]"></div>
                   {nama}
@@ -289,8 +385,11 @@ const InternDashboard = () => {
 
         {/* KALENDER */}
         <div className="bg-white p-7 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col group hover:shadow-xl hover:shadow-slate-200/50 hover:border-blue-200 transition-all duration-300">
-          <div className="flex justify-center items-center mb-6 pb-2 border-b border-slate-100">
+          <div className="flex justify-between items-center mb-6 pb-2 border-b border-slate-100">
             <p className="text-lg font-black text-slate-900 tracking-widest uppercase">{monthName} {year}</p>
+            <Link to="/my-schedule" className="text-[10px] font-black text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors uppercase tracking-widest">
+              Lihat Semua
+            </Link>
           </div>
           
           <div className="grid grid-cols-7 gap-1 mb-2">
@@ -299,20 +398,43 @@ const InternDashboard = () => {
             ))}
           </div>
           
-          <div className="grid grid-cols-7 gap-1.5 flex-1">
-            {calendarDays.map((d, i) => (
-              <div 
-                key={i} 
-                className={`aspect-square rounded-xl flex items-center justify-center text-[13px] font-bold transition-all cursor-pointer hover:scale-105
-                  ${!d.day ? 'bg-transparent' : 
-                    d.day === currentDay ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30' : 
-                    d.type === 1 ? 'bg-emerald-50/80 text-emerald-600 hover:bg-emerald-100' : 
-                    d.type === 2 ? 'bg-amber-50/80 text-amber-600 hover:bg-amber-100' : 
-                    'bg-rose-50/80 text-rose-600 hover:bg-rose-100'}`}
-              >
-                {d.day}
-              </div>
-            ))}
+          {scheduleLoading ? (
+            <div className="flex-1 flex items-center justify-center py-8">
+              <i className="fa-solid fa-spinner fa-spin text-slate-300 text-2xl"></i>
+            </div>
+          ) : (
+            <div className="grid grid-cols-7 gap-1.5 flex-1">
+              {calendarDays.map((d, i) => {
+                if (!d.day) return <div key={i} className="bg-transparent" />;
+                const style = d.schedule ? shiftStyle[d.schedule.shift_type] : null;
+                const isToday = d.day === currentDay;
+                return (
+                  <div
+                    key={i}
+                    className={`aspect-square rounded-xl flex items-center justify-center text-[13px] font-bold transition-all cursor-default hover:scale-105
+                      ${isToday
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
+                        : style
+                        ? `${style.bg} ${style.text} ${style.hover}`
+                        : 'bg-slate-50/80 text-slate-400 hover:bg-slate-100'
+                      }`}
+                    title={d.schedule
+                      ? `${d.day} ${monthName}: ${{ morning: 'Pagi 08:00-15:00', afternoon: 'Siang 15:00-22:00', full: 'Cuti' }[d.schedule.shift_type]}`
+                      : `${d.day} ${monthName}: Libur`}
+                  >
+                    {d.day}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Legend */}
+          <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2 justify-center">
+            <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>Pagi</span>
+            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>Siang</span>
+            <span className="flex items-center gap-1 text-[10px] font-bold text-purple-600"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block"></span>Cuti</span>
+            <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400"><span className="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>Libur</span>
           </div>
         </div>
 

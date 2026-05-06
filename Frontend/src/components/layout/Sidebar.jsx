@@ -12,12 +12,14 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
       // INTERN
       { path: "/tasks", label: "Daily Task", icon: "fa-calendar-day", roles: ["intern"] },
+      { path: "/my-schedule", label: "Jadwal Shift", icon: "fa-calendar-week", roles: ["intern"] },
       { path: "/leave-request", label: "Leave Request", icon: "fa-envelope-open-text", roles: ["intern"] },
 
       // ADMIN OPERASIONAL
       { path: "/tasks", label: "Daily Activation", icon: "fa-list-check", roles: ["admin"] },
       { path: "/approval", label: "Approval Center", icon: "fa-check-to-slot", roles: ["admin"] },
       { path: "/manage-intern", label: "Manage Intern", icon: "fa-users-gear", roles: ["admin"] },
+      { path: "/schedule-calendar", label: "Schedule Calendar", icon: "fa-calendar-days", roles: ["admin"] },
 
       // MANAJEMEN AKUN (Superadmin & Dev)
       { path: "/manage-admin", label: "Manage Akun", icon: "fa-user-gear", roles: ["superadmin", "developer"] },

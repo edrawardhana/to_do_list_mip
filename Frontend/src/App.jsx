@@ -23,10 +23,13 @@ import Tasks from "./pages/Tasks";
 // Pages - Khusus Intern
 import LeaveRequest from "./pages/intern/LeaveRequest";
 import InternLogbook from "./pages/intern/InternLogbook";
+import MySchedule from "./pages/intern/MySchedule";
 
 // Pages - Manajerial (Admin & Up)
 import Approval from "./pages/admin/Approval";
 import ManageAccountIntern from "./pages/admin/ManageAccountIntern";
+import ManageSchedules from "./pages/admin/ManageSchedules";
+import ManageSchedulesCalendar from "./pages/admin/ManageSchedulesCalendar";
 import Broadcasts from "./pages/admin/Broadcasts";
 import Reports from "./pages/admin/Reports";
 
@@ -77,6 +80,11 @@ function App() {
                   <InternLogbook />
                 </ProtectedRoute>
               } />
+              <Route path="my-schedule" element={
+                <ProtectedRoute roles={["intern", "user"]}>
+                  <MySchedule />
+                </ProtectedRoute>
+              } />
               <Route path="whitebook" element={
                 <ProtectedRoute roles={["intern", "admin", "superadmin"]}>
                   <Whitebook />
@@ -91,6 +99,16 @@ function App() {
               <Route path="manage-intern" element={
                 <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
                   <ManageAccountIntern />
+                </ProtectedRoute>
+              } />
+              <Route path="manage-schedules" element={
+                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
+                  <ManageSchedules />
+                </ProtectedRoute>
+              } />
+              <Route path="schedule-calendar" element={
+                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
+                  <ManageSchedulesCalendar />
                 </ProtectedRoute>
               } />
               <Route path="broadcasts" element={
