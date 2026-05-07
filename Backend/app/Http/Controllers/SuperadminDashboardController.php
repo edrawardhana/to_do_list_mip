@@ -27,7 +27,7 @@ class SuperadminDashboardController extends Controller
 
         // ── 1. GLOBAL STATS ─────────────────────────────────────────────────
         $activeInterns   = User::where('is_verified', true)
-                               ->whereIn('role', ['intern', 'user'])
+                               ->whereIn('role', ['intern'])
                                ->count();
 
         $totalDivisions  = Division::count();
@@ -37,7 +37,7 @@ class SuperadminDashboardController extends Controller
         // ── 2. DIVISION PERFORMANCE CHART ───────────────────────────────────
         // Calculate real task completion % per division
         $divisions = Division::with(['profiles' => function ($q) {
-            $q->whereIn('role', ['intern', 'user'])->select('id', 'division_id');
+            $q->whereIn('role', ['intern'])->select('id', 'division_id');
         }])->orderBy('name', 'asc')->get();
 
         $divisionPerformance = $divisions->map(function ($div) {
@@ -62,7 +62,7 @@ class SuperadminDashboardController extends Controller
 
         // ── 3. TOP 3 INTERNS (Global Leaderboard) ───────────────────────────
         // Rank by number of approved daily tasks
-        $topInterns = User::whereIn('role', ['intern', 'user'])
+        $topInterns = User::whereIn('role', ['intern'])
             ->where('is_verified', true)
             ->withCount(['dailyTasks as approved_tasks_count' => function ($q) {
                 $q->where('status', 'approved');

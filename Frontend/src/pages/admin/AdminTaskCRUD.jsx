@@ -47,7 +47,7 @@ const AdminTaskCRUD = () => {
       setLiveTasks(allTasks.filter(t => t.template_id === null)); // Urgent task = no template
       
       const allProfiles = profRes.data?.data || profRes.data || [];
-      setInterns(allProfiles.filter(p => p.role === 'intern' || p.role === 'user'));
+      setInterns(allProfiles.filter(p => p.role === 'intern'));
 
       if (canManageAll) {
         setDivisions(divRes.data?.data || divRes.data || []);

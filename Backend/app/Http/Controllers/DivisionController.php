@@ -22,7 +22,7 @@ class DivisionController extends Controller
         }])->orderBy('name', 'asc')->get();
 
         $data = $divisions->map(function ($div) {
-            $interns = $div->profiles->filter(fn($p) => in_array($p->role, ['intern', 'user']));
+            $interns = $div->profiles->filter(fn($p) => $p->role === 'intern');
             $admins  = $div->profiles->filter(fn($p) => $p->role === 'admin');
 
             // Real performance: task completion % for interns in this division

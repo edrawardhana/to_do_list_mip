@@ -32,7 +32,7 @@ const DeveloperDashboard = () => {
       const admins = profiles.filter(p => p.role === "admin").length;
       const superAdmins = profiles.filter(p => p.role === "super_admin").length;
       const developers = profiles.filter(p => p.role === "developer").length;
-      const interns = profiles.filter(p => p.role === "intern" || p.role === "user").length;
+      const interns = profiles.filter(p => p.role === "intern").length;
 
       setStats({
         users: profiles.length,
@@ -46,7 +46,7 @@ const DeveloperDashboard = () => {
         { role: "developer", label: "Developer", count: developers, icon: "fa-code", cls: "bg-rose-500/10 text-rose-400 border-rose-500/20" },
         { role: "super_admin", label: "Super Admin", count: superAdmins, icon: "fa-chess-king", cls: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
         { role: "admin", label: "Admin Divisi", count: admins, icon: "fa-shield-halved", cls: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
-        { role: "intern", label: "Intern / User", count: interns, icon: "fa-user-graduate", cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+        { role: "intern", label: "Intern", count: interns, icon: "fa-user-graduate", cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
       ]);
 
       setRecentLogs(logs.slice(0, 6));

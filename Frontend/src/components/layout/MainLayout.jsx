@@ -4,7 +4,7 @@ import Sidebar from "./Sidebar";
 import TopNav from "./TopNav";
 import { useAuth } from "../../contexts/AuthContext";
 import { initializeFirebase, requestNotificationPermission } from "../../firebase";
-import toast from "react-hot-toast";
+import ShiftStatusBanner from "../ui/ShiftStatusBanner";
 
 const MainLayout = () => {
   const { user, isAdmin, isSuperAdmin, isDeveloper } = useAuth();
@@ -37,6 +37,8 @@ const MainLayout = () => {
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <div className="flex-1 flex flex-col min-w-0 h-screen relative">
         <TopNav onToggleSidebar={() => setMobileOpen(true)} />
+        {/* Banner status shift — hanya muncul untuk intern yang OFF/cuti/dikunci */}
+        <ShiftStatusBanner />
         {/* main pakai overflow-y-auto biar scroll browser jalan, tanpa z-0 biar modal bisa lewat */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
           <div className="max-w-7xl mx-auto">

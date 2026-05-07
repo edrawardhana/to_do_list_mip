@@ -33,7 +33,7 @@ export default function ManageSchedules() {
       const response = await api.get('/profiles');
       // Filter only interns in same division as admin
       const internList = response.data.data.filter(user => 
-        user.role === 'intern' || user.role === 'user'
+        user.role === 'intern'
       );
       setInterns(internList);
     } catch (error) {

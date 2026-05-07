@@ -5,7 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use App\Models\AuditLog;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Encoders\JpegEncoder;
+use Intervention\Image\Encoders\WebpEncoder;
 
 class ExceptionController extends Controller
 {
@@ -16,19 +21,15 @@ class ExceptionController extends Controller
     {
         $user = Auth::user();
 
-        // Load relasi uploader dan evaluator
         $query = Exception::with(['user', 'evaluator']);
 
         if ($user->role === 'intern') {
-            // Intern sees only their own
             $query->where('user_id', $user->id);
         } elseif ($user->role === 'admin') {
-            // Admin sees from their division
             $query->whereHas('user', function ($q) use ($user) {
                 $q->where('division_id', $user->division_id);
             });
         }
-        // Superadmin sees all
 
         if ($request->has('date')) {
             $query->whereDate('permission_date', $request->date);
@@ -44,44 +45,84 @@ class ExceptionController extends Controller
 
     /**
      * Intern submits a new exception (Sakit/Izin/Tugas Luar/Swap)
+     * Supports file upload for evidence (image or PDF), max 2MB after compression
      */
     public function store(Request $request)
     {
         $user = Auth::user();
 
         $request->validate([
-            'type' => 'required|in:sakit,izin,tugas_luar,swap_shift',
-            'permission_date' => 'required|date',
+            'type'             => 'required|in:sakit,izin,tugas_luar,swap_shift',
+            'permission_date'  => 'required|date',
             'replacement_date' => 'nullable|date',
-            'description' => 'required|string',
-            'evidence_url' => 'nullable|string' // usually required for sakit, handled conditionally
+            'description'      => 'required|string|max:1000',
+            'evidence_url'     => 'nullable|file|mimes:jpeg,jpg,png,webp,pdf|max:10240', // 10MB raw, we compress images
         ]);
 
-        if ($request->type === 'sakit' && !$request->evidence_url) {
-            return response()->json(['status' => 'error', 'message' => 'Surat keterangan sakit wajib dilampirkan.'], 400);
+        // Sakit wajib bukti
+        if ($request->type === 'sakit' && !$request->hasFile('evidence_url')) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Surat keterangan sakit wajib dilampirkan.'
+            ], 422);
+        }
+
+        $evidenceUrl = null;
+
+        if ($request->hasFile('evidence_url')) {
+            $file = $request->file('evidence_url');
+            $mime = $file->getMimeType();
+            $filename = 'exception_' . $user->id . '_' . time();
+
+            if ($mime === 'application/pdf') {
+                // PDF: simpan langsung, max 10MB (sudah divalidasi)
+                $storagePath = $file->storeAs('exception_evidence', $filename . '.pdf', 'public');
+            } else {
+                // Image: compress dengan Intervention Image v4
+                $manager = new ImageManager(new Driver());
+                $image   = $manager->decode(file_get_contents($file->getRealPath()));
+
+                // Resize jika lebar > 1920px
+                if ($image->width() > 1920) {
+                    $image->scaleDown(width: 1920);
+                }
+
+                // Encode ke JPEG 80% quality
+                $encoded = $image->encode(new JpegEncoder(quality: 80));
+
+                // Cek ukuran hasil kompresi — jika masih > 2MB, turunkan quality
+                if (strlen((string) $encoded) > 2 * 1024 * 1024) {
+                    $encoded = $image->encode(new JpegEncoder(quality: 60));
+                }
+
+                $storagePath = 'exception_evidence/' . $filename . '.jpg';
+                Storage::disk('public')->put($storagePath, (string) $encoded);
+            }
+
+            $evidenceUrl = config('app.url') . Storage::url($storagePath);
         }
 
         $exception = Exception::create([
-            'user_id' => $user->id,
-            'type' => $request->type,
-            'permission_date' => $request->permission_date,
+            'user_id'          => $user->id,
+            'type'             => $request->type,
+            'permission_date'  => $request->permission_date,
             'replacement_date' => $request->replacement_date,
-            'description' => $request->description,
-            'evidence_url' => $request->evidence_url,
-            'status' => 'pending'
+            'description'      => $request->description,
+            'evidence_url'     => $evidenceUrl,
+            'status'           => 'pending',
         ]);
 
         AuditLog::record(
-            $user->id, 
-            $user->role, 
-            'Pengajuan Pengecualian (Izin/Sakit)', 
+            $user->id,
+            $user->role,
+            'Pengajuan Pengecualian (Izin/Sakit)',
             $exception->toArray()
         );
 
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'message' => 'Berhasil mengajukan Exception.',
-            'data' => $exception
+            'data'    => $exception
         ], 201);
     }
 
@@ -90,16 +131,15 @@ class ExceptionController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $user = Auth::user();
+        $user      = Auth::user();
         $exception = Exception::findOrFail($id);
         $old_values = $exception->toArray();
 
         if ($user->role === 'intern') {
-             return response()->json(['status' => 'error', 'message' => 'Hanya Admin yang berhak memproses pengajuan.'], 403);
+            return response()->json(['status' => 'error', 'message' => 'Hanya Admin yang berhak memproses pengajuan.'], 403);
         }
 
         if ($user->role === 'admin') {
-            // Ensure admin only processes from own division
             $intern = $exception->user;
             if ($intern && $intern->division_id !== $user->division_id) {
                 return response()->json(['status' => 'error', 'message' => 'Karyawan ini di luar divisi Anda.'], 403);
@@ -111,24 +151,24 @@ class ExceptionController extends Controller
         ]);
 
         $exception->update([
-            'status' => $request->status,
+            'status'       => $request->status,
             'evaluated_by' => $user->id,
-            'processed_at' => now()
+            'processed_at' => now(),
         ]);
 
         AuditLog::record(
-            $user->id, 
-            $user->role, 
-            'Proses Pengajuan (Approve/Reject)', 
-            $exception->fresh()->toArray(), 
+            $user->id,
+            $user->role,
+            'Proses Pengajuan (Approve/Reject)',
+            $exception->fresh()->toArray(),
             $old_values,
             $exception->user_id
         );
 
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'message' => "Pengajuan berhasil di-{$request->status}.",
-            'data' => $exception
+            'data'    => $exception
         ]);
     }
 
@@ -137,7 +177,7 @@ class ExceptionController extends Controller
      */
     public function destroy($id)
     {
-        $user = Auth::user();
+        $user      = Auth::user();
         $exception = Exception::findOrFail($id);
 
         if ($user->role === 'intern' && $exception->status !== 'pending') {
@@ -145,7 +185,7 @@ class ExceptionController extends Controller
         }
 
         if ($user->role === 'intern' && $exception->user_id !== $user->id) {
-             return response()->json(['status' => 'error', 'message' => 'Anda hanya bisa menghapus pengajuan milik sendiri.'], 403);
+            return response()->json(['status' => 'error', 'message' => 'Anda hanya bisa menghapus pengajuan milik sendiri.'], 403);
         }
 
         if ($user->role === 'admin') {
@@ -155,22 +195,27 @@ class ExceptionController extends Controller
             }
         }
 
-        $old_values = $exception->toArray();
-        $targetId = $exception->user_id;
+        // Hapus file dari storage jika ada
+        if ($exception->evidence_url) {
+            $path = str_replace(config('app.url') . '/storage/', '', $exception->evidence_url);
+            Storage::disk('public')->delete($path);
+        }
 
+        $old_values = $exception->toArray();
+        $targetId   = $exception->user_id;
         $exception->delete();
 
         AuditLog::record(
-            $user->id, 
-            $user->role, 
-            'Hapus Pengajuan', 
-            null, 
+            $user->id,
+            $user->role,
+            'Hapus Pengajuan',
+            null,
             $old_values,
             $targetId
         );
 
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'message' => 'Data pengajuan berhasil dihapus.'
         ]);
     }

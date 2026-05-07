@@ -36,7 +36,7 @@ class InternDashboardController extends Controller
         // ── 3. SHIFT INFO: real data from schedules table ────────────────────
         // Get all interns in the same division (excluding self)
         $divisionUsers = User::where('division_id', $intern->division_id)
-            ->whereIn('role', ['intern', 'user'])
+            ->whereIn('role', ['intern'])
             ->where('is_verified', true)
             ->where('id', '!=', $intern->id)
             ->get(['id', 'full_name']);

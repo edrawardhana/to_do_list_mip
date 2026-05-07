@@ -74,6 +74,32 @@ class DailyTaskController extends Controller
 
         $tasks = $query->orderBy('created_at', 'desc')->get();
 
+        // Resolve confirmed_participants IDs → full profile objects for display
+        $allParticipantIds = $tasks
+            ->pluck('confirmed_participants')
+            ->flatten()
+            ->filter()
+            ->unique()
+            ->values();
+
+        $participantProfiles = [];
+        if ($allParticipantIds->isNotEmpty()) {
+            $participantProfiles = User::whereIn('id', $allParticipantIds)
+                ->get(['id', 'full_name', 'avatar_url'])
+                ->keyBy('id');
+        }
+
+        $tasks = $tasks->map(function ($task) use ($participantProfiles) {
+            $participants = collect($task->confirmed_participants ?? [])
+                ->map(fn($id) => isset($participantProfiles[$id])
+                    ? ['id' => $id, 'full_name' => $participantProfiles[$id]->full_name, 'avatar_url' => $participantProfiles[$id]->avatar_url]
+                    : ['id' => $id, 'full_name' => 'Intern', 'avatar_url' => null]
+                )->values();
+
+            $task->participants_detail = $participants;
+            return $task;
+        });
+
         return response()->json([
             'status' => 'success',
             'data' => $tasks
@@ -228,7 +254,7 @@ class DailyTaskController extends Controller
         $task = DailyTask::findOrFail($id);
 
         // Only interns / users can submit logbook (admins use update() for approval)
-        if (!in_array($user->role, ['intern', 'user'])) {
+        if ($user->role !== 'intern') {
             return response()->json(['status' => 'error', 'message' => 'Hanya intern yang dapat mengirim laporan tugas.'], 403);
         }
 
@@ -243,26 +269,45 @@ class DailyTaskController extends Controller
         }
 
         $request->validate([
-            'description'  => 'required|string',
-            'evidence_url' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:10240', // 10 MB, image only
+            'description'             => 'required|string',
+            'evidence_url'            => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:10240',
+            'confirmed_participants'  => 'nullable|string', // JSON string dari FormData
         ]);
 
         $old_values = $task->toArray();
+
+        // Parse confirmed_participants — dikirim sebagai JSON string dari FormData
+        $participants = [];
+        if ($request->has('confirmed_participants')) {
+            $decoded = json_decode($request->confirmed_participants, true);
+            if (is_array($decoded)) {
+                $participants = $decoded;
+            }
+        }
+
         $data = [
-            'description' => $request->description,
-            'status'      => 'pending',  // reset to pending so admin can re-review
+            'description'            => $request->description,
+            'status'                 => 'pending',
+            'confirmed_participants' => $participants,
         ];
 
         // Handle image upload with compression
         if ($request->hasFile('evidence_url') && $request->file('evidence_url')->isValid()) {
             $file = $request->file('evidence_url');
             
-            // Check if evidence_url is already locked (first upload already done)
-            if ($task->evidence_url) {
+            // Block re-upload ONLY if already has evidence AND task is NOT in revision status
+            // Revision tasks are explicitly allowed to replace their evidence photo
+            if ($task->evidence_url && $task->status !== 'revision') {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Bukti foto sudah terkunci dan tidak dapat diubah. Hubungi Admin jika ada kesalahan.'
                 ], 403);
+            }
+
+            // Delete old evidence file if replacing (revision case)
+            if ($task->evidence_url) {
+                $oldPath = str_replace('/storage/', '', parse_url($task->evidence_url, PHP_URL_PATH));
+                Storage::disk('public')->delete($oldPath);
             }
 
             // Generate unique filename

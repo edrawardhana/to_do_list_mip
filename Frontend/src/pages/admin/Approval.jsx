@@ -71,12 +71,13 @@ const Approval = () => {
       setPendingTasks(
         tData.filter(t => t.status === 'pending').map(t => ({
           ...t,
-          internName: t.uploader?.full_name || "Intern",
-          division:   t.uploader?.division?.name || t.division?.name || "—",
-          taskTitle:  t.taskTemplate?.title || t.template?.title || "Tugas Harian",
-          notes:      t.description,
-          photo:      t.evidence_url,
-          submittedAt: t.created_at,
+          internName:          t.uploader?.full_name || "Intern",
+          division:            t.uploader?.division?.name || t.division?.name || "—",
+          taskTitle:           t.taskTemplate?.title || t.template?.title || "Tugas Harian",
+          notes:               t.description,
+          photo:               t.evidence_url,
+          submittedAt:         t.created_at,
+          participants_detail: t.participants_detail || [],
         }))
       );
       setPendingLeaves(
@@ -317,6 +318,28 @@ const Approval = () => {
                       <p className="text-[12px] text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 font-medium italic leading-relaxed line-clamp-3">
                         "{task.notes || 'Tidak ada catatan laporan.'}"
                       </p>
+
+                      {/* Peserta / Rekan Kerja */}
+                      {task.participants_detail?.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <i className="fa-solid fa-users text-blue-400"></i> Dikerjakan Bersama
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {task.participants_detail.map((p) => (
+                              <span
+                                key={p.id}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg text-[11px] font-bold"
+                              >
+                                <span className="w-4 h-4 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-[9px] font-black shrink-0">
+                                  {p.full_name?.charAt(0) || "?"}
+                                </span>
+                                {p.full_name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Card Footer */}

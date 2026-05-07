@@ -21,7 +21,7 @@ class AdminDashboardController extends Controller
         $divisionId = $admin->division_id;
 
         // ── 1. STATS ────────────────────────────────────────────────────────
-        $totalInterns = User::whereIn('role', ['intern', 'user'])
+        $totalInterns = User::whereIn('role', ['intern'])
             ->where('division_id', $divisionId)
             ->count();
 
@@ -29,13 +29,13 @@ class AdminDashboardController extends Controller
             ->where('status', 'pending')
             ->count();
 
-        $pendingUsers = User::whereIn('role', ['intern', 'user'])
+        $pendingUsers = User::whereIn('role', ['intern'])
             ->where('division_id', $divisionId)
             ->where('is_verified', false)
             ->count();
 
         // ── 2. PIE CHART — Top 5 interns by approved tasks ─────────────────
-        $interns = User::whereIn('role', ['intern', 'user'])
+        $interns = User::whereIn('role', ['intern'])
             ->where('division_id', $divisionId)
             ->where('is_verified', true)
             ->withCount(['dailyTasks as tasks' => function ($q) {

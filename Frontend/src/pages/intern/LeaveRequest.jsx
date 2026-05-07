@@ -1,39 +1,97 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
 
+// ── Client-side image compression ────────────────────────────────────────────
+const compressImage = (file, maxSizeMB = 2, quality = 0.8) => {
+  return new Promise((resolve) => {
+    // PDF: skip compression
+    if (file.type === 'application/pdf') { resolve(file); return; }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+
+        // Scale down jika lebar > 1920px
+        if (width > 1920) {
+          height = Math.round((height * 1920) / width);
+          width = 1920;
+        }
+
+        canvas.width  = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+        const tryCompress = (q) => {
+          canvas.toBlob((blob) => {
+            if (!blob) { resolve(file); return; }
+            // Jika masih > maxSizeMB dan quality masih bisa diturunkan
+            if (blob.size > maxSizeMB * 1024 * 1024 && q > 0.4) {
+              tryCompress(q - 0.15);
+            } else {
+              const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
+              resolve(compressed);
+            }
+          }, 'image/jpeg', q);
+        };
+
+        tryCompress(quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+const formatSize = (bytes) => {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+};
+
 const LeaveRequest = () => {
   const { user } = useAuth();
-  
+
   const currentUser = user ? {
     id: user.id,
     name: user.full_name || user.email?.split('@')[0] || "Anak Magang",
     division: user.division?.name || user.division_name || "IT Support"
   } : { id: "1", name: "Kiel", division: "IT Support" };
 
-  // State Form
-  const [leaveType, setLeaveType] = useState("sakit");
+  const [leaveType, setLeaveType]           = useState("sakit");
   const [permissionDate, setPermissionDate] = useState("");
   const [replacementDate, setReplacementDate] = useState("");
-  const [description, setDescription] = useState("");
-  const [evidence, setEvidence] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [description, setDescription]       = useState("");
+  const [evidence, setEvidence]             = useState(null);       // compressed File
+  const [evidencePreview, setEvidencePreview] = useState(null);     // object URL for preview
+  const [compressing, setCompressing]       = useState(false);
+  const [isLoading, setIsLoading]           = useState(false);
+  const [history, setHistory]               = useState([]);
 
-  const [history, setHistory] = useState([]);
+  // Cleanup preview URL on unmount
+  useEffect(() => {
+    return () => { if (evidencePreview) URL.revokeObjectURL(evidencePreview); };
+  }, [evidencePreview]);
 
   const fetchHistory = async () => {
     try {
-      const res = await api.get('/exceptions');
+      const res  = await api.get('/exceptions');
       const data = res.data?.data || res.data || [];
       setHistory(data.map(item => ({
-        id: item.id,
-        type: item.type === 'swap_shift' ? 'Swap Shift' : item.type === 'tugas_luar' ? 'Tugas Luar' : item.type === 'izin' ? 'Izin Biasa' : 'Sakit',
+        id:      item.id,
+        type:    item.type === 'swap_shift' ? 'Swap Shift'
+               : item.type === 'tugas_luar' ? 'Tugas Luar'
+               : item.type === 'izin'       ? 'Izin Biasa'
+               : 'Sakit',
         rawType: item.type,
-        status: item.status,
-        date: new Date(item.permission_date).toLocaleDateString('id-ID', { dateStyle: 'medium' }),
-        note: item.description,
-        proof: item.evidence_url,
+        status:  item.status,
+        date:    new Date(item.permission_date).toLocaleDateString('id-ID', { dateStyle: 'medium' }),
+        note:    item.description,
+        proof:   item.evidence_url,
       })));
     } catch (error) {
       console.error("Gagal memuat riwayat izin:", error);
@@ -42,28 +100,81 @@ const LeaveRequest = () => {
 
   useEffect(() => { fetchHistory(); }, []);
 
+  // Handle file selection + compress
+  const handleFileChange = async (file) => {
+    if (!file) return;
+
+    const isPdf = file.type === 'application/pdf';
+    const maxRaw = 10 * 1024 * 1024; // 10MB raw limit
+
+    if (file.size > maxRaw) {
+      toast.error('File terlalu besar. Maksimal 10MB.');
+      return;
+    }
+
+    if (isPdf) {
+      // PDF: langsung pakai, max 10MB (backend juga validasi)
+      setEvidence(file);
+      setEvidencePreview(null);
+      toast.success(`PDF dipilih: ${formatSize(file.size)}`);
+      return;
+    }
+
+    // Image: compress
+    setCompressing(true);
+    try {
+      const compressed = await compressImage(file, 2, 0.8);
+      setEvidence(compressed);
+      // Revoke old preview
+      if (evidencePreview) URL.revokeObjectURL(evidencePreview);
+      setEvidencePreview(URL.createObjectURL(compressed));
+
+      const saved = file.size - compressed.size;
+      if (saved > 0) {
+        toast.success(`Foto dikompres: ${formatSize(file.size)} → ${formatSize(compressed.size)}`);
+      } else {
+        toast.success(`Foto dipilih: ${formatSize(compressed.size)}`);
+      }
+    } catch {
+      toast.error('Gagal memproses gambar.');
+    } finally {
+      setCompressing(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (leaveType === 'sakit' && !evidence) {
+      toast.error('Surat keterangan sakit wajib dilampirkan.');
+      return;
+    }
+
     setIsLoading(true);
-    
     const formData = new FormData();
     formData.append("type", leaveType);
     formData.append("permission_date", permissionDate);
     if (leaveType === "swap_shift") formData.append("replacement_date", replacementDate);
     formData.append("description", description);
     if (evidence) formData.append("evidence_url", evidence);
-    // For sakit, evidence is required — backend will validate this
 
     try {
       await api.post('/exceptions', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       toast.success("Pengajuan berhasil dikirim!");
-      setPermissionDate(""); setReplacementDate(""); setDescription(""); setEvidence(null);
+      setPermissionDate(""); setReplacementDate(""); setDescription("");
+      setEvidence(null);
+      if (evidencePreview) { URL.revokeObjectURL(evidencePreview); setEvidencePreview(null); }
       fetchHistory();
     } catch (error) {
       toast.error(error.response?.data?.message || "Gagal mengirim pengajuan");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const removeEvidence = () => {
+    setEvidence(null);
+    if (evidencePreview) { URL.revokeObjectURL(evidencePreview); setEvidencePreview(null); }
   };
 
   return (
@@ -166,30 +277,76 @@ const LeaveRequest = () => {
               </div>
 
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">Bukti Foto {leaveType === 'sakit' && <span className="text-rose-500">*</span>}</label>
-                <label className="w-full border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:bg-slate-50 cursor-pointer transition-colors group block">
-                  {evidence ? (
+                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">
+                  Bukti Foto / Surat {leaveType === 'sakit' && <span className="text-rose-500">*</span>}
+                </label>
+
+                {/* Drop zone */}
+                <label className={`w-full border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors group block ${
+                  compressing ? 'border-blue-300 bg-blue-50/50' :
+                  evidence    ? 'border-emerald-300 bg-emerald-50/30 hover:bg-emerald-50' :
+                                'border-slate-200 hover:bg-slate-50 hover:border-blue-300'
+                }`}>
+                  {compressing ? (
+                    <div className="flex flex-col items-center gap-2 py-2">
+                      <i className="fa-solid fa-circle-notch fa-spin text-2xl text-blue-500" />
+                      <p className="text-xs font-bold text-blue-600">Mengompres gambar...</p>
+                    </div>
+                  ) : evidence ? (
                     <div className="flex items-center gap-3 justify-center">
-                      <img src={URL.createObjectURL(evidence)} alt="preview" className="w-16 h-16 object-cover rounded-xl border border-slate-200" />
-                      <div className="text-left">
-                        <p className="text-xs font-bold text-slate-700">{evidence.name}</p>
-                        <p className="text-[10px] text-slate-400">{(evidence.size / 1024).toFixed(0)} KB</p>
+                      {evidencePreview ? (
+                        <img src={evidencePreview} alt="preview" className="w-16 h-16 object-cover rounded-xl border border-slate-200 shrink-0" />
+                      ) : (
+                        <div className="w-16 h-16 bg-red-50 rounded-xl border border-red-200 flex items-center justify-center shrink-0">
+                          <i className="fa-solid fa-file-pdf text-2xl text-red-500" />
+                        </div>
+                      )}
+                      <div className="text-left flex-1 min-w-0">
+                        <p className="text-xs font-bold text-slate-700 truncate">{evidence.name}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">{formatSize(evidence.size)}</p>
+                        <p className="text-[10px] text-emerald-600 font-bold mt-0.5">
+                          <i className="fa-solid fa-check mr-1" />
+                          {evidence.size <= 2 * 1024 * 1024 ? 'Ukuran OK (≤ 2MB)' : 'File siap dikirim'}
+                        </p>
                       </div>
                     </div>
                   ) : (
                     <>
-                      <i className="fa-solid fa-camera text-2xl text-slate-300 group-hover:text-blue-500 mb-2 block" />
-                      <p className="text-[11px] font-bold text-slate-500">Ambil Foto dari Kamera HP / Upload</p>
-                      <p className="text-[10px] text-slate-400 mt-1">JPG, PNG — Maks 5MB</p>
+                      <i className="fa-solid fa-cloud-arrow-up text-2xl text-slate-300 group-hover:text-blue-500 mb-2 block transition-colors" />
+                      <p className="text-[11px] font-bold text-slate-500">Klik untuk upload atau ambil foto</p>
+                      <p className="text-[10px] text-slate-400 mt-1">JPG, PNG, WEBP, PDF — Foto dikompres otomatis ≤ 2MB</p>
                     </>
                   )}
-                  <input type="file" className="hidden" accept="image/*" capture="environment" onChange={e => setEvidence(e.target.files[0])} />
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf"
+                    capture="environment"
+                    onChange={e => { if (e.target.files[0]) handleFileChange(e.target.files[0]); e.target.value = ''; }}
+                  />
                 </label>
-                {/* Tambahan: pilih dari galeri tanpa kamera */}
-                <label className="mt-2 flex items-center justify-center gap-2 text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer">
-                  <i className="fa-solid fa-images" /> Atau pilih dari galeri
-                  <input type="file" className="hidden" accept="image/*" onChange={e => setEvidence(e.target.files[0])} />
-                </label>
+
+                {/* Tombol pilih dari galeri + hapus */}
+                <div className="mt-2 flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer">
+                    <i className="fa-solid fa-images" /> Pilih dari galeri
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf"
+                      onChange={e => { if (e.target.files[0]) handleFileChange(e.target.files[0]); e.target.value = ''; }}
+                    />
+                  </label>
+                  {evidence && (
+                    <button
+                      type="button"
+                      onClick={removeEvidence}
+                      className="ml-auto text-[11px] font-bold text-rose-500 hover:text-rose-600 flex items-center gap-1"
+                    >
+                      <i className="fa-solid fa-trash-can" /> Hapus
+                    </button>
+                  )}
+                </div>
               </div>
 
               <button 

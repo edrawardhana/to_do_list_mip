@@ -23,7 +23,8 @@ const ProtectedRoute = ({ children, roles }) => {
   }
 
   // 3. NORMALISASI ROLE
-  const currentRole = user?.role?.toLowerCase().replace("_", "").trim();
+  const rawRole = user?.role?.toLowerCase().replace(/_|\s/g, "").trim();
+  const currentRole = rawRole;
 
   // 4. INTERN BELUM VERIFIKASI
   if (currentRole === "intern" && !user?.is_verified && location.pathname !== "/dashboard") {
@@ -31,17 +32,9 @@ const ProtectedRoute = ({ children, roles }) => {
   }
 
   // =========================================================
-  // 5. PERBAIKAN DI SINI: SINKRONISASI PATH LOCK
+  // 5. LOCK CHECK — ditangani oleh SelectiveLockGuard
+  //    ProtectedRoute hanya handle role authorization
   // =========================================================
-  if (isLocked) {
-    // Tambahin '/leave-request' ke daftar yang boleh dibuka pas akun kena gembok
-    const allowedLockedPaths = ["/leave-request", "/forbidden"]; 
-    
-    // Cek path tanpa slash di awal atau pake full path biar akurat
-    if (!allowedLockedPaths.includes(location.pathname)) {
-      return <Navigate to="/leave-request" replace />;
-    }
-  }
 
   // 6. CEK KASTA (ROLE AUTHORIZATION)
   if (roles && !roles.includes(currentRole)) {

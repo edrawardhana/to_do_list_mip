@@ -42,7 +42,7 @@ return new class extends Migration
             $table->foreignUuid('division_id')->constrained('divisions')->cascadeOnDelete();
             $table->string('full_name');
             $table->string('email')->unique();
-            $table->enum('role', ['user', 'admin', 'super_admin', 'developer']);
+            $table->enum('role', ['intern', 'admin', 'super_admin', 'developer']);
             $table->enum('shift', ['pagi', 'middle', 'siang']);
             $table->boolean('is_locked')->default(false);
         });

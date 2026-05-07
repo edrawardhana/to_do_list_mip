@@ -29,6 +29,7 @@ export default function ManageSchedulesCalendar() {
   const [schedules, setSchedules] = useState([]);
   const [interns, setInterns] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [selectedIntern, setSelectedIntern] = useState('');
@@ -76,7 +77,8 @@ export default function ManageSchedulesCalendar() {
       setSchedules(monthSchedules);
     } catch (error) {
       console.error('Error fetching schedules:', error);
-      toast.error('Gagal memuat jadwal');
+      const msg = error.response?.data?.message || error.message || 'Gagal memuat jadwal';
+      toast.error(msg);
     }
   };
 
@@ -84,19 +86,26 @@ export default function ManageSchedulesCalendar() {
     try {
       const response = await api.get('/profiles');
       const allProfiles = response.data.data || [];
-      const internList = allProfiles.filter(u => u.role === 'intern' || u.role === 'user');
+      const internList = allProfiles.filter(u => u.role === 'intern');
       setInterns(internList);
     } catch (error) {
       console.error('Error fetching interns:', error);
-      toast.error('Gagal memuat data intern');
+      const msg = error.response?.data?.message || error.message || 'Gagal memuat data intern';
+      toast.error(msg);
     }
   };
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchSchedules(), fetchInterns()]);
-      setLoading(false);
+      setLoadError(false);
+      try {
+        await Promise.all([fetchSchedules(), fetchInterns()]);
+      } catch {
+        setLoadError(true);
+      } finally {
+        setLoading(false);
+      }
     };
     loadData();
   }, [currentMonth]);
@@ -184,24 +193,65 @@ export default function ManageSchedulesCalendar() {
     const tid = toast.loading('Menyimpan jadwal...');
     try {
       const { year, month } = getDaysInMonth(currentMonth);
-      const promises = [];
 
+      // Build operations list
+      const ops = [];
       for (const [day, shiftType] of Object.entries(bulkSchedules)) {
         const dateStr = `${year}-${padDate(month + 1)}-${padDate(parseInt(day))}`;
         const existing = getScheduleForDate(selectedIntern, parseInt(day));
 
         if (shiftType === null && existing) {
-          promises.push(api.delete(`/schedules/${existing.id}`));
-        } else if (shiftType && existing) {
-          if (existing.shift_type !== shiftType)
-            promises.push(api.put(`/schedules/${existing.id}`, { shift_type: shiftType }));
+          ops.push({ type: 'delete', id: existing.id });
+        } else if (shiftType && existing && existing.shift_type !== shiftType) {
+          ops.push({ type: 'update', id: existing.id, shift_type: shiftType });
         } else if (shiftType && !existing) {
-          promises.push(api.post('/schedules', { user_id: selectedIntern, shift_date: dateStr, shift_type: shiftType }));
+          ops.push({ type: 'create', user_id: selectedIntern, shift_date: dateStr, shift_type: shiftType });
         }
       }
 
-      await Promise.all(promises);
-      toast.success('Jadwal berhasil disimpan', { id: tid });
+      if (ops.length === 0) {
+        toast.success('Tidak ada perubahan', { id: tid });
+        setShowBulkModal(false);
+        return;
+      }
+
+      // Execute sequentially to avoid race conditions / duplicate errors
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const op of ops) {
+        try {
+          if (op.type === 'delete') {
+            await api.delete(`/schedules/${op.id}`);
+          } else if (op.type === 'update') {
+            await api.put(`/schedules/${op.id}`, { shift_type: op.shift_type });
+          } else if (op.type === 'create') {
+            await api.post('/schedules', {
+              user_id: op.user_id,
+              shift_date: op.shift_date,
+              shift_type: op.shift_type,
+            });
+          }
+          successCount++;
+        } catch (err) {
+          // Skip duplicates (400) silently, log other errors
+          const status = err.response?.status;
+          const msg = err.response?.data?.message || '';
+          if (status === 400 && msg.includes('sudah ada')) {
+            successCount++; // Already exists = effectively success
+          } else {
+            console.error('Bulk op error:', op, err.response?.data);
+            errorCount++;
+          }
+        }
+      }
+
+      if (errorCount === 0) {
+        toast.success(`${successCount} jadwal berhasil disimpan`, { id: tid });
+      } else {
+        toast.success(`${successCount} berhasil, ${errorCount} gagal`, { id: tid });
+      }
+
       setShowBulkModal(false);
       await fetchSchedules();
     } catch (error) {
@@ -230,6 +280,24 @@ export default function ManageSchedulesCalendar() {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <i className="fa-solid fa-triangle-exclamation text-4xl text-amber-500"></i>
+          <p className="text-slate-700 font-bold">Gagal memuat data jadwal</p>
+          <p className="text-slate-500 text-sm">Periksa koneksi atau coba lagi</p>
+          <button
+            onClick={() => setCurrentMonth(new Date(currentMonth))}
+            className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+          >
+            <i className="fa-solid fa-arrows-rotate mr-2"></i>Coba Lagi
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
       <div className="max-w-[1600px] mx-auto">
@@ -251,6 +319,13 @@ export default function ManageSchedulesCalendar() {
               <h2 className="text-xl font-bold text-slate-800 min-w-[200px] text-center">{monthName}</h2>
               <button onClick={nextMonth} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                 <i className="fa-solid fa-chevron-right text-slate-600"></i>
+              </button>
+              <button
+                onClick={() => { fetchSchedules(); fetchInterns(); }}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-blue-600"
+                title="Refresh data"
+              >
+                <i className="fa-solid fa-arrows-rotate text-sm"></i>
               </button>
             </div>
 

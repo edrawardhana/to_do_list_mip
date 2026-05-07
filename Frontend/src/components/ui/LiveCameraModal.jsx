@@ -12,18 +12,22 @@ const SharedTaskTagging = ({ currentUser, onTagsChange }) => {
   const [taggedUsers, setTaggedUsers] = useState([currentUser]);
   const [colleagues, setColleagues]   = useState([]);
 
-  // Fetch intern satu divisi dari API
+  // Fetch intern satu divisi dari API (backend sudah filter by division otomatis untuk intern)
   useEffect(() => {
     const fetchColleagues = async () => {
       try {
-        const res = await api.get("/profiles", { params: { role: "intern" } });
+        const res = await api.get("/profiles");
         const list = res.data?.data || res.data || [];
-        // Exclude diri sendiri
-        setColleagues(list.filter(p => p.id !== currentUser.id).map(p => ({
-          id:       p.id,
-          name:     p.full_name || p.username || p.email?.split("@")[0] || "Intern",
-          division: p.division?.name || "",
-        })));
+        // Exclude diri sendiri, hanya tampilkan intern
+        setColleagues(
+          list
+            .filter(p => p.id !== currentUser.id && p.role === 'intern')
+            .map(p => ({
+              id:       p.id,
+              name:     p.full_name || p.username || p.email?.split("@")[0] || "Intern",
+              division: p.division?.name || "",
+            }))
+        );
       } catch {
         // Gagal fetch — biarkan kosong, tidak crash
       }
@@ -83,11 +87,14 @@ const SharedTaskTagging = ({ currentUser, onTagsChange }) => {
           <div className="absolute bottom-full mb-2 z-10 w-full bg-white border border-slate-200 rounded-xl shadow-xl max-h-40 overflow-y-auto">
             {filteredOptions.map(user => (
               <div key={user.id} onClick={() => addTag(user)}
-                className="px-4 py-2.5 hover:bg-blue-50 cursor-pointer flex items-center gap-3 border-b border-slate-50">
-                <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold">
-                  {(user.name || "R").charAt(0)}
+                className="px-4 py-2.5 hover:bg-blue-50 cursor-pointer flex items-center gap-3 border-b border-slate-50 last:border-0">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[11px] font-bold shrink-0">
+                  {(user.name || "R").charAt(0).toUpperCase()}
                 </div>
-                <span className="text-sm font-semibold text-slate-700">{user.name}</span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-700">{user.name}</p>
+                  {user.division && <p className="text-[10px] text-slate-400">{user.division}</p>}
+                </div>
               </div>
             ))}
           </div>

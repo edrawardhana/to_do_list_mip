@@ -56,16 +56,19 @@ function App() {
 
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-            {/* --- JALUR KEBAL GEMBOK --- */}
+            {/* --- JALUR KEBAL GEMBOK (selalu bisa diakses intern) --- */}
             <Route path="leave-request" element={<LeaveRequest />} />
             <Route path="forbidden" element={<LockedPage />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="my-schedule" element={
+              <ProtectedRoute roles={["intern"]}>
+                <MySchedule />
+              </ProtectedRoute>
+            } />
 
-            {/* --- JALUR TERGEMBOK --- */}
+            {/* --- JALUR TERGEMBOK (dibatasi saat OFF/cuti) --- */}
             <Route element={<SelectiveLockGuard />}>
-
-              {/* Universal */}
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="settings" element={<Settings />} />
 
               {/* Multi-Role (Tugas) */}
               <Route path="tasks" element={
@@ -76,13 +79,8 @@ function App() {
 
               {/* Khusus Intern: Kerjakan Tugas */}
               <Route path="logbook" element={
-                <ProtectedRoute roles={["intern", "user"]}>
+                <ProtectedRoute roles={["intern"]}>
                   <InternLogbook />
-                </ProtectedRoute>
-              } />
-              <Route path="my-schedule" element={
-                <ProtectedRoute roles={["intern", "user"]}>
-                  <MySchedule />
                 </ProtectedRoute>
               } />
               <Route path="whitebook" element={

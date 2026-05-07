@@ -27,8 +27,8 @@ const ManageAccountIntern = () => {
       
       const data = res.data?.data || res.data || [];
       
-      // Filter murni HANYA role intern/user (Mencegah admin/superadmin masuk ke tabel ini)
-      const internsData = data.filter(u => u.role === 'intern' || u.role === 'user');
+      // Filter murni HANYA role intern
+      const internsData = data.filter(u => u.role === 'intern');
       
       const normalized = internsData.map(i => ({
         ...i,

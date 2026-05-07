@@ -29,11 +29,47 @@ class DailyTask extends Model
     ];
 
     protected $casts = [
-        'confirmed_participants' => 'array',
+        // confirmed_participants is NOT here — handled by mutator/accessor below
+        // Adding 'array' cast here would override the mutator and break PostgreSQL jsonb binding
         'is_archived' => 'boolean',
-        'task_date' => 'date',
+        'task_date'   => 'date',
         'captured_at' => 'datetime',
     ];
+
+    /**
+     * SETTER: encode ke JSON string sebelum disimpan.
+     * Kolom bertipe jsonb — PDO butuh string JSON yang valid,
+     * bukan PHP array mentah (yang akan di-bind sebagai text[] oleh driver).
+     */
+    public function setConfirmedParticipantsAttribute(mixed $value): void
+    {
+        if (is_null($value)) {
+            $this->attributes['confirmed_participants'] = json_encode([]);
+            return;
+        }
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            $this->attributes['confirmed_participants'] = json_encode(
+                is_array($decoded) ? array_values($decoded) : []
+            );
+            return;
+        }
+        $arr = is_object($value) && method_exists($value, 'toArray')
+            ? $value->toArray()
+            : (array) $value;
+        $this->attributes['confirmed_participants'] = json_encode(array_values($arr));
+    }
+
+    /**
+     * GETTER: selalu kembalikan PHP array.
+     */
+    public function getConfirmedParticipantsAttribute(mixed $value): array
+    {
+        if (is_null($value) || $value === '') return [];
+        if (is_array($value)) return $value;
+        $decoded = json_decode($value, true);
+        return is_array($decoded) ? $decoded : [];
+    }
 
     public function uploader()
     {

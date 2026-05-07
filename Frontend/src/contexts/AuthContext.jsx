@@ -6,27 +6,57 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
+  const [todayShift, setTodayShift] = useState(null);      // null = belum load, false = tidak ada jadwal, object = ada jadwal
+  const [shiftLoading, setShiftLoading] = useState(false);
 
   useEffect(() => {
-    // Ambil token dan data user asli dari localStorage saat aplikasi pertama kali dimuat
     const token = localStorage.getItem("jwt_token");
     let savedUser = localStorage.getItem("user_data");
     
-    // Validasi tambahan agar string "undefined" atau "null" ditolak dan dibersihkan
     if (token && savedUser && token !== "undefined" && savedUser !== "undefined" && savedUser !== "null") {
       savedUser = JSON.parse(savedUser);
-      
       setUser(savedUser);
     } else {
-      // Bersihkan state jika salah satu tidak ada agar terhindar dari bug sesi nyangkut
       localStorage.removeItem("jwt_token");
       localStorage.removeItem("user_data");
     }
     setLoading(false);
   }, []);
 
-  // Fungsi Login: Menerima token & userData dari API axios Login.jsx
+  // Fetch jadwal hari ini setelah user tersedia dan role-nya intern
+  useEffect(() => {
+    const role = user?.role?.toLowerCase().replace(/_|\s/g, "") || "";
+    const isIntern = role === "intern";
+
+    if (!user || !isIntern) {
+      setTodayShift(null);
+      setShiftLoading(false); // non-intern: tidak perlu fetch
+      return;
+    }
+
+    const fetchTodayShift = async () => {
+      setShiftLoading(true);
+      try {
+        const today = new Date();
+        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const response = await api.get("/schedules");
+        const allSchedules = response.data.data || [];
+        const todayEntry = allSchedules.find(s => {
+          const d = s.shift_date ? s.shift_date.substring(0, 10) : "";
+          return d === dateStr;
+        });
+        setTodayShift(todayEntry || false); // false = tidak ada jadwal hari ini
+      } catch {
+        setTodayShift(null); // error → jangan blokir akses
+      } finally {
+        setShiftLoading(false);
+      }
+    };
+
+    fetchTodayShift();
+  }, [user]);
+
   const login = (token, userData) => {
     localStorage.setItem("jwt_token", token);
     localStorage.setItem("user_data", JSON.stringify(userData));
@@ -34,20 +64,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    // Hapus sesi nyata JWT
     localStorage.removeItem("jwt_token");
     localStorage.removeItem("user_data");
     setUser(null);
     window.location.href = "/login";
   };
 
-  // Fungsi Register (Dipanggil dari Register.jsx)
   const register = async (username, division_id, email, password) => {
     setLoading(true);
     try {
       const response = await api.post('/auth/register', { username, division_id, email, password });
       const resData = response.data?.data || response.data;
-      // Jika backend merespons dengan token setelah daftar, langsung login-kan:
       if (resData.access_token || resData.token) {
         login(resData.access_token || resData.token, resData.user || resData.profile);
       }
@@ -63,11 +90,10 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (newData) => {
     setLoading(true);
     try {
-      // Hit API Backend untuk update profil (misal ubah nickname di Settings)
-      const response = await api.put('/auth/profile', newData); // Sesuaikan endpoint dengan backend
+      const response = await api.put('/auth/profile', newData);
       const updatedUser = { ...user, ...newData, ...(response.data?.user || response.data?.data || {}) };
       setUser(updatedUser);
-      localStorage.setItem("user_data", JSON.stringify(updatedUser)); 
+      localStorage.setItem("user_data", JSON.stringify(updatedUser));
       return { success: true, message: "Profil diperbarui!" };
     } catch (error) {
       console.error(error);
@@ -78,23 +104,32 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = useMemo(() => {
-    // Role sudah otomatis bersih/dinormalisasi saat login di atas
     const role = user?.role || "";
-    
-    const isIntern = role === "user" || role === "intern";
-    const isAdmin = role === "admin";
-    const isSuperAdmin = role === "super_admin"; 
-    const isDeveloper = role === "developer";
-    
-    const isAnyAdmin = isAdmin || isSuperAdmin || isDeveloper;
+    const isIntern     = role === "intern";
+    const isAdmin      = role === "admin";
+    const isSuperAdmin = role === "super_admin";
+    const isDeveloper  = role === "developer";
+    const isAnyAdmin   = isAdmin || isSuperAdmin || isDeveloper;
 
-    // LOGIC LOCK SAKTI
-    // Di sini kuncinya: Harus Intern DAN is_locked-nya true
+    // Status shift hari ini untuk intern:
+    //   null  → masih loading / error (jangan blokir)
+    //   false → tidak ada jadwal (OFF)
+    //   obj   → ada jadwal (morning / afternoon / full/cuti)
+    const hasShiftToday   = isIntern ? (todayShift !== false && todayShift !== null) : true;
+    const isOnLeave       = isIntern ? (todayShift !== null && todayShift !== false && todayShift.shift_type === "full") : false;
+    const isOffToday      = isIntern ? (todayShift === false) : false;
+
+    // Akses terbatas: intern yang OFF atau cuti hanya boleh dashboard, jadwal, leave-request
+    const isRestrictedAccess = isIntern && (isOffToday || isOnLeave);
+
+    // is_locked tetap dipakai untuk blokir total (misal di luar jam kerja via cron)
     const isLockedStatus = isIntern && Boolean(user?.is_locked);
 
     return {
       user,
       loading,
+      shiftLoading,
+      todayShift,
       login,
       register,
       logout,
@@ -104,9 +139,13 @@ export const AuthProvider = ({ children }) => {
       isSuperAdmin,
       isDeveloper,
       isAnyAdmin,
-      isLocked: isLockedStatus, // Kita pake variable hasil cek di atas
+      isLocked: isLockedStatus,
+      hasShiftToday,
+      isOnLeave,
+      isOffToday,
+      isRestrictedAccess,
     };
-  }, [user, loading]);
+  }, [user, loading, todayShift, shiftLoading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

@@ -3,8 +3,11 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import LogoWhite from "../../assets/images/logowhite1.png";
 
+// Halaman yang tetap bisa diakses intern saat OFF/cuti
+const ALWAYS_ALLOWED_PATHS = ["/dashboard", "/my-schedule", "/leave-request", "/settings"];
+
 const Sidebar = ({ mobileOpen, setMobileOpen }) => {
-  const { user, logout, isAdmin, isSuperAdmin, isDeveloper } = useAuth();
+  const { user, logout, isAdmin, isSuperAdmin, isDeveloper, isIntern, isRestrictedAccess } = useAuth();
 
   const menuItems = useMemo(
     () => [
@@ -23,11 +26,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
       // MANAJEMEN AKUN (Superadmin & Dev)
       { path: "/manage-admin", label: "Manage Akun", icon: "fa-user-gear", roles: ["superadmin", "developer"] },
-
-      // FITUR BARU: GABUNGAN ANALYTICS & DIVISI
       { path: "/division-analytics", label: "System Analytics", icon: "fa-chart-line", roles: ["superadmin", "developer"] },
-
-      // 👇 INI YANG UDAH DIBENERIN (Pakai 'label' bukan 'title')
       { path: "/system-config", label: "System Config", icon: "fa-server", roles: ["developer"] },
       { path: "/audit-log", label: "Audit Log", icon: "fa-clipboard-list", roles: ["admin", "superadmin", "developer"] },
 
@@ -40,12 +39,10 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
   const filteredMenu = useMemo(() => {
     const rawRole = user?.role?.toLowerCase().replace(/_|\s/g, "") || "";
-
-    if (rawRole === "developer") {
-      return menuItems.filter((item) => item.roles.includes("developer"));
-    }
-
-    return menuItems.filter((item) => item.roles.includes(rawRole));
+    // "intern" is the only intern role now
+    const effectiveRole = rawRole;
+    if (effectiveRole === "developer") return menuItems.filter((item) => item.roles.includes("developer"));
+    return menuItems.filter((item) => item.roles.includes(effectiveRole));
   }, [user, menuItems]);
 
   // 1. TEMA DEFAULT (INTERN)
@@ -59,30 +56,12 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     navActiveBorder: "bg-sky-400",
   };
 
-  // ===============================================
-  // PENGECEKAN TEMA DARI KASTA TERTINGGI KE BAWAH
-  // ===============================================
   if (isDeveloper) {
-    theme = {
-      ...theme,
-      sidebarBg: "bg-[#09090b] border-r border-zinc-800",
-      logoIconBg: "bg-zinc-600",
-      navActiveBorder: "bg-zinc-400"
-    };
+    theme = { ...theme, sidebarBg: "bg-[#09090b] border-r border-zinc-800", logoIconBg: "bg-zinc-600", navActiveBorder: "bg-zinc-400" };
   } else if (isSuperAdmin) {
-    theme = {
-      ...theme,
-      sidebarBg: "bg-[#1d1633] border-r border-purple-900/50",
-      logoIconBg: "bg-purple-600",
-      navActiveBorder: "bg-purple-400"
-    };
+    theme = { ...theme, sidebarBg: "bg-[#1d1633] border-r border-purple-900/50", logoIconBg: "bg-purple-600", navActiveBorder: "bg-purple-400" };
   } else if (isAdmin) {
-    theme = {
-      ...theme,
-      sidebarBg: "bg-[#242b4d] border-r border-blue-900/50",
-      logoIconBg: "bg-blue-600",
-      navActiveBorder: "bg-blue-400"
-    };
+    theme = { ...theme, sidebarBg: "bg-[#242b4d] border-r border-blue-900/50", logoIconBg: "bg-blue-600", navActiveBorder: "bg-blue-400" };
   }
 
   return (
@@ -104,27 +83,47 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
         {/* MENU LIST */}
         <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto custom-scrollbar">
-          {filteredMenu.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === "/dashboard"}
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm group relative ${isActive ? `${theme.navActiveBg} ${theme.navActiveText}` : theme.navNormal
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {/* Garis tanda aktif */}
-                  {isActive && <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full ${theme.navActiveBorder}`}></div>}
-                  <i className={`fa-solid ${item.icon} w-5 text-center text-[15px] transition-transform ${isActive ? "opacity-100 scale-110" : "opacity-70 group-hover:opacity-100 group-hover:scale-110"}`}></i>
+          {filteredMenu.map((item) => {
+            // Intern yang OFF/cuti: menu yang tidak diizinkan tampil redup dan tidak bisa diklik
+            const isItemRestricted = isIntern && isRestrictedAccess &&
+              !ALWAYS_ALLOWED_PATHS.includes(item.path);
+
+            if (isItemRestricted) {
+              return (
+                <div
+                  key={item.path + "-restricted"}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm opacity-30 cursor-not-allowed select-none text-white/40"
+                  title="Tidak tersedia — tidak ada jadwal hari ini"
+                >
+                  <i className={`fa-solid ${item.icon} w-5 text-center text-[15px]`}></i>
                   <span className="font-medium tracking-wide">{item.label}</span>
-                </>
-              )}
-            </NavLink>
-          ))}
+                  <i className="fa-solid fa-lock text-[10px] ml-auto opacity-60"></i>
+                </div>
+              );
+            }
+
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.path === "/dashboard"}
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm group relative ${
+                    isActive ? `${theme.navActiveBg} ${theme.navActiveText}` : theme.navNormal
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full ${theme.navActiveBorder}`}></div>}
+                    <i className={`fa-solid ${item.icon} w-5 text-center text-[15px] transition-transform ${isActive ? "opacity-100 scale-110" : "opacity-70 group-hover:opacity-100 group-hover:scale-110"}`}></i>
+                    <span className="font-medium tracking-wide">{item.label}</span>
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         {/* LOGOUT */}

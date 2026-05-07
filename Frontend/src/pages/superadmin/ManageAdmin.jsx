@@ -33,7 +33,7 @@ const ManageAdmin = () => {
         name: u.full_name || u.name || "Unknown",
         email: u.email || "",
         division: u.division?.name || u.division || "Unknown",
-        role: u.role || "user",
+        role: u.role || "intern",
         is_locked: u.is_locked || false,
       })));
       if (divsData.length > 0) setDivisionsList(divsData.map(d => d.name));
@@ -48,7 +48,7 @@ const ManageAdmin = () => {
 
   const filteredUsers = useMemo(() => {
     let data = users;
-    if (filterRole !== "semua") data = data.filter(u => filterRole === "user" ? (u.role === "user" || u.role === "intern") : u.role === filterRole);
+    if (filterRole !== "semua") data = data.filter(u => filterRole === "intern" ? u.role === "intern" : u.role === filterRole);
     if (filterDivision !== "semua") data = data.filter(u => u.division === filterDivision);
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -58,7 +58,7 @@ const ManageAdmin = () => {
   }, [users, filterRole, filterDivision, searchQuery]);
 
   const stats = useMemo(() => ({
-    interns: users.filter(u => u.role === "user" || u.role === "intern").length,
+    interns: users.filter(u => u.role === "intern").length,
     admins: users.filter(u => u.role === "admin").length,
     supers: users.filter(u => u.role === "super_admin").length,
     locked: users.filter(u => u.is_locked).length,
@@ -81,7 +81,7 @@ const ManageAdmin = () => {
 
   const handleRoleChange = (id, name, currentRole, newRole) => {
     if (id === user?.id) { toast.error("Tidak bisa mengubah role akun sendiri."); return; }
-    const h = { intern: 1, user: 1, admin: 2, super_admin: 3 };
+    const h = { intern: 1, admin: 2, super_admin: 3 };
     const action = h[newRole] > h[currentRole] ? "PROMOTE" : h[newRole] < h[currentRole] ? "DEMOTE" : "ubah";
     setModalState({
       isOpen: true, type: "promote", title: "Ubah Role", message: `${action} ${name} → ${newRole.toUpperCase()}?`, actionText: "Ya, Ubah!",
@@ -179,7 +179,7 @@ const ManageAdmin = () => {
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
               {[
-                { val: filterRole, onChange: setFilterRole, opts: [["semua", "Semua Role"], ["user", "Intern/User"], ["admin", "Admin"], ["super_admin", "Super Admin"]] },
+                { val: filterRole, onChange: setFilterRole, opts: [["semua", "Semua Role"], ["intern", "Intern"], ["admin", "Admin"], ["super_admin", "Super Admin"]] },
                 { val: filterDivision, onChange: setFilterDivision, opts: [["semua", "Semua Divisi"], ...divisionsList.map(d => [d, d])] },
               ].map((sel, i) => (
                 <div key={i} className="relative flex-1 group">

@@ -78,7 +78,7 @@ export default function Login() {
           id: "dummy-123",
           full_name: "Rekiel Dummy",
           email: email,
-          role: email.includes("admin") ? "admin" : "user",
+          role: email.includes("admin") ? "admin" : "intern",
           is_locked: false
         };
         login("dummy-token-123", dummyUser); 
@@ -113,7 +113,7 @@ export default function Login() {
       if (token) {
         // Jika masih gagal dapet data, kita buat data darurat biar sistem Frontend gak stuck
         if (!userData || !userData.id) {
-          userData = { id: "darurat-123", email: email, role: email.includes("admin") ? "super_admin" : "user", full_name: "Karyawan (Fallback)" };
+          userData = { id: "darurat-123", email: email, role: email.includes("admin") ? "super_admin" : "intern", full_name: "Karyawan (Fallback)" };
         }
         // Fungsi login dari AuthContext akan otomatis menyimpan token & user_data ke localStorage
         login(token, userData);

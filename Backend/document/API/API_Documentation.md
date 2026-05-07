@@ -28,7 +28,7 @@ Mengelola data pengguna, intern, admin, dan superadmin.
 - **Fungsi:** Mengubah role/kasta pengguna (Promote/Demote).
 - **Payload:**
   ```json
-  { "role": "user" | "admin" | "super_admin" }
+  { "role": "intern" | "admin" | "super_admin" }
   ```
 
 ### `PUT /api/profiles/{id}/verify`

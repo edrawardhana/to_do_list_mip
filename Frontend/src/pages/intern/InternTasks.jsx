@@ -48,7 +48,7 @@ const InternTasks = () => {
   } : { id: "1", name: "Kiel", division: "IT Support" };
 
   // Only intern/user role can submit tasks — guards UI action buttons
-  const canSubmit = user?.role === 'intern' || user?.role === 'user';
+  const canSubmit = user?.role === 'intern';
 
   const [tasks,        setTasks]        = useState([]);
   const [loading,      setLoading]      = useState(true);
