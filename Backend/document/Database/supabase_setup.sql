@@ -617,3 +617,98 @@ SELECT cron.schedule('generate-daily-tasks', '0  17 * * *', 'SELECT fn_generate_
 -- =============================================================================
 -- SELESAI
 -- =============================================================================
+
+
+-- =============================================================================
+-- BAGIAN 9: HOUSEKEEPING — Auto cleanup data > 90 hari
+-- =============================================================================
+
+-- ── 9a. Fungsi cleanup utama ──────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION fn_housekeeping_cleanup()
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_cutoff        timestamptz := now() - interval '90 days';
+    v_tasks_deleted int := 0;
+    v_audit_deleted int := 0;
+    v_month         text := to_char(now(), 'Month YYYY');
+BEGIN
+    -- 1. Hapus daily_tasks lama (evidence files dihapus oleh Laravel backend)
+    DELETE FROM public.daily_tasks WHERE created_at < v_cutoff;
+    GET DIAGNOSTICS v_tasks_deleted = ROW_COUNT;
+
+    -- 2. Hapus audit_logs lama (bypass ghost lock trigger)
+    SET session_replication_role = replica;
+    DELETE FROM public.audit_logs WHERE created_at < v_cutoff;
+    GET DIAGNOSTICS v_audit_deleted = ROW_COUNT;
+    SET session_replication_role = DEFAULT;
+
+    -- 3. Log hasil ke audit_logs (sebagai system record)
+    INSERT INTO public.audit_logs (admin_id, actor_role, action, new_values, created_at)
+    SELECT
+        id,
+        'system',
+        'Housekeeping Otomatis ' || v_month,
+        jsonb_build_object(
+            'cutoff_date',   v_cutoff::date,
+            'tasks_deleted', v_tasks_deleted,
+            'audit_deleted', v_audit_deleted,
+            'executed_at',   now()
+        ),
+        now()
+    FROM public.profiles
+    WHERE role = 'developer'
+    LIMIT 1;
+
+    RETURN jsonb_build_object(
+        'month',          v_month,
+        'cutoff_date',    v_cutoff::date,
+        'tasks_deleted',  v_tasks_deleted,
+        'audit_deleted',  v_audit_deleted
+    );
+END;
+$$;
+
+-- ── 9b. Cron job: setiap tanggal 1 jam 02:00 WIB (19:00 UTC hari sebelumnya) ──
+-- 02:00 WIB = 02:00 - 7 = 19:00 UTC (hari sebelumnya)
+-- Cron expression: menit jam hari bulan hari_minggu
+-- "0 19 L * *" = jam 19:00 UTC pada hari terakhir bulan (≈ tanggal 1 jam 02:00 WIB)
+-- Atau gunakan "0 19 1 * *" = tanggal 1 setiap bulan jam 19:00 UTC
+
+DO $$ BEGIN PERFORM cron.unschedule('housekeeping-monthly'); EXCEPTION WHEN OTHERS THEN NULL; END $$;
+
+SELECT cron.schedule(
+    'housekeeping-monthly',
+    '0 19 1 * *',   -- Tanggal 1 setiap bulan, 02:00 WIB (19:00 UTC)
+    'SELECT fn_housekeeping_cleanup()'
+);
+
+-- ── 9c. Data dummy untuk testing (created_at 4 bulan lalu) ───────────────────
+-- Jalankan bagian ini HANYA untuk testing, lalu hapus setelah selesai.
+-- Uncomment untuk membuat data dummy:
+
+-- INSERT INTO public.daily_tasks
+--     (uploader_id, division_id, template_id, status, task_date, created_at, updated_at)
+-- SELECT
+--     p.id,
+--     p.division_id,
+--     t.id,
+--     'approved',
+--     (now() - interval '4 months')::date,
+--     now() - interval '4 months',
+--     now() - interval '4 months'
+-- FROM public.profiles p
+-- JOIN public.task_templates t ON p.division_id = t.division_id
+-- WHERE p.role = 'intern'
+--   AND p.is_verified = true
+-- LIMIT 10;
+
+-- Verifikasi data dummy:
+-- SELECT id, task_date, created_at FROM public.daily_tasks
+-- WHERE created_at < now() - interval '90 days'
+-- ORDER BY created_at ASC LIMIT 10;
+
+-- Jalankan cleanup manual (test):
+-- SELECT fn_housekeeping_cleanup();
+
+-- Cek hasil:
+-- SELECT jobname, schedule, command FROM cron.job WHERE jobname = 'housekeeping-monthly';

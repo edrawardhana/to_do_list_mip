@@ -17,6 +17,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SuperadminDashboardController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\InternDashboardController;
+use App\Http\Controllers\HousekeepingController;
 
 // Endpoint publik (Bisa diakses tanpa login)
 Route::get('/divisions', [DivisionController::class, 'index']);
@@ -84,5 +85,9 @@ Route::middleware('auth:api')->group(function () {
 
     // Reports & Analytics (Sprint 4)
     Route::get('/reports/monthly', [ReportController::class, 'monthly']);
+
+    // Housekeeping (Developer only)
+    Route::get('/housekeeping/preview',  [HousekeepingController::class, 'preview']);
+    Route::post('/housekeeping/cleanup', [HousekeepingController::class, 'cleanup']);
 });
 

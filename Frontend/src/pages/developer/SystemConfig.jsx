@@ -3,12 +3,19 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../supabaseClient";
 import { toast } from "react-hot-toast";
 import ConfirmModal from "../../components/ui/ConfirmModal";
+import api from "../../api/axios";
 
 const SystemConfig = () => {
   const { isDeveloper } = useAuth();
 
   const [configs, setConfigs] = useState([]);
   const [saving, setSaving] = useState(false);
+
+  // ── Housekeeping state ────────────────────────────────────────────────────
+  const [cleanupConfirmText, setCleanupConfirmText] = useState("");
+  const [cleanupStep, setCleanupStep]               = useState(0); // 0=idle, 1=confirm, 2=loading
+  const [cleanupPreview, setCleanupPreview]         = useState(null);
+  const [cleanupResult, setCleanupResult]           = useState(null);
 
   const [modalState, setModalState] = useState({ isOpen: false, type: "danger", title: "", message: "", actionText: "Ya", onConfirm: () => { } });
   const closeModal = () => setModalState(s => ({ ...s, isOpen: false }));
@@ -107,6 +114,36 @@ const SystemConfig = () => {
         }
       }
     });
+  };
+
+  // ── Housekeeping handlers ─────────────────────────────────────────────────
+  const handlePreviewCleanup = async () => {
+    try {
+      const res = await api.get("/housekeeping/preview");
+      setCleanupPreview(res.data.data);
+      setCleanupStep(1);
+      setCleanupConfirmText("");
+      setCleanupResult(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Gagal mengambil preview cleanup");
+    }
+  };
+
+  const handleForceCleanup = async () => {
+    if (cleanupConfirmText !== "HAPUS DATA TUA") {
+      toast.error('Ketik: HAPUS DATA TUA');
+      return;
+    }
+    setCleanupStep(2);
+    try {
+      const res = await api.post("/housekeeping/cleanup", { confirm: "HAPUS DATA TUA" });
+      setCleanupResult(res.data.data);
+      setCleanupStep(3);
+      toast.success(res.data.message);
+    } catch (err) {
+      setCleanupStep(1);
+      toast.error(err.response?.data?.message || "Cleanup gagal");
+    }
   };
 
   if (!isDeveloper) {
@@ -255,6 +292,159 @@ const SystemConfig = () => {
 
       {/* MODAL GLOBAL */}
       <ConfirmModal {...modalState} onClose={closeModal} isDark={true} />
+
+      {/* ================================================================= */}
+      {/* HOUSEKEEPING PANEL                                                 */}
+      {/* ================================================================= */}
+      <div className="bg-[#09090b] rounded-[2.5rem] border border-rose-900/40 shadow-2xl relative overflow-hidden text-white">
+        <div className="absolute -top-20 -right-20 w-64 h-64 bg-rose-500/5 rounded-full blur-[80px] pointer-events-none" />
+
+        {/* Header */}
+        <div className="relative z-10 p-6 sm:p-8 border-b border-zinc-800 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-rose-950/60 border border-rose-900/50 flex items-center justify-center text-rose-400 shrink-0">
+            <i className="fa-solid fa-broom text-xl" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-white tracking-tighter">Housekeeping</h2>
+            <p className="text-xs font-medium text-zinc-500 mt-0.5">
+              Hapus data &gt;90 hari dari database dan storage. Cron otomatis: tanggal 1 jam 02:00 WIB.
+            </p>
+          </div>
+          <div className="ml-auto shrink-0 hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+            <i className="fa-solid fa-clock text-zinc-600"></i>
+            Cron: 1st/month 02:00 WIB
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="relative z-10 p-6 sm:p-8 space-y-5">
+
+          {/* Info cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { icon: "fa-calendar-xmark", label: "Retensi Data",   value: "90 hari",       color: "text-amber-400" },
+              { icon: "fa-table-list",     label: "Target Tabel",   value: "daily_tasks, audit_logs", color: "text-sky-400" },
+              { icon: "fa-image",          label: "Target Storage", value: "task_evidence/", color: "text-purple-400" },
+            ].map(item => (
+              <div key={item.label} className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4 flex items-center gap-3">
+                <i className={`fa-solid ${item.icon} ${item.color} text-lg w-6 text-center`}></i>
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{item.label}</p>
+                  <p className="text-xs font-black text-zinc-200 mt-0.5">{item.value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Step 0: idle */}
+          {cleanupStep === 0 && (
+            <button
+              onClick={handlePreviewCleanup}
+              className="w-full py-4 bg-rose-950/40 hover:bg-rose-900/40 border border-rose-900/50 hover:border-rose-700 text-rose-400 hover:text-rose-300 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-3 group"
+            >
+              <span className="text-xl group-hover:animate-bounce">🧹</span>
+              Force Clean Up
+            </button>
+          )}
+
+          {/* Step 1: preview + confirm */}
+          {cleanupStep === 1 && cleanupPreview && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              {/* Preview stats */}
+              <div className="bg-rose-950/20 border border-rose-900/40 rounded-2xl p-5">
+                <p className="text-[11px] font-black text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <i className="fa-solid fa-triangle-exclamation"></i> Preview — Data yang akan dihapus
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: "Cutoff",       value: cleanupPreview.cutoff_date,     color: "text-zinc-300" },
+                    { label: "Daily Tasks",  value: cleanupPreview.tasks_to_delete, color: "text-rose-400" },
+                    { label: "Audit Logs",   value: cleanupPreview.audit_to_delete, color: "text-amber-400" },
+                    { label: "File Foto",    value: cleanupPreview.files_to_delete, color: "text-purple-400" },
+                  ].map(s => (
+                    <div key={s.label} className="bg-zinc-900/60 rounded-xl p-3 text-center">
+                      <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
+                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Double confirmation input */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-zinc-400 uppercase tracking-widest block">
+                  Ketik <span className="text-rose-400 font-black">HAPUS DATA TUA</span> untuk konfirmasi:
+                </label>
+                <input
+                  type="text"
+                  value={cleanupConfirmText}
+                  onChange={e => setCleanupConfirmText(e.target.value)}
+                  placeholder="HAPUS DATA TUA"
+                  className={`w-full bg-zinc-900 border rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all ${
+                    cleanupConfirmText === "HAPUS DATA TUA"
+                      ? "border-rose-500 text-rose-300"
+                      : "border-zinc-700 text-zinc-300 focus:border-zinc-500"
+                  }`}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setCleanupStep(0); setCleanupPreview(null); setCleanupConfirmText(""); }}
+                  className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl font-bold text-sm transition-all"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleForceCleanup}
+                  disabled={cleanupConfirmText !== "HAPUS DATA TUA"}
+                  className="flex-1 py-3 bg-rose-600 hover:bg-rose-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed"
+                >
+                  <i className="fa-solid fa-trash-can"></i> Hapus Sekarang
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: loading */}
+          {cleanupStep === 2 && (
+            <div className="flex flex-col items-center justify-center py-10 gap-4 animate-in fade-in">
+              <div className="w-14 h-14 border-4 border-rose-900 border-t-rose-500 rounded-full animate-spin"></div>
+              <p className="text-sm font-bold text-zinc-400">Menghapus data dan file...</p>
+            </div>
+          )}
+
+          {/* Step 3: result */}
+          {cleanupStep === 3 && cleanupResult && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="bg-emerald-950/20 border border-emerald-900/40 rounded-2xl p-5">
+                <p className="text-[11px] font-black text-emerald-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <i className="fa-solid fa-check-circle"></i> Cleanup Selesai
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: "Cutoff",       value: cleanupResult.cutoff_date,   color: "text-zinc-300" },
+                    { label: "Tasks Dihapus", value: cleanupResult.tasks_deleted, color: "text-emerald-400" },
+                    { label: "Audit Dihapus", value: cleanupResult.audit_deleted, color: "text-emerald-400" },
+                    { label: "File Dihapus",  value: cleanupResult.files_deleted, color: "text-emerald-400" },
+                  ].map(s => (
+                    <div key={s.label} className="bg-zinc-900/60 rounded-xl p-3 text-center">
+                      <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
+                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={() => { setCleanupStep(0); setCleanupResult(null); setCleanupPreview(null); }}
+                className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl font-bold text-sm transition-all"
+              >
+                Selesai
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
     </div>
   );
