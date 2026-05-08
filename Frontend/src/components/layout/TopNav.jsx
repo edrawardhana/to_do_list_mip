@@ -1,6 +1,7 @@
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import api from "../../api/axios";
 
 const TopNav = ({ onToggleSidebar }) => {
   const { user } = useAuth();
@@ -10,26 +11,81 @@ const TopNav = ({ onToggleSidebar }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef(null);
 
-  // DUMMY STATE NOTIFIKASI BIAR BISA DITANDAI DIBACA
-  const [notifications, setNotifications] = useState([
-    { id: 1, sender: "Superadmin", text: "Rapat koordinasi evaluasi bulanan seluruh divisi.", time: "10 Menit lalu", icon: "fa-bullhorn", color: "text-amber-400 bg-amber-400/20", isRead: false },
-    { id: 2, sender: "Admin Divisi", text: "Daily task kamu untuk modul 'Network' di-approve.", time: "1 Jam lalu", icon: "fa-check-double", color: "text-emerald-400 bg-emerald-400/20", isRead: false },
-    { id: 3, sender: "Sistem", text: "Password kamu berhasil diubah semalam.", time: "5 Jam lalu", icon: "fa-shield-halved", color: "text-blue-400 bg-blue-400/20", isRead: true },
-    { id: 4, sender: "Broadcast", text: "Selamat berpuasa bagi yang menjalankan! 🌙", time: "1 Hari lalu", icon: "fa-moon", color: "text-indigo-400 bg-indigo-400/20", isRead: true },
-    { id: 5, sender: "Superadmin", text: "Absensi hari ini sudah dibuka, jangan lupa tap-in brok.", time: "2 Hari lalu", icon: "fa-user-clock", color: "text-rose-400 bg-rose-400/20", isRead: true },
-    { id: 6, sender: "Admin Divisi", text: "Ada revisi sedikit di bagian mockup figma kamu.", time: "3 Hari lalu", icon: "fa-pen-nib", color: "text-orange-400 bg-orange-400/20", isRead: true },
-    { id: 7, sender: "Sistem", text: "Maintenance server nanti malam jam 23:00 WIB.", time: "4 Hari lalu", icon: "fa-server", color: "text-slate-400 bg-slate-400/20", isRead: true },
-    { id: 8, sender: "Superadmin", text: "Laporan bulanan sudah bisa didownload di menu Report.", time: "1 Minggu lalu", icon: "fa-file-pdf", color: "text-pink-400 bg-pink-400/20", isRead: true },
-  ]);
+  // ── Notifikasi dari API ───────────────────────────────────────────────────
+  const [notifications, setNotifications] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    setNotifLoading(true);
+    try {
+      const res  = await api.get("/notifications");
+      const data = res.data?.data || [];
+      setNotifications(data);
+    } catch {
+      // Gagal fetch — biarkan kosong
+    } finally {
+      setNotifLoading(false);
+    }
+  }, [user?.id]);
 
-  const markAsRead = (id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  // Refresh notifikasi saat ada FCM foreground message
+  useEffect(() => {
+    const handler = () => fetchNotifications();
+    window.addEventListener("fcm-notification", handler);
+    return () => window.removeEventListener("fcm-notification", handler);
+  }, [fetchNotifications]);
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  const markAsRead = async (id) => {
+    // Optimistic update
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    try {
+      await api.put(`/notifications/${id}`, { is_read: true });
+    } catch {
+      // Revert jika gagal
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: false } : n));
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  const markAllAsRead = async () => {
+    const unread = notifications.filter(n => !n.is_read);
+    // Optimistic update
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    try {
+      await Promise.all(unread.map(n => api.put(`/notifications/${n.id}`, { is_read: true })));
+    } catch {
+      fetchNotifications(); // Revert dengan re-fetch
+    }
+  };
+
+  // Mapping type → icon & color
+  const getNotifStyle = (type) => {
+    const map = {
+      info:    { icon: "fa-circle-info",    color: "text-sky-400 bg-sky-400/20"     },
+      warning: { icon: "fa-triangle-exclamation", color: "text-amber-400 bg-amber-400/20" },
+      success: { icon: "fa-check-double",   color: "text-emerald-400 bg-emerald-400/20" },
+      danger:  { icon: "fa-bell",           color: "text-rose-400 bg-rose-400/20"   },
+    };
+    return map[type] || map.info;
+  };
+
+  const formatTime = (dateStr) => {
+    if (!dateStr) return "";
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins  = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days  = Math.floor(diff / 86400000);
+    if (mins < 1)   return "Baru saja";
+    if (mins < 60)  return `${mins} menit lalu`;
+    if (hours < 24) return `${hours} jam lalu`;
+    if (days < 7)   return `${days} hari lalu`;
+    return new Date(dateStr).toLocaleDateString("id-ID", { day: "numeric", month: "short" });
   };
 
   // Update jam & tanggal real-time
@@ -167,29 +223,44 @@ const TopNav = ({ onToggleSidebar }) => {
 
             {/* List Notif (Scrollable) */}
             <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-              {notifications.length === 0 ? (
-                <div className="p-6 text-center text-slate-500 text-xs">Belum ada notifikasi.</div>
+              {notifLoading ? (
+                <div className="p-6 text-center">
+                  <i className="fa-solid fa-spinner fa-spin text-slate-500 text-lg"></i>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="p-6 text-center text-slate-500 text-xs">
+                  <i className="fa-solid fa-bell-slash text-2xl mb-2 block opacity-30"></i>
+                  Belum ada notifikasi.
+                </div>
               ) : (
-                notifications.map(notif => (
-                  <div 
-                    key={notif.id}
-                    onClick={() => markAsRead(notif.id)}
-                    className={`p-4 border-b border-white/5 transition-colors cursor-pointer group/item relative ${notif.isRead ? 'opacity-60 hover:opacity-100 bg-transparent' : 'bg-white/[0.03] hover:bg-white/[0.06]'}`}
-                  >
-                    {!notif.isRead && <div className="absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-sky-500 rounded-full shadow-[0_0_5px_rgba(14,165,233,0.5)]"></div>}
-                    <div className="flex gap-3 pl-2">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${notif.color}`}>
-                        <i className={`fa-solid ${notif.icon} text-xs`}></i>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-300 group-hover/item:text-white transition-colors leading-relaxed">
-                          <span className="font-bold text-white">{notif.sender}:</span> {notif.text}
-                        </p>
-                        <p className="text-[10px] text-slate-500 mt-1.5 font-medium">{notif.time}</p>
+                notifications.map(notif => {
+                  const style = getNotifStyle(notif.type);
+                  return (
+                    <div 
+                      key={notif.id}
+                      onClick={() => markAsRead(notif.id)}
+                      className={`p-4 border-b border-white/5 transition-colors cursor-pointer group/item relative ${notif.is_read ? 'opacity-60 hover:opacity-100 bg-transparent' : 'bg-white/[0.03] hover:bg-white/[0.06]'}`}
+                    >
+                      {!notif.is_read && (
+                        <div className="absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-sky-500 rounded-full shadow-[0_0_5px_rgba(14,165,233,0.5)]"></div>
+                      )}
+                      <div className="flex gap-3 pl-2">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${style.color}`}>
+                          <i className={`fa-solid ${style.icon} text-xs`}></i>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-slate-300 group-hover/item:text-white transition-colors leading-relaxed">
+                            <span className="font-bold text-white">{notif.title}:</span>{" "}
+                            <span className="line-clamp-2">{notif.message}</span>
+                          </p>
+                          <p className="text-[10px] text-slate-500 mt-1.5 font-medium">
+                            {formatTime(notif.created_at)}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

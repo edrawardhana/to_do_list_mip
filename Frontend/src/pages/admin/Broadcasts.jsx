@@ -49,6 +49,9 @@ const Broadcasts = () => {
     return [];
   }, [isDeveloper, isSuperAdmin, isAdmin, myDivision]);
 
+  const [category, setCategory] = useState("info");
+  const [fcmResult, setFcmResult] = useState(null);
+
   const availableTargetList = useMemo(() => {
     if (targetType === "division") return allDivisions;
     if (targetType === "personal") return allInterns;
@@ -64,12 +67,35 @@ const Broadcasts = () => {
       if (selectedTargets.length === 0) return toast.error("Pilih minimal 1 target!");
     }
     setIsLoading(true);
+    setFcmResult(null);
     try {
-      await api.post('/broadcasts/send', { title, content: message, targetType, targets: selectedTargets });
-      toast.success("Broadcast Terkirim!");
+      // Build targets: for division/personal, send IDs; for locked variants, send empty
+      const targets = selectedTargets.map(t => t.id || t);
+      const res = await api.post('/broadcasts/send', {
+        title,
+        content: message,
+        targetType,
+        targets,
+        category,
+      });
+      const fcm = res.data?.fcm;
+      setFcmResult(fcm);
+
+      if (fcm?.skipped) {
+        toast.success("Broadcast disimpan! FCM dilewati (konfigurasi belum lengkap).");
+      } else if (fcm?.sent > 0) {
+        toast.success(`Broadcast terkirim! FCM: ${fcm.sent} perangkat.`);
+      } else {
+        toast.success("Broadcast disimpan! Tidak ada device token aktif.");
+      }
+
       setTitle(""); setMessage(""); setSelectedTargets([]);
       fetchBroadcastData();
-    } catch (error) { toast.error("Gagal mengirim Broadcast"); } finally { setIsLoading(false); }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Gagal mengirim Broadcast");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -198,6 +224,43 @@ const Broadcasts = () => {
                   <p className={`text-[9px] sm:text-[10px] font-bold tracking-widest uppercase ${message.length > 150 ? 'text-rose-500' : isDeveloperTheme ? 'text-zinc-500' : 'text-slate-400'}`}>{message.length}/150 Karakter</p>
                 </div>
               </div>
+
+              {/* Category selector */}
+              <div>
+                <label className={`text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] block mb-2 ${isDeveloperTheme ? "text-zinc-400" : "text-slate-500"}`}>4. Kategori</label>
+                <div className="flex gap-2">
+                  {[
+                    { val: "info",   icon: "fa-circle-info",      label: "Info",   cls: isDeveloperTheme ? "border-sky-500/40 bg-sky-500/10 text-sky-400" : "border-blue-300 bg-blue-50 text-blue-700" },
+                    { val: "urgent", icon: "fa-triangle-exclamation", label: "Urgent", cls: isDeveloperTheme ? "border-rose-500/40 bg-rose-500/10 text-rose-400" : "border-rose-300 bg-rose-50 text-rose-700" },
+                  ].map(opt => (
+                    <button
+                      key={opt.val}
+                      type="button"
+                      onClick={() => setCategory(opt.val)}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black border transition-all ${
+                        category === opt.val
+                          ? opt.cls
+                          : isDeveloperTheme ? "border-zinc-700 bg-zinc-800 text-zinc-500 hover:border-zinc-600" : "border-slate-200 bg-slate-50 text-slate-400 hover:border-slate-300"
+                      }`}
+                    >
+                      <i className={`fa-solid ${opt.icon}`}></i> {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* FCM result badge */}
+              {fcmResult && !fcmResult.skipped && (
+                <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-xs font-bold ${
+                  fcmResult.sent > 0
+                    ? isDeveloperTheme ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-emerald-50 border-emerald-200 text-emerald-700"
+                    : isDeveloperTheme ? "bg-zinc-800 border-zinc-700 text-zinc-400" : "bg-slate-50 border-slate-200 text-slate-500"
+                }`}>
+                  <i className="fa-brands fa-google text-base"></i>
+                  <span>FCM: <strong>{fcmResult.sent}</strong> terkirim · <strong>{fcmResult.failed}</strong> gagal · <strong>{fcmResult.no_token}</strong> tanpa token</span>
+                </div>
+              )}
+
               <div className="pt-2 sm:pt-4">
                 <button type="submit" disabled={isLoading || ((targetType.includes("division") || targetType.includes("personal")) && targetType !== "division_locked" && selectedTargets.length === 0)} className={`w-full py-3.5 sm:py-4 text-white rounded-xl text-sm font-black shadow-lg transition-all flex items-center justify-center gap-3 active:scale-95 disabled:shadow-none disabled:cursor-not-allowed ${isDeveloperTheme ? "bg-zinc-700 hover:bg-zinc-600 shadow-zinc-900/30 disabled:bg-zinc-800 disabled:text-zinc-600" : isPurpleTheme ? "bg-purple-600 hover:bg-purple-700 shadow-purple-500/30 disabled:bg-slate-300" : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/30 disabled:bg-slate-300"}`}>
                   {isLoading ? <><i className="fa-solid fa-circle-notch fa-spin" /> Mengirim...</> : <><i className="fa-solid fa-paper-plane" /> Kirim Sekarang</>}

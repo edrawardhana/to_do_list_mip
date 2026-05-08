@@ -10,31 +10,39 @@ use App\Models\AuditLog;
 class ProfileController extends Controller
 {
     /**
-     * Get list of employees (For Admin approval dashboard, or dropdown lists)
+     * Get list of employees
+     * - intern: sees colleagues in same division (for task tagging)
+     * - admin: sees ALL interns in their division (verified + unverified, for management)
+     * - super_admin/developer: sees everyone
      */
     public function index(Request $request)
     {
         $user = Auth::user();
 
-        // ERD v3: Profiles has full_name, nickname, role, division_id, is_verified, is_locked, avatar_url, phone_number
-        $query = User::with('division')->select('id', 'full_name', 'nickname', 'division_id', 'role', 'is_verified', 'is_locked', 'avatar_url', 'phone_number');
+        $query = User::with('division')
+            ->select('id', 'full_name', 'nickname', 'email', 'division_id', 'role',
+                     'is_verified', 'is_locked', 'avatar_url', 'phone_number', 'created_at')
+            ->whereNull('deleted_at');
 
-        // Data Isolation
         if ($user->role === 'intern') {
-            // Interns typically only need this to see colleagues in the same division for tagging
+            // Intern: only verified colleagues in same division (for tagging)
+            $query->where('division_id', $user->division_id)
+                  ->where('role', 'intern')
+                  ->where('is_verified', true);
+        } elseif ($user->role === 'admin') {
+            // Admin: all interns in their division (including unverified — for ACC)
             $query->where('division_id', $user->division_id)
                   ->where('role', 'intern');
-        } elseif ($user->role === 'admin') {
-            // Admin sees everyone in their division
-            $query->where('division_id', $user->division_id);
         }
-        // super_admin sees everyone
+        // super_admin/developer: no filter
 
-        $profiles = $query->orderBy('full_name', 'asc')->get();
+        $profiles = $query->orderBy('is_verified', 'asc')  // unverified first
+                          ->orderBy('full_name', 'asc')
+                          ->get();
 
         return response()->json([
             'status' => 'success',
-            'data' => $profiles
+            'data'   => $profiles,
         ]);
     }
 
@@ -120,45 +128,52 @@ class ProfileController extends Controller
     }
 
     /**
-     * Delete a user account permanently (Superadmin / Developer only)
+     * Delete / reject a user account
+     * - super_admin / developer: can delete anyone
+     * - admin: can only delete unverified interns in their own division (reject registration)
      */
     public function destroy($id)
     {
         $authUser = Auth::user();
-
-        // Only super_admin or developer can delete accounts
-        if (!in_array($authUser->role, ['super_admin', 'developer'])) {
-            return response()->json(['status' => 'error', 'message' => 'Hanya Superadmin atau Developer yang dapat menghapus akun.'], 403);
-        }
+        $profile  = User::findOrFail($id);
 
         // Prevent self-deletion
         if ($authUser->id === $id) {
             return response()->json(['status' => 'error', 'message' => 'Anda tidak bisa menghapus akun Anda sendiri.'], 403);
         }
 
-        $profile = User::findOrFail($id);
+        // Admin: can only reject unverified interns in their division
+        if ($authUser->role === 'admin') {
+            if ($profile->division_id !== $authUser->division_id) {
+                return response()->json(['status' => 'error', 'message' => 'Karyawan ini di luar divisi Anda.'], 403);
+            }
+            if ($profile->is_verified) {
+                return response()->json(['status' => 'error', 'message' => 'Admin hanya bisa menolak akun yang belum diverifikasi. Hubungi Superadmin untuk menghapus akun aktif.'], 403);
+            }
+        } elseif (!in_array($authUser->role, ['super_admin', 'developer'])) {
+            return response()->json(['status' => 'error', 'message' => 'Hanya Superadmin atau Developer yang dapat menghapus akun aktif.'], 403);
+        }
 
-        // Prevent deleting another super_admin or developer
+        // Prevent deleting super_admin/developer unless you are developer
         if (in_array($profile->role, ['super_admin', 'developer']) && $authUser->role !== 'developer') {
             return response()->json(['status' => 'error', 'message' => 'Tidak dapat menghapus akun Superadmin atau Developer.'], 403);
         }
 
         $profileData = $profile->toArray();
-
-        $profile->delete(); // SoftDeletes aktif di model
+        $profile->delete();
 
         AuditLog::record(
             $authUser->id,
             $authUser->role,
-            'Hapus Akun Pengguna',
+            $profile->is_verified ? 'Hapus Akun Pengguna' : 'Tolak Registrasi Intern',
             [],
             $profileData,
             $id
         );
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'Akun berhasil dihapus.'
+            'status'  => 'success',
+            'message' => 'Akun berhasil dihapus.',
         ]);
     }
     /**

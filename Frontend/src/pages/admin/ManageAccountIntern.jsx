@@ -90,6 +90,10 @@ const ManageAccountIntern = () => {
     return { total: filteredInterns.length, pending, locked };
   }, [filteredInterns]);
 
+  // Split: pending ACC vs already verified
+  const pendingInterns  = useMemo(() => filteredInterns.filter(i => !i.is_verified), [filteredInterns]);
+  const verifiedInterns = useMemo(() => filteredInterns.filter(i => i.is_verified),  [filteredInterns]);
+
   // ==========================================
   // ACTION HANDLERS
   // ==========================================
@@ -132,20 +136,24 @@ const ManageAccountIntern = () => {
     });
   };
 
-  const handleDelete = (id, name) => {
+  const handleDelete = (id, name, isVerified = true) => {
+    const isReject = !isVerified;
     setModalState({
       isOpen: true,
       type: "delete",
-      title: "Hapus Permanen",
-      message: `BAHAYA! Yakin ingin menghapus permanen akun ${name}? Seluruh data tugas dan histori absensi mereka mungkin akan terhapus.`,
-      actionText: "Ya, Hapus!",
+      title: isReject ? "Tolak Pendaftaran" : "Hapus Permanen",
+      message: isReject
+        ? `Tolak dan hapus pendaftaran ${name}? Akun mereka akan dihapus dari sistem.`
+        : `BAHAYA! Yakin ingin menghapus permanen akun ${name}? Seluruh data tugas dan histori mereka akan terhapus.`,
+      actionText: isReject ? "Ya, Tolak" : "Ya, Hapus!",
       onConfirm: async () => {
         try {
           await api.delete(`/profiles/${id}`);
-          toast.success(`Akun ${name} telah dihapus permanen`);
+          toast.success(isReject ? `Pendaftaran ${name} ditolak` : `Akun ${name} telah dihapus`);
           fetchInterns();
         } catch (error) {
-          toast.error("Gagal menghapus akun");
+          const msg = error.response?.data?.message || "Gagal menghapus akun";
+          toast.error(msg);
         }
       }
     });
@@ -156,19 +164,38 @@ const ManageAccountIntern = () => {
   return (
     <div className={`space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 sm:pt-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto ${isDark ? 'text-zinc-100' : ''}`}>
       
-      {/* HEADER MASTER CONTROL (Jika Developer) */}
-      {isDark && (
+      {/* HEADER */}
+      {isDark ? (
         <div className="flex items-center gap-3 mb-6 px-2">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-zinc-800/80 border border-zinc-700 text-zinc-300 shadow-inner">
             <i className="fa-solid fa-users-gear text-xl hover:text-emerald-400 transition-colors"></i>
           </div>
           <div>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">
-              Master Control Panel
-            </span>
-            <h1 className="text-3xl font-black tracking-tighter text-zinc-100 leading-none mt-1">
-              Manajemen Akun.
-            </h1>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Master Control Panel</span>
+            <h1 className="text-3xl font-black tracking-tighter text-zinc-100 leading-none mt-1">Manajemen Akun.</h1>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gradient-to-br from-blue-950 to-[#0b1437] rounded-[2rem] p-6 sm:p-8 border border-white/10 relative overflow-hidden">
+          <div className="absolute -top-16 -right-16 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Manage Intern</span>
+              <h1 className="text-3xl font-black text-white tracking-tighter mt-1">Kelola Akun Intern</h1>
+              <p className="text-blue-200/70 text-sm font-medium mt-1">
+                Verifikasi pendaftaran baru dan kelola akun intern divisi {myDivision}.
+              </p>
+            </div>
+            <div className="flex gap-3 shrink-0">
+              <div className="bg-white/10 border border-white/20 rounded-2xl px-5 py-3 text-center">
+                <p className="text-2xl font-black text-white">{stats.pending}</p>
+                <p className="text-[10px] font-bold text-amber-300 uppercase tracking-widest">Pending ACC</p>
+              </div>
+              <div className="bg-white/10 border border-white/20 rounded-2xl px-5 py-3 text-center">
+                <p className="text-2xl font-black text-white">{verifiedInterns.length}</p>
+                <p className="text-[10px] font-bold text-emerald-300 uppercase tracking-widest">Aktif</p>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -216,10 +243,86 @@ const ManageAccountIntern = () => {
         )}
       </div>
 
-      {/* DATA TABLE */}
+      {/* PENDING ACC SECTION — tampil hanya jika ada akun menunggu */}
+      {pendingInterns.length > 0 && (
+        <div className={`rounded-[2rem] border overflow-hidden ${isDark ? 'bg-[#09090b] border-amber-500/20' : 'bg-amber-50 border-amber-200'}`}>
+          <div className={`px-6 py-4 flex items-center gap-3 border-b ${isDark ? 'border-amber-500/20 bg-amber-500/5' : 'border-amber-200 bg-amber-100/60'}`}>
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-500 text-white'}`}>
+              <i className="fa-solid fa-user-clock text-sm"></i>
+            </div>
+            <div>
+              <h3 className={`font-black text-sm ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+                Menunggu Persetujuan ACC
+              </h3>
+              <p className={`text-[11px] font-medium ${isDark ? 'text-amber-500/70' : 'text-amber-600'}`}>
+                {pendingInterns.length} akun intern baru perlu diverifikasi
+              </p>
+            </div>
+            <span className={`ml-auto px-3 py-1 rounded-full text-[11px] font-black animate-pulse ${isDark ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-500 text-white'}`}>
+              {pendingInterns.length} Pending
+            </span>
+          </div>
+
+          <div className="divide-y divide-amber-200/30">
+            {pendingInterns.map((intern) => (
+              <div key={intern.id} className={`flex items-center gap-4 px-6 py-4 ${isDark ? 'hover:bg-amber-500/5' : 'hover:bg-amber-100/50'} transition-colors`}>
+                {/* Avatar */}
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 border ${isDark ? 'bg-zinc-800 text-zinc-400 border-zinc-700' : 'bg-amber-200 text-amber-700 border-amber-300'}`}>
+                  {intern.name.charAt(0)}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className={`font-bold text-sm truncate ${isDark ? 'text-zinc-200' : 'text-slate-800'}`}>{intern.name}</p>
+                  <p className={`text-[11px] truncate ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>{intern.email}</p>
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-amber-500' : 'text-amber-600'}`}>
+                    {intern.division}
+                  </span>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => handleVerify(intern.id, intern.name)}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all shadow-md ${
+                      isDark
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/40'
+                        : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/20'
+                    }`}
+                  >
+                    <i className="fa-solid fa-check"></i> ACC
+                  </button>
+                  <button
+                    onClick={() => handleDelete(intern.id, intern.name, false)}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all border ${
+                      isDark
+                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20'
+                        : 'bg-white text-rose-600 border-rose-200 hover:bg-rose-50'
+                    }`}
+                  >
+                    <i className="fa-solid fa-xmark"></i> Tolak
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* DATA TABLE — hanya intern yang sudah terverifikasi */}
       <div className={`rounded-[2rem] border shadow-xl relative overflow-hidden transition-all ${
         isDark ? "bg-[#09090b] border-[#27272a]" : "bg-white border-slate-200"
       }`}>
+        {/* Table header */}
+        <div className={`px-6 py-4 border-b flex items-center justify-between ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+          <h3 className={`font-black text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+            Intern Aktif
+            <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-black ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`}>
+              {verifiedInterns.length}
+            </span>
+          </h3>
+        </div>
+
         <div className="overflow-x-auto relative z-10">
           <table className={`w-full text-left text-sm ${isDark ? "text-zinc-300" : "text-slate-600"}`}>
             <thead className={`border-b text-[10px] uppercase font-black tracking-widest ${
@@ -227,13 +330,19 @@ const ManageAccountIntern = () => {
             }`}>
               <tr>
                 <th className="px-6 py-5 whitespace-nowrap">Nama & Info</th>
-                <th className="px-6 py-5 whitespace-nowrap">Status Verifikasi</th>
                 <th className="px-6 py-5 whitespace-nowrap">Status Gembok</th>
                 <th className="px-6 py-5 text-right whitespace-nowrap">Aksi</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? "divide-zinc-800/50" : "divide-slate-50"}`}>
-              {filteredInterns.map((intern) => (
+              {verifiedInterns.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className={`px-6 py-12 text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                    <i className="fa-solid fa-users text-3xl mb-3 block opacity-30"></i>
+                    <p className="text-sm font-bold">Belum ada intern aktif di divisi ini</p>
+                  </td>
+                </tr>
+              ) : verifiedInterns.map((intern) => (
                 <tr key={intern.id} className={`group transition-colors ${isDark ? "hover:bg-zinc-800/30" : "hover:bg-slate-50/50"}`}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -249,22 +358,6 @@ const ManageAccountIntern = () => {
                       </div>
                     </div>
                   </td>
-                  
-                  <td className="px-6 py-4">
-                    {intern.is_verified ? (
-                      <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border flex items-center gap-1.5 w-max ${
-                        isDark ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-emerald-50 text-emerald-600 border-emerald-100"
-                      }`}>
-                        <i className="fa-solid fa-check-circle"></i> Terverifikasi
-                      </span>
-                    ) : (
-                      <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border flex items-center gap-1.5 w-max animate-pulse ${
-                        isDark ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-amber-50 text-amber-600 border-amber-100"
-                      }`}>
-                        <i className="fa-solid fa-clock"></i> Pending ACC
-                      </span>
-                    )}
-                  </td>
 
                   <td className="px-6 py-4">
                     {intern.is_locked ? (
@@ -275,45 +368,42 @@ const ManageAccountIntern = () => {
                       </span>
                     ) : (
                       <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border flex items-center gap-1.5 w-max ${
-                        isDark ? "bg-zinc-800 text-zinc-400 border-zinc-700" : "bg-slate-50 text-slate-500 border-slate-200"
+                        isDark ? "bg-zinc-800 text-zinc-400 border-zinc-700" : "bg-emerald-50 text-emerald-600 border-emerald-100"
                       }`}>
-                        <i className="fa-solid fa-unlock"></i> Aman
+                        <i className="fa-solid fa-unlock"></i> Aktif
                       </span>
                     )}
                   </td>
 
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2 min-w-max opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                      
-                      {!intern.is_verified && (
-                        <button onClick={() => handleVerify(intern.id, intern.name)} className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-md ${
-                          isDark ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/40 border border-emerald-500/30" : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20"
-                        }`} title="ACC Akun Ini">
-                          <i className="fa-solid fa-check"></i>
-                        </button>
-                      )}
-
-                      {/* KHUSUS ADMIN DIVISI, DEVELOPER, & SUPERADMIN: Tombol Lock/Unlock individual */}
+                      {/* Lock / Unlock */}
                       {(isAdmin || isDeveloper || isSuperAdmin) && (
-                        <button 
+                        <button
                           onClick={() => handleToggleLock(intern.id, intern.name, intern.is_locked)}
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm border transition-colors ${
-                            intern.is_locked 
-                              ? (isDark ? "bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/40" : "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100") 
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                            intern.is_locked
+                              ? (isDark ? "bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/40" : "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100")
                               : (isDark ? "bg-rose-500/20 text-rose-400 border-rose-500/30 hover:bg-rose-500/40" : "bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100")
                           }`}
-                          title={intern.is_locked ? "Buka Gembok Individual" : "Kunci Akun Individual"}
+                          title={intern.is_locked ? "Buka Akun" : "Kunci Akun"}
                         >
                           <i className={`fa-solid ${intern.is_locked ? "fa-unlock" : "fa-lock"}`}></i>
+                          {intern.is_locked ? "Buka" : "Kunci"}
                         </button>
                       )}
 
-                      {(isAdmin || isDeveloper || isSuperAdmin) && (
-                         <button onClick={() => handleDelete(intern.id, intern.name)} className={`w-8 h-8 rounded-lg transition-all shadow-sm border ${
-                           isDark ? "bg-zinc-900 border-zinc-700 text-zinc-500 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30" : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-rose-500 hover:text-white"
-                         }`} title="Hapus Akun">
-                           <i className="fa-solid fa-trash-can"></i>
-                         </button>
+                      {/* Delete — only super_admin/developer for verified accounts */}
+                      {(isDeveloper || isSuperAdmin) && (
+                        <button
+                          onClick={() => handleDelete(intern.id, intern.name, true)}
+                          className={`w-8 h-8 rounded-lg transition-all shadow-sm border ${
+                            isDark ? "bg-zinc-900 border-zinc-700 text-zinc-500 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30" : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-rose-500 hover:text-white"
+                          }`}
+                          title="Hapus Akun"
+                        >
+                          <i className="fa-solid fa-trash-can"></i>
+                        </button>
                       )}
                     </div>
                   </td>
