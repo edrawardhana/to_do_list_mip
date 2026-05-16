@@ -11,7 +11,7 @@ const PAGE_SIZE = 6;
 const Pager = ({ page, total, onChange }) => {
   if (total <= 1) return null;
   return (
-    <div className="flex items-center justify-center gap-2 pt-4">
+    <div className="flex items-center justify-center gap-2 pt-2 pb-6">
       <button onClick={() => onChange(page - 1)} disabled={page === 1}
         className="w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-400 flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm transition-all">
         <i className="fa-solid fa-chevron-left text-xs" />
@@ -40,20 +40,66 @@ const Pager = ({ page, total, onChange }) => {
 
 /* ── Main ───────────────────────────────────────────────────────────────── */
 const InternTasks = () => {
-  const { user } = useAuth();
+  const { user, isDeveloper, isSuperAdmin } = useAuth(); 
+
   const currentUser = user ? {
     id:       user.id,
     name:     user.full_name || user.email?.split('@')[0] || "Anak Magang",
     division: user.division?.name || "IT Support",
-  } : { id: "1", name: "Kiel", division: "IT Support" };
+  } : { id: "1", name: "Intern", division: "IT Support" };
 
-  // Only intern/user role can submit tasks — guards UI action buttons
   const canSubmit = user?.role === 'intern';
+
+  // ==========================================
+  // LOGIC WARNA TEMA DINAMIS (HERO SECTION)
+  // ==========================================
+  const isDeveloperTheme = isDeveloper;
+  const isPurpleTheme = isSuperAdmin && !isDeveloperTheme;
+  
+  const theme = {
+    heroBg: isDeveloperTheme ? "bg-[#09090b] border-zinc-800 shadow-emerald-900/10" 
+      : isPurpleTheme ? "bg-[#1d1633] border-[#342459] shadow-purple-900/20" 
+      : "bg-[#242b4d] border-[#303861] shadow-blue-900/20",
+    blobTop: isDeveloperTheme ? "bg-zinc-500/10" : isPurpleTheme ? "bg-purple-500/20" : "bg-blue-500/20",
+    blobBot: isDeveloperTheme ? "bg-sky-500/5" : isPurpleTheme ? "bg-fuchsia-500/10" : "bg-sky-500/10",
+    iconBg: isDeveloperTheme ? "bg-zinc-800 border-zinc-700 text-zinc-300" 
+      : isPurpleTheme ? "bg-purple-500/20 border-purple-400/30 text-purple-400" 
+      : "bg-blue-500/20 border-blue-400/30 text-blue-400",
+    badgeBg: isDeveloperTheme ? "text-zinc-500 bg-zinc-900/60 border-zinc-800" 
+      : isPurpleTheme ? "text-purple-300 bg-purple-900/40 border-purple-700/50" 
+      : "text-blue-300 bg-blue-900/40 border-blue-700/50",
+    title: "text-white",
+    subtitle: isDeveloperTheme ? "text-zinc-400" : isPurpleTheme ? "text-purple-200/70" : "text-blue-200/70",
+    widgetBg: isDeveloperTheme ? "bg-zinc-900/50 border-zinc-800/60" 
+      : isPurpleTheme ? "bg-purple-900/30 border-purple-700/50" 
+      : "bg-blue-900/30 border-blue-700/50",
+    progressIcon: isDeveloperTheme ? "text-emerald-400" : isPurpleTheme ? "text-purple-400" : "text-blue-400",
+    progressBarBg: isDeveloperTheme ? "bg-emerald-500" : isPurpleTheme ? "bg-purple-500" : "bg-blue-500",
+    progressTrack: isDeveloperTheme ? "bg-zinc-950 border-zinc-800" : "bg-black/40 border-white/10",
+    
+    // --- MAIN TABS (DI BAWAH TEKS HERO) ---
+    mainTabActive: "bg-white text-slate-900 shadow-md", // Tombol aktif selalu putih solid
+    mainTabInactive: "bg-white/10 text-white/70 border border-white/10 hover:bg-white/20 hover:text-white", 
+    mainBadgeActive: "bg-blue-100 text-blue-700",
+    mainBadgeInactive: "bg-black/30 text-white/70",
+
+    // --- TOOLBAR BAWAH & SUB TABS (HANYA MUNCUL DI HISTORY) ---
+    toolbarBorder: isDeveloperTheme ? "border-zinc-800/50" : isPurpleTheme ? "border-purple-700/30" : "border-blue-700/30",
+    toolbarBg: isDeveloperTheme ? "bg-[#141417]" : isPurpleTheme ? "bg-[#281c47]" : "bg-[#1c2242]", // Background toolbar sedikit beda warna
+    subTabActive: isDeveloperTheme ? "bg-emerald-500 text-white border-emerald-400 shadow-sm" : isPurpleTheme ? "bg-fuchsia-500 text-white border-fuchsia-400 shadow-sm" : "bg-blue-500 text-white border-blue-400 shadow-sm", // Warna terang jelas
+    subTabInactive: "bg-white/10 text-white/90 border border-white/20 hover:bg-white/20 hover:text-white",
+    subBadgeActive: "bg-white/20 text-white",
+    subBadgeInactive: "bg-black/30 text-white/70",
+    
+    // Input Search Theme
+    inputBg: "bg-white/10 border border-white/20 focus:border-white/40 text-white placeholder:text-white/50",
+    iconMuted: "text-white/60",
+  };
 
   const [tasks,        setTasks]        = useState([]);
   const [loading,      setLoading]      = useState(true);
-  const [activeTab,    setActiveTab]    = useState("todo");   // "todo" | "history"
-  const [historyTab,   setHistoryTab]   = useState("all");    // "all" | "completed" | "pending" | "revision"
+  const [activeTab,    setActiveTab]    = useState("todo");
+  const [historyTab,   setHistoryTab]   = useState("all"); 
   const [historyPage,  setHistoryPage]  = useState(1);
   const [search,       setSearch]       = useState("");
   const [selectedTask, setSelectedTask] = useState(null);
@@ -66,34 +112,19 @@ const InternTasks = () => {
       const res  = await api.get('/daily-tasks');
       const data = res.data?.data || res.data || [];
       setTasks(data.map(t => {
-        // Status mapping yang benar:
-        // - "approved"  → selesai (completed)
-        // - "rejected" / "revision" → perlu revisi
-        // - "pending" + ada evidence_url → sudah dikirim, menunggu ACC
-        // - "pending" + TIDAK ada evidence_url → belum dikerjakan (todo)
         let uiStatus = "todo";
-        if (t.status === "approved") {
-          uiStatus = "completed";
-        } else if (t.status === "rejected" || t.status === "revision") {
-          uiStatus = "revision";
-        } else if (t.status === "pending" && t.evidence_url) {
-          // Sudah submit bukti, menunggu persetujuan admin
-          uiStatus = "pending";
-        } else if (t.status === "pending" && !t.evidence_url) {
-          // Belum dikerjakan sama sekali
-          uiStatus = "todo";
-        }
+        if (t.status === "approved") uiStatus = "completed";
+        else if (t.status === "rejected" || t.status === "revision") uiStatus = "revision";
+        else if (t.status === "pending" && t.evidence_url) uiStatus = "pending";
+        else if (t.status === "pending" && !t.evidence_url) uiStatus = "todo";
 
         return {
           id:            t.id,
-          title:         t.taskTemplate?.title || t.taskTemplate?.task_name
-                         || t.template?.title  || t.template?.task_name
-                         || t.description      || "Tugas Harian",
+          title:         t.taskTemplate?.title || t.taskTemplate?.task_name || t.template?.title || t.description || "Tugas Harian",
           location:      "Kantor MCC",
           status:        uiStatus,
           rawStatus:     t.status,
           admin_notes:   t.reject_reason || "",
-          // Tugas urgent = tidak punya template (di-assign manual oleh admin)
           is_urgent:     !t.template_id,
           photo:         t.evidence_url || null,
           description:   t.description || "",
@@ -114,16 +145,15 @@ const InternTasks = () => {
   useEffect(() => { fetchTasks(); }, []);
   useEffect(() => { setHistoryPage(1); }, [historyTab, search, activeTab]);
 
-  /* ── All tasks split by type ── */
-  const regularTasks   = tasks.filter(t => !t.is_urgent);
-  const urgentTasks    = tasks.filter(t => t.is_urgent);
-
-  /* ── Progress stats (all tasks) ── */
+  /* ── Data Filter ── */
+  const searchQ = search.toLowerCase();
+  const regularTasks   = tasks.filter(t => !t.is_urgent && t.status !== 'completed' && (!search || t.title.toLowerCase().includes(searchQ)));
+  const urgentTasks    = tasks.filter(t => t.is_urgent && t.status !== 'completed' && (!search || t.title.toLowerCase().includes(searchQ)));
+  
   const totalTasks     = tasks.length;
   const completedCount = tasks.filter(t => t.status === "completed").length;
   const progressPct    = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
-  /* ── History ── */
   const allHistory = useMemo(() => {
     return tasks
       .filter(t => {
@@ -132,16 +162,15 @@ const InternTasks = () => {
           historyTab === "completed"? t.status === "completed" :
           historyTab === "pending"  ? (t.status === "pending" || t.status === "waiting_confirmation") :
           historyTab === "revision" ? t.status === "revision" : true;
-        const matchSearch = !search || t.title.toLowerCase().includes(search.toLowerCase());
+        const matchSearch = !search || t.title.toLowerCase().includes(searchQ);
         return matchTab && matchSearch;
       })
       .sort((a, b) => new Date(b.task_date || 0) - new Date(a.task_date || 0));
-  }, [tasks, historyTab, search]);
+  }, [tasks, historyTab, search, searchQ]);
 
   const totalPages   = Math.max(1, Math.ceil(allHistory.length / PAGE_SIZE));
   const pagedHistory = allHistory.slice((historyPage - 1) * PAGE_SIZE, historyPage * PAGE_SIZE);
 
-  /* ── Counts for history tabs ── */
   const hCounts = useMemo(() => ({
     all:       tasks.length,
     completed: tasks.filter(t => t.status === "completed").length,
@@ -149,46 +178,23 @@ const InternTasks = () => {
     revision:  tasks.filter(t => t.status === "revision").length,
   }), [tasks]);
 
-  /* ── Camera handlers ── */
   const handleOpenCamera = (task) => {
-    if (!canSubmit) {
-      toast.error("Hanya intern yang dapat mengirim laporan tugas.");
-      return;
-    }
-    if (task.photo && task.status !== "revision") {
-      toast.error("Bukti tugas telah tersegel. Tidak bisa diubah.");
-      return;
-    }
+    if (!canSubmit) { toast.error("Hanya intern yang dapat mengirim laporan tugas."); return; }
+    if (task.photo && task.status !== "revision") { toast.error("Bukti tugas telah tersegel."); return; }
     setSelectedTask(task);
     setIsCameraOpen(true);
   };
   const handleCloseCamera = () => { setIsCameraOpen(false); setSelectedTask(null); };
 
   const handleSubmitReport = async (submittedData) => {
-    const taskId = selectedTask?.id;
-    if (!taskId) {
-      toast.error("ID tugas tidak ditemukan.");
-      return;
-    }
-
-    // submittedData sudah FormData dari LiveCameraModal
-    if (!(submittedData instanceof FormData)) {
-      toast.error("Format data tidak valid.");
-      return;
-    }
-
+    if (!selectedTask?.id) return;
     try {
-      // POST dengan FormData — axios otomatis set Content-Type: multipart/form-data
-      await api.post(`/daily-tasks/${taskId}/submit`, submittedData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      toast.success("Laporan berhasil dikirim! Menunggu persetujuan admin.");
+      await api.post(`/daily-tasks/${selectedTask.id}/submit`, submittedData, { headers: { "Content-Type": "multipart/form-data" } });
+      toast.success("Laporan dikirim! Menunggu ACC admin.");
       handleCloseCamera();
       fetchTasks();
     } catch (err) {
-      const msg = err.response?.data?.message || "Gagal mengirim laporan.";
-      toast.error(msg);
-      console.error("Submit error:", err);
+      toast.error(err.response?.data?.message || "Gagal mengirim laporan.");
     }
   };
 
@@ -202,8 +208,7 @@ const InternTasks = () => {
 
   const fmtDate = (d) => {
     if (!d) return "—";
-    return new Date(d.includes('T') ? d : d + 'T00:00:00')
-      .toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    return new Date(d.includes('T') ? d : d + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   const STATUS_BADGE = {
@@ -214,6 +219,11 @@ const InternTasks = () => {
     todo:                  { cls: "bg-slate-100 text-slate-600 border-slate-200",       icon: "fa-circle",         label: "Belum Dikerjakan" },
   };
 
+  const MAIN_TABS = [
+    { id: "todo",    label: "Tugas Aktif",   icon: "fa-list-check",       count: tasks.filter(t=>t.status!=='completed').length },
+    { id: "history", label: "Riwayat Tugas", icon: "fa-clock-rotate-left", count: tasks.length },
+  ];
+
   const HIST_TABS = [
     { id: "all",       label: "Semua",         count: hCounts.all },
     { id: "pending",   label: "Menunggu ACC",  count: hCounts.pending },
@@ -222,91 +232,129 @@ const InternTasks = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-1 max-w-5xl mx-auto">
+    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-4 sm:pt-6 md:pt-8 px-2 sm:px-4 lg:px-8 max-w-7xl mx-auto">
 
-      {/* ── HERO ── */}
-      <div className="bg-gradient-to-br from-[#0b1437] to-[#111c44] p-8 md:p-10 rounded-[2.5rem] text-white shadow-xl border border-white/5 relative overflow-hidden">
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-sky-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-          <div className="flex-1">
-            <div className="flex items-center gap-4 mb-5">
-              <div className="w-12 h-12 bg-gradient-to-br from-sky-400 to-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-sky-500/30 border border-sky-400/50">
-                <i className="fa-solid fa-clipboard-check text-xl" />
+      {/* ================================================================= */}
+      {/* HERO SECTION (TAB UTAMA DI BAWAH TEKS)                              */}
+      {/* ================================================================= */}
+      <div className={`rounded-[2.5rem] border shadow-2xl relative overflow-hidden flex flex-col transition-colors duration-700 ${theme.heroBg}`}>
+        {/* Glow Effects */}
+        <div className={`absolute -top-32 -right-32 w-96 h-96 rounded-full blur-[100px] pointer-events-none transition-colors duration-700 ${theme.blobTop}`} />
+        <div className={`absolute -bottom-32 -left-32 w-72 h-72 rounded-full blur-[100px] pointer-events-none transition-colors duration-700 ${theme.blobBot}`} />
+
+        {/* ── BAGIAN ATAS: TEKS & STATS ── */}
+        <div className={`relative z-10 p-6 sm:p-8 md:p-10 flex flex-col lg:flex-row justify-between gap-8 ${activeTab === 'todo' ? 'pb-8 sm:pb-10' : ''}`}>
+          <div className="lg:max-w-xl flex flex-col">
+            <div className="flex flex-wrap items-center gap-3 mb-5">
+              <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center shadow-inner shrink-0 transition-colors duration-500 ${theme.iconBg}`}>
+                <i className="fa-solid fa-clipboard-check text-lg md:text-xl" />
               </div>
-              <div>
-                <span className="text-sky-300 text-[10px] font-black uppercase tracking-widest">Logbook Harian</span>
-                <p className="text-white text-sm font-medium mt-0.5">Halo, {(currentUser.name).split(" ")[0]}! 👋</p>
-              </div>
+              <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] md:tracking-[0.25em] px-3 py-1.5 md:py-2 rounded-lg border transition-colors duration-500 ${theme.badgeBg}`}>
+                Daily Logbook
+              </span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-3 text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-sky-200">
-              Daily Tasks
+            <h1 className={`text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter mb-3 md:mb-4 leading-tight transition-colors duration-500 ${theme.title}`}>
+              Daily Tasks.
             </h1>
-            <p className="text-[13px] text-sky-100/70 font-medium border-l-[3px] border-sky-500/50 pl-4 max-w-lg">
-              Selesaikan tugas dan lampirkan bukti. Cek riwayat di tab Riwayat Tugas.
+            <p className={`text-xs sm:text-sm font-medium leading-relaxed transition-colors duration-500 ${theme.subtitle}`}>
+              Selesaikan tugas dan lampirkan bukti foto/dokumen. Pantau progress harianmu di sini.
             </p>
+
+            {/* 🔥 MAIN TABS (Langsung di bawah teks untuk nutupin Whitespace) */}
+            <div className="mt-6 sm:mt-8 flex items-center gap-3 overflow-x-auto scrollbar-hide flex-nowrap w-full max-w-full">
+              {MAIN_TABS.map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-[11px] sm:text-[13px] font-bold transition-all border whitespace-nowrap shrink-0 ${
+                    activeTab === tab.id ? theme.mainTabActive : theme.mainTabInactive
+                  }`}>
+                  <i className={`fa-solid ${tab.icon}`} />
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span className={`text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full transition-colors ${
+                      activeTab === tab.id ? theme.mainBadgeActive : theme.mainBadgeInactive
+                    }`}>{tab.count}</span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Progress Card */}
-          <div className="bg-white/[0.06] backdrop-blur-md border border-white/10 p-7 rounded-3xl w-full md:w-[300px] shrink-0 shadow-2xl">
-            <div className="flex justify-between items-start mb-3">
+          {/* Kotak Stats Kanan */}
+          <div className={`w-full lg:w-80 shrink-0 rounded-2xl md:rounded-3xl p-5 md:p-6 backdrop-blur-md flex flex-col justify-center gap-4 border transition-colors duration-500 ${theme.widgetBg}`}>
+            <div className="flex justify-between items-start mb-1">
               <div>
-                <p className="text-[10px] font-bold text-sky-300 uppercase tracking-widest mb-0.5">Progress Hari Ini</p>
-                <p className="text-xs font-medium text-slate-400">{loading ? "…" : totalTasks} tugas hari ini</p>
+                <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${theme.progressIcon}`}>Progress Hari Ini</p>
+                <p className="text-[10px] sm:text-xs font-medium text-slate-400">{loading ? "…" : totalTasks} tugas total</p>
               </div>
-              <i className="fa-solid fa-chart-pie text-sky-400 text-lg" />
+              <i className={`fa-solid fa-chart-pie text-lg ${theme.progressIcon}`} />
             </div>
-            <h3 className="text-5xl font-black text-sky-400 leading-none tracking-tighter mb-3">{loading ? 0 : progressPct}%</h3>
-            <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden border border-white/5 shadow-inner">
-              <div className="h-full bg-gradient-to-r from-sky-500 to-sky-300 rounded-full transition-all duration-1000" style={{ width: `${progressPct}%` }} />
+            <h3 className={`text-4xl sm:text-5xl font-black leading-none tracking-tighter mb-1 ${theme.progressIcon}`}>{loading ? 0 : progressPct}%</h3>
+            <div className={`w-full h-2.5 rounded-full overflow-hidden border shadow-inner mt-2 ${theme.progressTrack}`}>
+              <div className={`h-full rounded-full transition-all duration-1000 ${theme.progressBarBg}`} style={{ width: `${progressPct}%` }} />
             </div>
-            <p className="text-[11px] font-medium text-white/60 mt-3 text-right">
+            <p className="text-[9px] sm:text-[10px] font-medium text-white/60 mt-1 text-right">
               <span className="font-bold text-white">{loading ? "…" : completedCount}</span> dari {loading ? "…" : totalTasks} selesai
             </p>
           </div>
         </div>
+
+        {/* 🔥 TOOLBAR BAWAH: HANYA MUNCUL DI TAB RIWAYAT */}
+        {activeTab === "history" && (
+          <div className={`relative z-10 border-t ${theme.toolbarBorder} px-4 sm:px-8 py-3 sm:py-4 flex flex-col md:flex-row justify-between md:items-center gap-4 backdrop-blur-xl transition-colors duration-700 ${theme.toolbarBg}`}>
+            
+            {/* KIRI: SUB TABS */}
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide flex-nowrap w-full md:w-auto">
+              {HIST_TABS.map(tab => (
+                <button key={tab.id} onClick={() => setHistoryTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-[11px] font-bold transition-all border whitespace-nowrap shrink-0 ${
+                    historyTab === tab.id ? theme.subTabActive : theme.subTabInactive
+                  }`}>
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full transition-colors ${
+                      historyTab === tab.id ? theme.subBadgeActive : theme.subBadgeInactive
+                    }`}>{tab.count}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* KANAN: SEARCH */}
+            <div className="relative w-full md:w-64 shrink-0">
+              <i className={`fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-xs pointer-events-none transition-colors ${theme.iconMuted}`} />
+              <input type="text" placeholder="Cari riwayat tugas..." value={search} onChange={e => setSearch(e.target.value)}
+                className={`w-full pl-10 pr-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium outline-none transition-colors shadow-sm ${theme.inputBg}`} />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ── MAIN TABS ── */}
-      <div className="flex items-center gap-2 px-1">
-        {[
-          { id: "todo",    label: "Tugas Aktif",   icon: "fa-list-check",       count: tasks.filter(t=>t.status!=='completed').length },
-          { id: "history", label: "Riwayat Tugas", icon: "fa-clock-rotate-left", count: tasks.length },
-        ].map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold transition-all border ${
-              activeTab === tab.id
-                ? "bg-[#0b1437] text-white border-blue-900 shadow-lg shadow-blue-900/20 scale-105"
-                : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-            }`}>
-            <i className={`fa-solid ${tab.icon}`} />
-            {tab.label}
-            {tab.count > 0 && (
-              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                activeTab === tab.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
-              }`}>{tab.count}</span>
-            )}
-          </button>
-        ))}
-      </div>
+      {/* ── INFO BAR ── */}
+      {activeTab === "history" && !loading && allHistory.length > 0 && (
+        <div className="flex items-center justify-between px-2 pt-2">
+          <p className="text-[10px] sm:text-xs font-bold text-slate-400">
+            Menampilkan <span className="text-slate-700">
+              {Math.min((historyPage - 1) * PAGE_SIZE + 1, allHistory.length)}–{Math.min(historyPage * PAGE_SIZE, allHistory.length)}
+            </span> dari {allHistory.length} tugas
+          </p>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════
           TAB: TUGAS HARI INI
       ══════════════════════════════════════════════════════════════ */}
       {activeTab === "todo" && (
-        <div className="space-y-6">
-          {/* Rutinitas */}
+        <div className="space-y-6 pt-2">
           <div className="bg-slate-50/50 p-3 sm:p-4 rounded-[2rem] border border-slate-100 shadow-inner">
             <div className="flex items-center gap-3 mb-4 border-b border-slate-200/60 pb-3 pl-2 pt-1">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white border border-slate-100 text-blue-500">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white border border-slate-100 text-blue-500 shadow-sm">
                 <i className="fa-solid fa-desktop text-sm" />
               </div>
               <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Semua Tugas Rutin</h2>
             </div>
             <div className="flex flex-col gap-3">
               {loading ? (
-                <p className="text-center text-sm font-bold text-slate-400 py-8">
-                  <i className="fa-solid fa-spinner fa-spin mr-2" />Memuat tugas…
-                </p>
+                <p className="text-center text-sm font-bold text-slate-400 py-8"><i className="fa-solid fa-spinner fa-spin mr-2" />Memuat tugas…</p>
               ) : regularTasks.length === 0 ? (
                 <div className="text-center py-12">
                   <i className="fa-solid fa-mug-hot text-4xl text-slate-200 mb-3 block" />
@@ -315,16 +363,12 @@ const InternTasks = () => {
                 </div>
               ) : (
                 regularTasks.map((task, i) => (
-                  <InternTaskCard key={task.id} task={task} index={i}
-                    onOpenCameraModal={handleOpenCamera}
-                    onConfirmTask={handleConfirmTask}
-                    currentUserId={currentUser.id} />
+                  <InternTaskCard key={task.id} task={task} index={i} onOpenCameraModal={handleOpenCamera} onConfirmTask={handleConfirmTask} currentUserId={currentUser.id} />
                 ))
               )}
             </div>
           </div>
 
-          {/* Urgent */}
           {!loading && urgentTasks.length > 0 && (
             <div className="bg-rose-50/30 p-3 sm:p-4 rounded-[2rem] border border-rose-100 shadow-inner relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -334,10 +378,7 @@ const InternTasks = () => {
               </div>
               <div className="flex flex-col gap-3 relative z-10">
                 {urgentTasks.map((task, i) => (
-                  <InternTaskCard key={task.id} task={task} index={i}
-                    onOpenCameraModal={handleOpenCamera}
-                    onConfirmTask={handleConfirmTask}
-                    currentUserId={currentUser.id} />
+                  <InternTaskCard key={task.id} task={task} index={i} onOpenCameraModal={handleOpenCamera} onConfirmTask={handleConfirmTask} currentUserId={currentUser.id} />
                 ))}
               </div>
             </div>
@@ -350,84 +391,40 @@ const InternTasks = () => {
       ══════════════════════════════════════════════════════════════ */}
       {activeTab === "history" && (
         <div className="space-y-4">
-
-          {/* Sub-tabs + Search */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
-            <div className="flex gap-2 flex-wrap">
-              {HIST_TABS.map(tab => (
-                <button key={tab.id} onClick={() => setHistoryTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-[12px] font-bold transition-all border whitespace-nowrap ${
-                    historyTab === tab.id
-                      ? "bg-[#0b1437] text-white border-blue-900 shadow-md scale-105"
-                      : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-                  }`}>
-                  {tab.label}
-                  {tab.count > 0 && (
-                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                      historyTab === tab.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
-                    }`}>{tab.count}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-            <div className="relative w-full sm:w-52 shrink-0">
-              <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none" />
-              <input type="text" placeholder="Cari tugas…" value={search} onChange={e => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
-            </div>
-          </div>
-
-          {/* Info bar */}
-          {!loading && allHistory.length > 0 && (
-            <div className="flex items-center justify-between px-1">
-              <p className="text-xs font-bold text-slate-400">
-                Menampilkan <span className="text-slate-700">
-                  {Math.min((historyPage - 1) * PAGE_SIZE + 1, allHistory.length)}–{Math.min(historyPage * PAGE_SIZE, allHistory.length)} dari {allHistory.length}
-                </span> riwayat
-              </p>
-              <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-                {PAGE_SIZE} per halaman
-              </span>
-            </div>
-          )}
-
-          {/* History cards */}
           {loading ? (
-            <div className="space-y-3">
+            <div className="space-y-3 pt-2">
               {[0,1,2,3].map(i => (
-                <div key={i} className="bg-white rounded-2xl border border-slate-200 p-5 animate-pulse flex items-center gap-4">
+                <div key={i} className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 animate-pulse flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-slate-200 shrink-0" />
-                  <div className="flex-1 space-y-2"><div className="h-4 w-48 bg-slate-200 rounded" /><div className="h-3 w-32 bg-slate-100 rounded" /></div>
-                  <div className="w-24 h-7 bg-slate-100 rounded-xl shrink-0" />
+                  <div className="flex-1 space-y-2"><div className="h-4 w-3/4 sm:w-48 bg-slate-200 rounded" /><div className="h-3 w-1/2 sm:w-32 bg-slate-100 rounded" /></div>
+                  <div className="hidden sm:block w-24 h-7 bg-slate-100 rounded-xl shrink-0" />
                 </div>
               ))}
             </div>
           ) : allHistory.length === 0 ? (
-            <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-16 text-center">
-              <i className="fa-solid fa-inbox text-5xl text-slate-200 mb-4 block" />
-              <h3 className="text-slate-500 font-bold text-lg">{search ? "Tidak ditemukan" : "Belum ada riwayat"}</h3>
-              <p className="text-slate-400 text-sm mt-1">{search ? "Coba kata kunci lain." : "Riwayat tugas akan muncul di sini."}</p>
+            <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-10 sm:p-16 text-center mt-2">
+              <i className="fa-solid fa-inbox text-4xl sm:text-5xl text-slate-200 mb-4 block" />
+              <h3 className="text-slate-500 font-bold text-base sm:text-lg">{search ? "Tidak ditemukan" : "Belum ada riwayat"}</h3>
+              <p className="text-slate-400 text-xs sm:text-sm mt-1">{search ? "Coba kata kunci lain." : "Riwayat tugas akan muncul di sini."}</p>
             </div>
           ) : (
             <>
-              <div className="space-y-3">
+              <div className="space-y-3 pt-2">
                 {pagedHistory.map(task => {
                   const badge = STATUS_BADGE[task.status] || STATUS_BADGE.todo;
                   return (
                     <div key={task.id}
-                      className={`bg-white rounded-2xl border p-5 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row sm:items-center gap-4 relative overflow-hidden ${
+                      className={`bg-white rounded-2xl border p-4 sm:p-5 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row sm:items-center gap-4 relative overflow-hidden ${
                         task.status === 'revision'   ? 'border-rose-200 bg-rose-50/30' :
                         task.status === 'completed'  ? 'border-emerald-200 bg-emerald-50/20' :
                         task.status === 'pending' || task.status === 'waiting_confirmation' ? 'border-amber-200 bg-amber-50/20' :
                         'border-slate-200'
                       }`}>
-                      {/* Color bar left */}
                       <div className={`absolute top-0 left-0 bottom-0 w-1 rounded-l-2xl ${
                         task.status==='completed'?'bg-emerald-400':task.status==='revision'?'bg-rose-400':
                         task.status==='pending'||task.status==='waiting_confirmation'?'bg-amber-400':'bg-slate-300'}`} />
 
-                      <div className="flex items-start gap-4 flex-1 min-w-0 pl-3">
-                        {/* Status icon */}
+                      <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0 pl-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${badge.cls}`}>
                           <i className={`fa-solid ${badge.icon} text-sm`} />
                         </div>
@@ -435,44 +432,46 @@ const InternTasks = () => {
                           <h4 className={`font-bold text-slate-800 text-sm leading-tight truncate ${task.status==='completed'?'line-through text-slate-500':''}`}>
                             {task.title}
                           </h4>
-                          <div className="flex flex-wrap items-center gap-x-3 mt-0.5">
-                            <span className="text-[11px] text-slate-400 font-medium">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5">
+                            <span className="text-[10px] sm:text-[11px] text-slate-400 font-medium whitespace-nowrap">
                               <i className="fa-regular fa-calendar mr-1" />{fmtDate(task.task_date)}
                             </span>
                             {task.due_date && (
-                              <span className="text-[11px] text-slate-400 font-medium">
+                              <span className="text-[10px] sm:text-[11px] text-slate-400 font-medium whitespace-nowrap">
                                 <i className="fa-solid fa-flag mr-1" />Deadline {fmtDate(task.due_date)}
                               </span>
                             )}
                           </div>
                           {task.description && task.status !== 'todo' && (
-                            <p className="text-[11px] text-slate-500 italic mt-1 line-clamp-1">"{task.description}"</p>
+                            <p className="text-[10px] sm:text-[11px] text-slate-500 italic mt-1 line-clamp-1">"{task.description}"</p>
                           )}
                           {task.status === 'revision' && task.admin_notes && (
-                            <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
-                              <i className="fa-solid fa-circle-exclamation" />{task.admin_notes}
+                            <p className="text-[10px] sm:text-[11px] font-bold text-rose-500 mt-1 flex items-start sm:items-center gap-1">
+                              <i className="fa-solid fa-circle-exclamation mt-0.5 sm:mt-0 shrink-0" />{task.admin_notes}
                             </p>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0 pl-3 sm:pl-0 flex-wrap justify-end">
-                        <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border whitespace-nowrap ${badge.cls}`}>
+                      <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pl-3 sm:pl-0 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                        <span className={`px-3 py-1.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest border whitespace-nowrap ${badge.cls}`}>
                           {badge.label}
                         </span>
-                        {task.status === 'revision' && (
-                          <button onClick={() => handleOpenCamera(task)}
-                            className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 whitespace-nowrap">
-                            <i className="fa-solid fa-wrench" /> Revisi
-                          </button>
-                        )}
-                        {task.photo && (
-                          <a href={task.photo} target="_blank" rel="noreferrer"
-                            className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-200 flex items-center justify-center transition-colors"
-                            title="Lihat bukti">
-                            <i className="fa-solid fa-image text-xs" />
-                          </a>
-                        )}
+                        <div className="flex gap-2">
+                          {task.status === 'revision' && (
+                            <button onClick={() => handleOpenCamera(task)}
+                              className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-[10px] sm:text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 whitespace-nowrap">
+                              <i className="fa-solid fa-wrench" /> Revisi
+                            </button>
+                          )}
+                          {task.photo && (
+                            <a href={task.photo} target="_blank" rel="noreferrer"
+                              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-slate-100 border border-slate-200 text-slate-500 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-200 flex items-center justify-center transition-colors"
+                              title="Lihat bukti">
+                              <i className="fa-solid fa-image text-[10px] sm:text-xs" />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

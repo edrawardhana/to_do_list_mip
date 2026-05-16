@@ -31,14 +31,14 @@ import ManageAccountIntern from "./pages/admin/ManageAccountIntern";
 import ManageSchedules from "./pages/admin/ManageSchedules";
 import ManageSchedulesCalendar from "./pages/admin/ManageSchedulesCalendar";
 import Broadcasts from "./pages/admin/Broadcasts";
-import Reports from "./pages/admin/Reports";
 
 // Pages - VVIP (Superadmin & Up)
 import ManageAdmin from "./pages/superadmin/ManageAdmin";
 import DivisionAnalytics from "./pages/superadmin/DivisionAnalytics";
-// 👇 IMPORT KOMPONEN CONFIG
+
+// Pages - Developer
 import SystemConfig from './pages/developer/SystemConfig';
-import AuditLog from './pages/developer/AuditLog';
+import AuditLog from './pages/developer/AuditLog'
 
 function App() {
   return (
@@ -88,6 +88,7 @@ function App() {
                   <Whitebook />
                 </ProtectedRoute>
               } />
+              
               {/* Manajerial */}
               <Route path="approval" element={
                 <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
@@ -114,11 +115,6 @@ function App() {
                   <Broadcasts />
                 </ProtectedRoute>
               } />
-              <Route path="reports" element={
-                <ProtectedRoute roles={["admin", "superadmin"]}>
-                  <Reports />
-                </ProtectedRoute>
-              } />
 
               {/* VVIP & Analytics */}
               <Route path="manage-admin" element={
@@ -133,13 +129,13 @@ function App() {
                 </ProtectedRoute>
               } />
 
-              {/* 👇 INI YANG KETINGGALAN: RUTE KHUSUS DEVELOPER */}
+              {/* RUTE KHUSUS DEVELOPER */}
               <Route path="system-config" element={
                 <ProtectedRoute roles={["developer"]}>
                   <SystemConfig />
                 </ProtectedRoute>
               } />
-
+              
               <Route path="audit-log" element={
                 <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
                   <AuditLog />

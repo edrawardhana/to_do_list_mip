@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
@@ -10,11 +10,55 @@ const AdminTaskCRUD = () => {
   const myDivisionId = user?.division_id || user?.division?.id;
   const myDivisionName = user?.division?.name || user?.division_name || "IT Support";
 
+  // ==========================================
+  // LOGIC WARNA TEMA DINAMIS (ADMIN DEEP NAVY)
+  // ==========================================
+  const isDeveloperTheme = isDeveloper;
+  const isPurpleTheme = isSuperAdmin && !isDeveloperTheme;
+  
+  const theme = {
+    heroBg: isDeveloperTheme ? "bg-[#09090b] border-zinc-800 shadow-emerald-900/10" 
+      : isPurpleTheme ? "bg-[#1d1633] border-[#342459] shadow-purple-900/20" 
+      : "bg-[#0b1437] border-white/5 shadow-blue-900/20",
+    blobTop: isDeveloperTheme ? "bg-zinc-500/10" : isPurpleTheme ? "bg-purple-500/20" : "bg-blue-500/10",
+    blobBot: isDeveloperTheme ? "bg-sky-500/5" : isPurpleTheme ? "bg-fuchsia-500/10" : "bg-sky-500/10",
+    iconBg: isDeveloperTheme ? "bg-zinc-800 border-zinc-700 text-zinc-300" 
+      : isPurpleTheme ? "bg-purple-500/20 border-purple-400/30 text-purple-400" 
+      : "bg-white/10 border-white/10 text-blue-400",
+    badgeBg: isDeveloperTheme ? "text-zinc-500 bg-zinc-900/60 border-zinc-800" 
+      : isPurpleTheme ? "text-purple-300 bg-purple-900/40 border-purple-700/50" 
+      : "text-blue-300 bg-blue-900/40 border-blue-700/50",
+    title: "text-white",
+    subtitle: isDeveloperTheme ? "text-zinc-500" : isPurpleTheme ? "text-purple-200/70" : "text-blue-100/70",
+    widgetBg: isDeveloperTheme ? "bg-zinc-900/50 border-zinc-800/60" 
+      : isPurpleTheme ? "bg-purple-900/30 border-purple-700/50" 
+      : "bg-blue-900/30 border-blue-700/50",
+    
+    // --- MAIN TABS ---
+    mainTabActive: "bg-white text-slate-900 shadow-md", 
+    mainTabInactive: "bg-white/10 text-white/70 border border-white/10 hover:bg-white/20 hover:text-white", 
+
+    // --- TOOLBAR LANTAI ---
+    toolbarBorder: isDeveloperTheme ? "border-zinc-800/50" : isPurpleTheme ? "border-purple-700/30" : "border-blue-700/30",
+    toolbarBg: isDeveloperTheme ? "bg-[#141417]" : isPurpleTheme ? "bg-[#281c47]" : "bg-[#1c2242]",
+    inputBg: "bg-white/10 border border-white/20 focus:border-white/40 text-white placeholder:text-white/50",
+    iconMuted: "text-white/60",
+    btnAdd: isDeveloperTheme ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-900/20" : isPurpleTheme ? "bg-purple-600 hover:bg-purple-700 shadow-purple-900/20" : "bg-blue-600 hover:bg-blue-700 shadow-blue-900/20",
+
+    // --- CONTENT & MODAL ---
+    cardBg: isDeveloperTheme ? "bg-[#09090b] border-zinc-800" : "bg-white border-slate-200",
+    textPrimary: isDeveloperTheme ? "text-zinc-200" : "text-slate-800",
+    textSecondary: isDeveloperTheme ? "text-zinc-500" : "text-slate-500",
+    inputField: isDeveloperTheme ? "bg-[#18181b] border-zinc-800 text-zinc-200 focus:border-emerald-500 focus:ring-emerald-500" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-blue-500 focus:ring-blue-500",
+  };
+
   const [activeTab, setActiveTab] = useState("template"); // 'template' atau 'live'
 
   // State Modals
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   // Form State
   const [taskName, setTaskName] = useState("");
@@ -24,495 +68,416 @@ const AdminTaskCRUD = () => {
   const [assignNote, setAssignNote] = useState("");
   const [taskDivisionId, setTaskDivisionId] = useState(myDivisionId || "");
 
+  // Data State
   const [taskTemplates, setTaskTemplates] = useState([]);
   const [liveTasks, setLiveTasks] = useState([]);
   const [interns, setInterns] = useState([]);
   const [divisions, setDivisions] = useState([]);
-  const [filterDivision, setFilterDivision] = useState(canManageAll ? "Semua" : (myDivisionId || myDivisionName));
-  const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [tplRes, tasksRes, profRes, divRes] = await Promise.all([
+      const [tplRes, liveRes, internRes, divRes] = await Promise.all([
         api.get('/task-templates'),
         api.get('/daily-tasks'),
         api.get('/profiles'),
         canManageAll ? api.get('/divisions') : Promise.resolve({ data: [] })
       ]);
+      setTaskTemplates(tplRes.data?.data || []);
+      setLiveTasks(liveRes.data?.data || []);
       
-      setTaskTemplates(tplRes.data?.data || tplRes.data || []);
-      
-      const allTasks = tasksRes.data?.data || tasksRes.data || [];
-      setLiveTasks(allTasks.filter(t => t.template_id === null)); // Urgent task = no template
-      
-      const allProfiles = profRes.data?.data || profRes.data || [];
-      setInterns(allProfiles.filter(p => p.role === 'intern'));
-
-      if (canManageAll) {
-        setDivisions(divRes.data?.data || divRes.data || []);
-      }
-    } catch (error) {
-      console.error("Gagal memuat data tasks:", error);
+      const allInterns = (internRes.data?.data || []).filter(u => u.role === 'intern');
+      setInterns(canManageAll ? allInterns : allInterns.filter(i => i.division_id === myDivisionId));
+      if (canManageAll) setDivisions(divRes.data?.data || []);
+    } catch (err) {
+      toast.error("Gagal sinkronisasi data.");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  // Filter data berdasarkan divisi
-  const filteredTemplates = useMemo(() => {
-    let data = taskTemplates;
-    if (canManageAll && filterDivision !== "Semua") {
-      data = data.filter(t => t.division_id === filterDivision);
-    } else if (!canManageAll) {
-      data = data.filter(t => t.division_id === myDivisionId || t.division?.name === myDivisionName);
-    }
-    return data;
-  }, [taskTemplates, filterDivision, canManageAll, myDivisionId, myDivisionName]);
+  // Filter Data
+  const filteredTemplates = taskTemplates.filter(t => t.title.toLowerCase().includes(search.toLowerCase()));
+  const filteredLiveTasks = liveTasks.filter(t => 
+    t.description?.toLowerCase().includes(search.toLowerCase()) || 
+    t.taskTemplate?.title?.toLowerCase().includes(search.toLowerCase()) ||
+    t.assignee?.full_name?.toLowerCase().includes(search.toLowerCase())
+  );
 
-  const filteredLiveTasks = useMemo(() => {
-    let data = liveTasks;
-    if (canManageAll && filterDivision !== "Semua") {
-      data = data.filter(t => t.division_id === filterDivision);
-    } else if (!canManageAll) {
-      data = data.filter(t => t.division_id === myDivisionId || t.division?.name === myDivisionName);
-    }
-    return data;
-  }, [liveTasks, filterDivision, canManageAll, myDivisionId, myDivisionName]);
+  const resetForm = () => {
+    setTaskName("");
+    setTaskDetail("");
+    setAssignee("");
+    setDueDate("");
+    setAssignNote("");
+    setTaskDivisionId(myDivisionId || "");
+  };
 
-  // Filter interns untuk dropdown form penugasan
-  const modalInterns = useMemo(() => {
-    return interns.filter(i => {
-      const internDivId = i.division_id || i.division?.id;
-      if (canManageAll) {
-        return taskDivisionId ? internDivId === taskDivisionId : true;
-      }
-      return internDivId === myDivisionId || i.division?.name === myDivisionName || i.division === myDivisionName;
-    });
-  }, [interns, taskDivisionId, canManageAll, myDivisionId, myDivisionName]);
-
-  // Handler Submit
-  const handleSubmitTask = async (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     try {
       if (activeTab === "template") {
-        await api.post('/task-templates', { 
+        const payload = { 
           title: taskName, 
-          description: taskDetail,
-          division_id: canManageAll ? taskDivisionId : myDivisionId
-        });
+          description: taskDetail, 
+          division_id: canManageAll ? taskDivisionId : myDivisionId 
+        };
+        await api.post('/task-templates', payload);
       } else {
-        await api.post('/daily-tasks', {
-          uploader_id: assignee, 
-          description: taskName,
-          due_date: dueDate,
-          assign_note: assignNote,
-          division_id: canManageAll ? taskDivisionId : myDivisionId
-        });
+        if (!assignee) { toast.error("Pilih intern penerima tugas!"); return; }
+        const selectedTpl = taskTemplates.find(t => t.id.toString() === taskName);
+        
+        const payload = {
+          task_date: new Date().toISOString().split('T')[0],
+          due_date: dueDate || null,
+          status: 'pending',
+          assignee_id: assignee,
+          assign_note: assignNote
+        };
+        
+        if (selectedTpl) {
+          payload.template_id = selectedTpl.id;
+        } else {
+          payload.custom_title = taskName;
+          payload.description = taskDetail;
+        }
+        await api.post('/daily-tasks', payload);
       }
+
       setShowAddModal(false);
       setShowSuccessModal(true);
-      setTaskName("");
-      setTaskDetail("");
-      setAssignee("");
-      setDueDate("");
-      setAssignNote("");
+      resetForm();
       fetchData();
-      setTimeout(() => {
-        setShowSuccessModal(false);
-      }, 2000);
+
+      setTimeout(() => setShowSuccessModal(false), 2500);
     } catch (error) {
-      toast.error("Gagal menyimpan tugas!");
+      toast.error(error.response?.data?.message || "Gagal menyimpan data.");
     }
   };
 
-  const handleDeleteTemplate = async (id) => {
-    if(window.confirm("Hapus blueprint ini secara permanen?")) {
+  const handleDelete = async (id, type) => {
+    if (window.confirm("Yakin ingin menghapus data ini?")) {
       try {
-        await api.delete(`/task-templates/${id}`);
-        toast.success("Blueprint dihapus");
+        if (type === 'template') {
+          await api.delete(`/task-templates/${id}`);
+        } else {
+          await api.delete(`/daily-tasks/${id}`);
+        }
+        toast.success("Berhasil dihapus!");
         fetchData();
-      } catch(e) { toast.error("Gagal menghapus blueprint"); }
+      } catch { toast.error("Gagal menghapus."); }
     }
   };
 
-  const handleDeleteLiveTask = async (id) => {
-    if(window.confirm("Hapus tugas urgent ini?")) {
-      try {
-        await api.delete(`/daily-tasks/${id}`);
-        toast.success("Tugas urgent dihapus");
-        fetchData();
-      } catch(e) { toast.error("Gagal menghapus tugas"); }
-    }
+  const fmtDate = (d) => {
+    if (!d) return "—";
+    return new Date(d.includes('T') ? d : d + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-2 max-w-7xl mx-auto relative">
-      
+    <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16 pt-4 sm:pt-6 md:pt-8 px-3 sm:px-4 lg:px-8 max-w-7xl mx-auto">
+
       {/* ================================================================= */}
-      {/* HERO SECTION + FILTER TABS (BLUE-950 THEME)                       */}
+      {/* HERO SECTION (ADMIN COMMAND CENTER STYLE)                           */}
       {/* ================================================================= */}
-      <div className="bg-blue-950/95 backdrop-blur-2xl rounded-[2.5rem] text-white shadow-2xl shadow-blue-900/20 border border-white/10 relative overflow-hidden group flex flex-col mb-6">
-        <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-blue-500/20 transition-colors duration-1000"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className={`rounded-[2rem] sm:rounded-[2.5rem] border shadow-2xl relative overflow-hidden flex flex-col transition-colors duration-700 ${theme.heroBg}`}>
         
-        {/* Info Hero & CTA */}
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 p-8 md:p-12">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="relative w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/10 text-sky-400 shrink-0 shadow-lg">
-                <i className="fa-solid fa-clipboard-list text-xl relative z-10"></i>
+        {/* Ornamen Command Center (Matrix Dots) - Membedakan dari Intern */}
+        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.2) 1px, transparent 1px)', backgroundSize: '16px 16px', maskImage: 'linear-gradient(to bottom, black, transparent)' }} />
+        
+        {/* Glow Effects */}
+        <div className={`absolute -top-32 -right-32 w-64 sm:w-96 h-64 sm:h-96 rounded-full blur-[100px] pointer-events-none transition-colors duration-700 ${theme.blobTop}`} />
+        <div className={`absolute -bottom-32 -left-32 w-48 sm:w-72 h-48 sm:h-72 rounded-full blur-[100px] pointer-events-none transition-colors duration-700 ${theme.blobBot}`} />
+
+        <div className="relative z-10 p-5 sm:p-8 md:p-10 flex flex-col lg:flex-row justify-between gap-6 sm:gap-8">
+          
+          {/* KOLOM KIRI */}
+          <div className="lg:max-w-xl flex flex-col">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl md:rounded-2xl flex items-center justify-center shadow-inner shrink-0 transition-colors duration-500 ${theme.iconBg}`}>
+                <i className="fa-solid fa-server text-sm sm:text-lg md:text-xl" />
               </div>
-              <span className="text-sky-400 text-[11px] font-black uppercase tracking-[0.2em] leading-none">
-                Task Management
+              <span className={`text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] md:tracking-[0.25em] px-2.5 sm:px-3 py-1 sm:py-1.5 md:py-2 rounded-lg border transition-colors duration-500 ${theme.badgeBg}`}>
+                Control Room
               </span>
             </div>
-            
-            <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-6 text-white drop-shadow-sm">
-              Logbook Center.
+            <h1 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter mb-2 sm:mb-3 md:mb-4 leading-tight transition-colors duration-500 ${theme.title}`}>
+              Manajemen Tugas.
             </h1>
-            
-            {/* ========================================================== */}
-            {/* VISUAL WIDGET (PENGGANTI TEKS DESKRIPSI BIAR LEBIH KEREN)  */}
-            {/* ========================================================== */}
-            <div className="flex items-center gap-5 mt-2">
-              {/* 1. Animated Progress Ring */}                 
-              <div className="relative w-10 h-10 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                  <path strokeDasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
-                  <path strokeDasharray="75, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#38bdf8" strokeWidth="3" strokeLinecap="round" className="animate-[spin_3s_linear_infinite]" />
-                </svg>
-                <i className="fa-solid fa-bolt text-sky-400 text-[10px] absolute animate-pulse"></i>
-              </div>
-              
-              {/* Garis Pemisah */}
-              <div className="h-8 w-px bg-white/10 rounded-full"></div>
+            <p className={`text-[11px] sm:text-xs md:text-sm font-medium leading-relaxed transition-colors duration-500 ${theme.subtitle}`}>
+              Akses kendali penuh. Rancang template tugas rutin divisi atau delegasikan instruksi operasional secara spesifik ke intern.
+            </p>
 
-              {/* 2. Visual Activity Graph (Equalizer) */}
-              <div className="flex items-end gap-1.5 h-7">
-                <div className="w-1.5 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-                <div className="w-1.5 h-5 bg-sky-400 rounded-full animate-pulse" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-1.5 h-7 bg-emerald-400 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></div>
-                <div className="w-1.5 h-4 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '450ms' }}></div>
-                <div className="w-1.5 h-2 bg-blue-300 rounded-full animate-pulse" style={{ animationDelay: '600ms' }}></div>
-              </div>          
-
-            </div>
-          </div>
-          
-
-          <div className="shrink-0 mt-4 md:mt-0">
-            <button 
-              onClick={() => setShowAddModal(true)}
-              className="w-full md:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-3 active:scale-95 border border-blue-500 group"
-            >
-              <i className="fa-solid fa-plus text-lg group-hover:rotate-90 transition-transform duration-300"></i> 
-              Buat {activeTab === "template" ? "Blueprint" : "Tugas Dadakan"}
-            </button>
-          </div>
-        </div>
-
-        {/* Tabs Dock */}
-        <div className="relative z-10 bg-white/5 border-t border-white/10 px-8 py-5 flex flex-col sm:flex-row items-center gap-4">
-          <button
-            onClick={() => setActiveTab("template")}
-            className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl text-[13px] font-bold transition-all flex items-center justify-center gap-2 border shadow-sm ${
-              activeTab === "template" 
-                ? "bg-blue-600 text-white border-blue-500 shadow-blue-500/20 scale-105" 
-                : "bg-blue-950/50 text-blue-200 border-white/10 hover:bg-white/10"
-            }`}
-          >
-            <i className="fa-solid fa-calendar-check"></i> Template Rutin (Sistem)
-          </button>
-          
-          <button
-            onClick={() => setActiveTab("live")}
-            className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl text-[13px] font-bold transition-all flex items-center justify-center gap-2 border shadow-sm ${
-              activeTab === "live" 
-                ? "bg-rose-500 text-white border-rose-400 shadow-rose-500/20 scale-105" 
-                : "bg-blue-950/50 text-blue-200 border-white/10 hover:bg-white/10"
-            }`}
-          >
-            <i className="fa-solid fa-bolt"></i> Tugas Dadakan (Hari Ini)
-          </button>
-        </div>
-      </div>
-
-      {/* FILTER DIVISI KHUSUS VVIP */}
-      {canManageAll && (
-        <div className="flex justify-end mb-4 px-2">
-          <div className="relative w-full sm:w-64">
-            <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer shadow-sm">
-              <option value="Semua">Semua Divisi</option>
-              {divisions.map((div) => (
-                <option key={div.id} value={div.id}>{div.name}</option>
+            {/* 🔥 MAIN TABS (Mobile Scrollable) */}
+            <div className="mt-5 sm:mt-6 md:mt-8 flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide flex-nowrap w-full max-w-full pb-1 sm:pb-0">
+              {[
+                { id: "template", label: "Template Bank", icon: "fa-layer-group" },
+                { id: "live",     label: "Live Assignments",  icon: "fa-satellite-dish" },
+              ].map(tab => (
+                <button key={tab.id} onClick={() => { setActiveTab(tab.id); setSearch(""); }}
+                  className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl md:rounded-2xl text-[10px] sm:text-[11px] md:text-[13px] font-bold transition-all border whitespace-nowrap shrink-0 ${
+                    activeTab === tab.id ? theme.mainTabActive : theme.mainTabInactive
+                  }`}>
+                  <i className={`fa-solid ${tab.icon}`} />
+                  {tab.label}
+                </button>
               ))}
-            </select>
-            <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+            </div>
+          </div>
+
+          {/* KOLOM KANAN (Stats Widget) - FIX: h-fit & lg:self-center biar rapet */}
+          <div className={`w-full lg:w-80 shrink-0 h-fit lg:self-center rounded-xl sm:rounded-2xl md:rounded-3xl p-4 sm:p-5 md:p-6 backdrop-blur-md flex flex-col gap-3 sm:gap-4 border transition-colors duration-500 ${theme.widgetBg}`}>
+            <div className="flex justify-between items-center border-b border-white/10 pb-2 sm:pb-3 mb-1">
+              <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-white/50">Task Summary</span>
+              <span className="text-[9px] sm:text-[10px] font-black text-white bg-white/10 px-2 py-0.5 sm:py-1 rounded-md">{canManageAll ? "Global" : myDivisionName}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="flex flex-col">
+                <span className="text-[8px] sm:text-[9px] font-bold uppercase text-white/40 mb-0.5 sm:mb-1">Templates</span>
+                <span className="text-2xl sm:text-3xl font-black text-white leading-none">{taskTemplates.length}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[8px] sm:text-[9px] font-bold uppercase text-emerald-400 mb-0.5 sm:mb-1">Live Tasks</span>
+                <span className="text-2xl sm:text-3xl font-black text-white leading-none">{liveTasks.length}</span>
+              </div>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Header Info List (Pemisah Gede) */}
-      <div className={`px-4 sm:px-6 py-4 flex items-center gap-4 border border-slate-200 rounded-3xl ${activeTab === "template" ? "bg-blue-50/50" : "bg-rose-50/50"}`}>
-         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner shrink-0 ${activeTab === "template" ? "bg-blue-100 text-blue-600" : "bg-rose-100 text-rose-500"}`}>
-           <i className={`fa-solid ${activeTab === "template" ? "fa-robot" : "fa-person-running"}`}></i>
-         </div>
-         <div>
-           <h2 className="text-lg font-black text-slate-800 leading-tight">
-             {activeTab === "template" ? "Daftar Blueprint Otomatis (Akan Di-copy)" : "Daftar Tugas Urgent Hari Ini"}
-           </h2>
-           <p className="text-xs font-bold text-slate-500 mt-1">
-             {activeTab === "template" 
-               ? "Sistem otomatis membuat tugas ini setiap jam 00:00." 
-               : "Tugas mendadak yang harus diselesaikan oleh intern hari ini juga."}
-           </p>
-         </div>
+        {/* 🔥 TOOLBAR LANTAI HERO: SEARCH & ADD BUTTON (RESPONSIVE) */}
+        <div className={`relative z-10 border-t ${theme.toolbarBorder} px-4 sm:px-6 md:px-8 py-3 sm:py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-4 backdrop-blur-xl transition-colors duration-700 ${theme.toolbarBg}`}>
+          <div className="relative w-full sm:max-w-xs md:max-w-sm lg:w-80 shrink-0 group">
+            <i className={`fa-solid fa-magnifying-glass absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-xs pointer-events-none transition-colors ${theme.iconMuted}`} />
+            <input type="text" placeholder={`Cari di ${activeTab === 'template' ? 'template' : 'tugas aktif'}...`} value={search} onChange={e => setSearch(e.target.value)}
+              className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl text-[11px] sm:text-xs md:text-sm font-medium outline-none border transition-colors shadow-sm ${theme.inputBg}`} />
+          </div>
+
+          <button onClick={() => { resetForm(); setShowAddModal(true); }} 
+            className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-[11px] sm:text-xs md:text-sm font-black text-white transition-all active:scale-95 shadow-lg shrink-0 ${theme.btnAdd}`}>
+            <i className="fa-solid fa-plus-circle" /> {activeTab === "template" ? "Buat Template" : "Assign Tugas"}
+          </button>
+        </div>
       </div>
 
       {/* ================================================================= */}
-      {/* DESAIN CARD LIST (Nggak Flat, kayak Template Terstruktur)          */}
+      {/* CONTENT LIST (RESPONSIVE GRID)                                      */}
       {/* ================================================================= */}
-      <div className="space-y-6">
-          
-          {/* JIKA DATA KOSONG */}
-          {(activeTab === "template" ? filteredTemplates : filteredLiveTasks).length === 0 && (
-            <div className="p-16 text-center flex flex-col items-center justify-center bg-white border border-slate-200 rounded-[2.5rem]">
-              <div className="w-20 h-20 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center text-4xl mb-4 shadow-inner border border-slate-100">
-                <i className="fa-solid fa-folder-open"></i>
-              </div>
-              <p className="text-slate-500 font-bold text-sm mb-1">{loading ? "Memuat data..." : "Belum ada data."}</p>
-              <p className="text-xs font-medium text-slate-400">Tekan tombol di Hero buat nambahin.</p>
-            </div>
-          )}
-
-          {/* RENDER TEMPLATE SEBAGAI SEBUAH CARD UTUH (Nggak Flat) */}
-          {activeTab === "template" && filteredTemplates.map((task) => (
-            <div key={task.id} className="bg-white p-7 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-lg hover:border-blue-200 transition-all group flex flex-col gap-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex-1 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-blue-100">
-                            Rutin (Sistem)
+      <div className="pt-2 sm:pt-4">
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {[0,1,2,3,4,5].map(i => <div key={i} className={`h-36 sm:h-40 rounded-2xl sm:rounded-[2rem] border animate-pulse ${theme.cardBg}`} />)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            
+            {/* ── RENDER TEMPLATES ── */}
+            {activeTab === "template" && (
+              filteredTemplates.length === 0 ? (
+                <div className="col-span-full py-16 sm:py-20 text-center opacity-40">
+                  <i className={`fa-solid fa-layer-group text-4xl sm:text-5xl mb-3 sm:mb-4 ${theme.textSecondary}`} />
+                  <h3 className={`font-black text-base sm:text-lg ${theme.textPrimary}`}>Belum Ada Template</h3>
+                  <p className={`text-xs sm:text-sm font-medium mt-1 ${theme.textSecondary}`}>Klik tombol "Buat Template" untuk menyusun database tugas.</p>
+                </div>
+              ) : (
+                filteredTemplates.map(tpl => (
+                  <div key={tpl.id} className={`rounded-2xl sm:rounded-[2rem] border p-5 sm:p-6 flex flex-col justify-between group hover:shadow-lg transition-all duration-300 ${theme.cardBg}`}>
+                    <div>
+                      <div className="flex justify-between items-start mb-3">
+                        <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${isDeveloperTheme ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-blue-50 border-blue-100 text-blue-600'}`}>
+                          {tpl.division?.name || 'Global'}
                         </span>
-                        {canManageAll && task.division?.name && (
-                          <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-200">{task.division?.name}</span>
-                        )}
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest leading-none mt-0.5">Blueprint Rutin</p>
+                        <div className="flex gap-1.5 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                           <button onClick={() => handleDelete(tpl.id, 'template')} className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all border border-rose-100"><i className="fa-solid fa-trash text-[9px] sm:text-[10px]" /></button>
+                        </div>
                       </div>
-                      <h3 className="font-bold text-slate-800 text-[18px] leading-tight mb-1">{task.title}</h3>
+                      <h3 className={`font-black text-xs sm:text-sm mb-1.5 sm:mb-2 line-clamp-2 ${theme.textPrimary}`}>{tpl.title}</h3>
+                      <p className={`text-[10px] sm:text-xs font-medium line-clamp-3 leading-relaxed italic ${theme.textSecondary}`}>"{tpl.description || 'Tanpa detail deskripsi.'}"</p>
+                    </div>
+                    <div className="mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-dashed border-slate-200/50 flex justify-between items-center">
+                      <span className={`text-[9px] sm:text-[10px] font-bold ${theme.textSecondary}`}>ID: #{tpl.id.toString().slice(0,5)}</span>
+                      <button onClick={() => { /* Edit Tpl Logic Later */ }} className={`text-[9px] sm:text-[10px] font-black uppercase tracking-widest hover:underline ${isDeveloperTheme ? 'text-emerald-500' : 'text-blue-500'}`}>Edit Template</button>
+                    </div>
                   </div>
-                  
-                  {/* Aksi Edit/Delete di Pojok Kanan Atas Card */}
-                  <div className="flex items-center gap-2 shrink-0 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="px-5 py-2.5 bg-slate-50 border border-slate-200 text-slate-500 hover:text-amber-500 hover:border-amber-300 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 hover:bg-amber-50">
-                      <i className="fa-solid fa-pen"></i> Edit
-                    </button>
-                    <button onClick={() => handleDeleteTemplate(task.id)} className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-500 hover:text-rose-500 hover:border-rose-300 rounded-xl text-xs font-bold shadow-sm transition-all hover:bg-rose-50">
-                      <i className="fa-solid fa-trash"></i>
-                    </button>
+                ))
+              )
+            )}
+
+            {/* ── RENDER LIVE TASKS ── */}
+            {activeTab === "live" && (
+              filteredLiveTasks.length === 0 ? (
+                <div className="col-span-full py-16 sm:py-20 text-center opacity-40">
+                  <i className={`fa-solid fa-satellite-dish text-4xl sm:text-5xl mb-3 sm:mb-4 ${theme.textSecondary}`} />
+                  <h3 className={`font-black text-base sm:text-lg ${theme.textPrimary}`}>Tidak Ada Tugas Berjalan</h3>
+                  <p className={`text-xs sm:text-sm font-medium mt-1 ${theme.textSecondary}`}>Klik tombol "Assign Tugas" untuk memberi instruksi operasional.</p>
+                </div>
+              ) : (
+                filteredLiveTasks.map(task => (
+                  <div key={task.id} className={`rounded-2xl sm:rounded-[2rem] border p-4 sm:p-5 md:p-6 flex flex-col group hover:shadow-lg transition-all duration-300 ${theme.cardBg}`}>
+                    <div className="flex justify-between items-start mb-3 sm:mb-4">
+                      <div className="flex items-center gap-2.5 sm:gap-3">
+                        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-black text-xs sm:text-sm shrink-0 border ${isDeveloperTheme ? 'bg-zinc-800 text-zinc-300 border-zinc-700' : 'bg-blue-100 text-blue-600 border-blue-200'}`}>
+                          {task.assignee?.full_name?.charAt(0) || 'U'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className={`text-[8px] sm:text-[10px] font-bold uppercase tracking-widest ${theme.textSecondary}`}>Assigned to</p>
+                          <h4 className={`font-black text-[11px] sm:text-xs md:text-sm truncate max-w-[100px] sm:max-w-[120px] ${theme.textPrimary}`}>{task.assignee?.full_name || 'Unassigned'}</h4>
+                        </div>
+                      </div>
+                      <div className="flex gap-1.5 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                           <button onClick={() => handleDelete(task.id, 'live')} className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all border border-rose-100"><i className="fa-solid fa-trash text-[8px] sm:text-[10px]" /></button>
+                      </div>
+                    </div>
+
+                    <div className="mb-3 sm:mb-4 flex-1">
+                      <h3 className={`font-black text-xs sm:text-sm mb-1 sm:mb-1.5 line-clamp-2 ${theme.textPrimary}`}>{task.taskTemplate?.title || task.custom_title || task.description || "Tugas Harian"}</h3>
+                      {task.assign_note && (
+                        <p className={`text-[10px] sm:text-[11px] p-2 sm:p-2.5 rounded-lg border italic line-clamp-2 mt-2 ${isDeveloperTheme ? 'bg-[#141417] border-zinc-800 text-zinc-400' : 'bg-amber-50/50 border-amber-100 text-amber-700'}`}>
+                          <i className="fa-solid fa-circle-info mr-1" /> {task.assign_note}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 border-t border-dashed border-slate-200/50 pt-3 sm:pt-4">
+                       <div>
+                         <p className={`text-[8px] sm:text-[9px] font-bold uppercase tracking-widest mb-0.5 ${theme.textSecondary}`}>Deadline</p>
+                         <p className={`text-[10px] sm:text-[11px] font-black ${theme.textPrimary}`}><i className="fa-regular fa-calendar text-rose-500 mr-1" /> {fmtDate(task.due_date)}</p>
+                       </div>
+                       <div className="text-right">
+                         <p className={`text-[8px] sm:text-[9px] font-bold uppercase tracking-widest mb-0.5 ${theme.textSecondary}`}>Status</p>
+                         <span className={`inline-block px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase border ${
+                            task.status === 'completed' || task.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                            task.status === 'rejected' || task.status === 'revision' ? 'bg-rose-50 text-rose-600 border-rose-200' :
+                            'bg-amber-50 text-amber-600 border-amber-200'
+                         }`}>
+                           {task.status}
+                         </span>
+                       </div>
+                    </div>
                   </div>
-                </div>
-
-                {/* Bagian Bawah Card Instruksi Detail */}
-                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex items-start gap-4 shadow-inner">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0 mt-0.5 text-slate-400">
-                        <i className="fa-solid fa-list-check text-xs"></i>
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Instruksi Pelaksanaan Besok</p>
-                        <p className="text-xs font-medium text-slate-600 leading-relaxed italic">"{task.description || 'Tidak ada instruksi detail.'}"</p>
-                    </div>
-                </div>
-            </div>
-          ))}
-
-          {/* RENDER TUGAS URGENT SEBAGAI SEBUAH CARD UTUH (Nggak Flat) */}
-          {activeTab === "live" && filteredLiveTasks.map((task) => (
-            <div key={task.id} className="bg-white p-7 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-lg hover:border-rose-200 transition-all group flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
-                {/* Ping Accent */}
-                <span className="absolute top-0 right-0 w-2 h-2 rounded-bl-lg bg-rose-500 animate-pulse"></span>
-                
-                <div className="flex flex-col md:flex-row md:items-center gap-5 fle-1">
-                    <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0 border border-rose-200 shadow-inner">
-                        <i className="fa-solid fa-bolt animate-pulse"></i>
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-slate-800 text-[18px] leading-tight mb-1.5">{task.description || "Tugas Urgent"}</h3>
-                        <div className="flex items-center gap-2">
-                            <span className="bg-rose-50 text-rose-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-rose-100">
-                                Dibuat Jam: {new Date(task.created_at).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})} WIB
-                            </span>
-                            <span className="bg-amber-50 text-amber-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-amber-100">
-                                Due: {task.due_date ? new Date(task.due_date).toLocaleDateString('id-ID') : "Hari Ini"}
-                            </span>
-                            {canManageAll && task.division?.name && (
-                              <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-200">{task.division?.name}</span>
-                            )}
-                            <span className="text-[10px] font-bold text-rose-400 uppercase tracking-widest leading-none mt-0.5">Tugas Urgent (Dadakan)</span>
-                        </div>
-                        {task.assign_note && (
-                          <p className="text-[11px] mt-2 text-slate-500 italic">"{task.assign_note}"</p>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center gap-6 shrink-0 pl-16 md:pl-0 w-full md:w-auto">
-                    {/* Assignee Badge */}
-                    <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-4 py-2 rounded-2xl shadow-inner w-full sm:w-auto">
-                        <div className="w-7 h-7 rounded-lg bg-slate-300 text-white flex items-center justify-center text-xs font-black shadow-sm shrink-0 border border-white">
-                            {(task.uploader?.full_name || "I").charAt(0)}
-                        </div>
-                        <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Ditugaskan Ke</p>
-                            <span className="text-[13px] font-black text-slate-800">{task.uploader?.full_name || "Intern"}</span>
-                        </div>
-                    </div>
-
-                    {/* Aksi Hapus Urgent */}
-                    <button onClick={() => handleDeleteLiveTask(task.id)} className="w-11 h-11 flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-300 rounded-2xl text-sm font-bold shadow-sm transition-all md:opacity-0 group-hover:opacity-100 shrink-0">
-                    <i className="fa-solid fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-          ))}
-
+                ))
+              )
+            )}
+          </div>
+        )}
       </div>
 
       {/* ================================================================= */}
-      {/* MODAL FORM: BUILDER TEMPLATE & URGENT (Proper Builder)            */}
+      {/* ADD MODAL (RESPONSIVE FORM)                                         */}
       {/* ================================================================= */}
-      {showAddModal && createPortal(
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4 sm:p-6 bg-[#0b1437]/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+      {showAddModal && (
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in">
+          <div className={`w-full sm:max-w-lg rounded-t-[2rem] sm:rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 flex flex-col max-h-[85vh] sm:max-h-[90vh] ${theme.cardBg}`}>
             
             {/* Header Modal */}
-            <div className={`px-8 py-6 border-b border-slate-100 flex justify-between items-center shrink-0 ${activeTab === "template" ? "bg-blue-50/50" : "bg-rose-50/50"}`}>
-              <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
-                {activeTab === "template" ? (
-                  <><div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shadow-inner border border-blue-200"><i className="fa-solid fa-robot text-sm"></i></div> Setup Blueprint</>
-                ) : (
-                  <><div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shadow-inner border border-rose-200"><i className="fa-solid fa-bolt text-sm"></i></div> Tambah Urgent</>
-                )}
+            <div className={`px-5 sm:px-8 py-4 sm:py-6 border-b shrink-0 flex justify-between items-center ${isDeveloperTheme ? 'border-zinc-800' : 'border-slate-100'}`}>
+              <h2 className={`text-base sm:text-xl font-black flex items-center gap-2 ${theme.textPrimary}`}>
+                {activeTab === "template" ? <><i className="fa-solid fa-layer-group" /> Tambah Template</> : <><i className="fa-solid fa-user-astronaut" /> Assign Tugas</>}
               </h2>
-              <button onClick={() => setShowAddModal(false)} className="w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:bg-rose-100 hover:text-rose-500 hover:border-rose-200 transition-colors shadow-sm cursor-pointer">
+              <button onClick={() => setShowAddModal(false)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${theme.textSecondary} hover:bg-rose-500 hover:text-white`}>
                 <i className="fa-solid fa-xmark"></i>
               </button>
             </div>
-
-            {/* Body Form Modal */}
-            <div className="p-8 overflow-y-auto custom-scrollbar">
-              <form id="taskForm" onSubmit={handleSubmitTask} className="space-y-6">
-                
-                <div>
-                  <label className="text-[11px] font-black uppercase text-slate-500 block mb-2 tracking-widest">
-                    {activeTab === "template" ? "Judul Blueprint Rutinitas" : "Judul Tugas Urgent Hari Ini"} <span className="text-rose-500">*</span>
-                  </label>
-                  <input 
-                    type="text" required value={taskName} onChange={(e) => setTaskName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
-                    placeholder={activeTab === "template" ? "Misal: Cek Suhu Ruang Server..." : "Misal: Angkat Proyektor ke Lantai 4..."} 
-                  />
-                </div>
-
-                {/* PILIH DIVISI KHUSUS VVIP */}
-                {canManageAll && (
+            
+            {/* Body Modal (Scrollable) */}
+            <form onSubmit={handleSave} className="overflow-y-auto flex-1 custom-scrollbar px-5 sm:px-8 py-4 sm:py-6 space-y-4 sm:space-y-5">
+              
+              {activeTab === "template" ? (
+                /* --- FORM: BUAT TEMPLATE --- */
+                <>
                   <div>
-                    <label className="text-[11px] font-black uppercase text-slate-500 block mb-2 tracking-widest">
-                      Untuk Divisi <span className="text-rose-500">*</span>
-                    </label>
-                    <select required value={taskDivisionId} onChange={(e) => setTaskDivisionId(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer">
-                      <option value="">Pilih Divisi...</option>
-                      {divisions.map((div) => (
-                        <option key={div.id} value={div.id}>{div.name}</option>
-                      ))}
-                    </select>
+                    <label className={`text-[10px] font-black uppercase tracking-widest block mb-1.5 ml-1 ${theme.textSecondary}`}>Judul Tugas</label>
+                    <input type="text" required value={taskName} onChange={e => setTaskName(e.target.value)} placeholder="Contoh: Maintenance Server"
+                      className={`w-full p-3 sm:p-3.5 rounded-xl border outline-none text-xs sm:text-sm font-bold transition-colors ${theme.inputField}`} />
                   </div>
-                )}
-
-                {/* FORM KHUSUS TEMPLATE RUTIN (Automation Setup) */}
-                {activeTab === "template" && (
-                  <>
-                    <div className="bg-blue-50 border border-blue-100 p-5 rounded-xl flex gap-3.5 items-start">
-                        <i className="fa-solid fa-circle-info text-blue-500 text-sm mt-0.5"></i>
-                        <p className="text-blue-800 text-xs font-medium leading-relaxed">Isian di bawah ini akan digunakan oleh sistem untuk meng-copy tugas otomatis setiap hari besok.</p>
-                    </div>
+                  <div>
+                    <label className={`text-[10px] font-black uppercase tracking-widest block mb-1.5 ml-1 ${theme.textSecondary}`}>Instruksi / Detail</label>
+                    <textarea rows={4} required value={taskDetail} onChange={e => setTaskDetail(e.target.value)} placeholder="Tuliskan step-by-step pengerjaan..."
+                      className={`w-full p-3 sm:p-3.5 rounded-xl border outline-none text-xs sm:text-sm font-medium resize-none transition-colors ${theme.inputField}`} />
+                  </div>
+                  {canManageAll && (
                     <div>
-                      <label className="text-[11px] font-black uppercase text-slate-500 block mb-2 tracking-widest flex justify-between">
-                        Instruksi Detail <span className="text-slate-400 font-medium normal-case tracking-normal">Gak wajib, biar intern jelas aja</span>
-                      </label>
-                      <textarea 
-                        value={taskDetail} onChange={(e) => setTaskDetail(e.target.value)} rows="3"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"
-                        placeholder="Contoh: Pastikan matikan PC sebelum pulang, cabut kabel router di lantai 2 jika shift sore."
-                      ></textarea>
+                      <label className={`text-[10px] font-black uppercase tracking-widest block mb-1.5 ml-1 ${theme.textSecondary}`}>Divisi Spesifik (Opsional)</label>
+                      <select value={taskDivisionId} onChange={e => setTaskDivisionId(e.target.value)}
+                        className={`w-full p-3 sm:p-3.5 rounded-xl border outline-none text-xs sm:text-sm font-bold transition-colors cursor-pointer ${theme.inputField}`}>
+                        <option value="">-- Semua Divisi (Global) --</option>
+                        {divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
                     </div>
-                  </>
-                )}
-
-                {/* FORM KHUSUS TUGAS URGENT (Live Assign) */}
-                {activeTab === "live" && (
-                  <>
+                  )}
+                </>
+              ) : (
+                /* --- FORM: ASSIGN LIVE TASK --- */
+                <>
                   <div>
-                    <label className="text-[11px] font-black uppercase text-slate-500 block mb-2 tracking-widest">
-                      Tugaskan Kepada <span className="text-rose-500">*</span>
-                    </label>
-                    <select required value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer">
-                      <option value="">Pilih Intern (Yang Sedang Aktif)...</option>
-                      {modalInterns.map((intern) => (
-                        <option key={intern.id} value={intern.id}>{intern.full_name || intern.username}</option>
-                      ))}
+                    <label className={`text-[10px] font-black uppercase tracking-widest block mb-1.5 ml-1 ${theme.textSecondary}`}>Pilih Intern <span className="text-rose-500">*</span></label>
+                    <select required value={assignee} onChange={e => setAssignee(e.target.value)}
+                      className={`w-full p-3 sm:p-3.5 rounded-xl border outline-none text-xs sm:text-sm font-bold transition-colors cursor-pointer ${theme.inputField}`}>
+                      <option value="">-- Pilih Anggota Tim --</option>
+                      {interns.map(i => <option key={i.id} value={i.id}>{i.full_name} ({i.division?.name || 'General'})</option>)}
                     </select>
                   </div>
+                  
                   <div>
-                    <label className="text-[11px] font-black uppercase text-slate-500 block mb-2 tracking-widest">
-                      Tenggat Waktu (Due Date) <span className="text-rose-500">*</span>
-                    </label>
-                    <input type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 transition-all" />
+                    <label className={`text-[10px] font-black uppercase tracking-widest block mb-1.5 ml-1 ${theme.textSecondary}`}>Tugas / Template <span className="text-rose-500">*</span></label>
+                    <div className="relative">
+                      <input type="text" required list="templatesList" value={taskName} onChange={e => setTaskName(e.target.value)} placeholder="Ketik tugas baru atau pilih template..."
+                        className={`w-full p-3 sm:p-3.5 rounded-xl border outline-none text-xs sm:text-sm font-bold transition-colors ${theme.inputField}`} />
+                      <datalist id="templatesList">
+                        {taskTemplates.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                      </datalist>
+                    </div>
+                    <p className={`text-[9px] mt-1 ml-1 italic ${theme.textSecondary}`}>*Ketik manual untuk tugas bebas, atau pilih dari daftar template.</p>
                   </div>
+
+                  {/* Jika ngetik manual (bukan milih template), kasih kolom detail */}
+                  {!taskTemplates.find(t => t.id.toString() === taskName) && taskName.length > 0 && (
+                    <div className="animate-in fade-in slide-in-from-top-2">
+                       <label className={`text-[10px] font-black uppercase tracking-widest block mb-1.5 ml-1 ${theme.textSecondary}`}>Deskripsi Tugas Kustom <span className="text-rose-500">*</span></label>
+                       <textarea rows={2} required value={taskDetail} onChange={e => setTaskDetail(e.target.value)} placeholder="Tuliskan instruksi tugas..."
+                         className={`w-full p-3 sm:p-3.5 rounded-xl border outline-none text-xs sm:text-sm font-medium resize-none transition-colors ${theme.inputField}`} />
+                    </div>
+                  )}
+
                   <div>
-                    <label className="text-[11px] font-black uppercase text-slate-500 block mb-2 tracking-widest flex justify-between">
-                      Catatan Penugasan <span className="text-slate-400 font-medium normal-case tracking-normal">Opsional</span>
-                    </label>
-                    <textarea value={assignNote} onChange={(e) => setAssignNote(e.target.value)} rows="3" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none" placeholder="Contoh: Pastikan bawa kabel HDMI cadangan."></textarea>
+                    <label className={`text-[10px] font-black uppercase tracking-widest block mb-1.5 ml-1 ${theme.textSecondary}`}>Catatan Tambahan (Opsional)</label>
+                    <textarea rows={2} value={assignNote} onChange={e => setAssignNote(e.target.value)} placeholder="Pesan khusus..."
+                      className={`w-full p-3 sm:p-3.5 rounded-xl border outline-none text-xs sm:text-sm font-medium resize-none transition-colors ${theme.inputField}`} />
                   </div>
-                  </>
-                )}
-              </form>
-            </div>
 
-            {/* Footer Modal */}
-            <div className="p-6 border-t border-slate-100 shrink-0 bg-white shadow-[-10px_0_15px_rgba(0,0,0,0.02)]">
-              <button form="taskForm" type="submit" className={`w-full py-4 rounded-xl text-white font-black shadow-lg transition-all active:scale-95 flex justify-center items-center gap-2 ${
-                activeTab === "template" ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/30" : "bg-rose-500 hover:bg-rose-600 shadow-rose-500/30"
-              }`}>
-                <i className="fa-solid fa-cloud-arrow-up"></i> Simpan ke Sistem
-              </button>
-            </div>
+                  <div>
+                    <label className={`text-[10px] font-black uppercase tracking-widest block mb-1.5 ml-1 ${theme.textSecondary}`}>Batas Waktu (Deadline) <span className="text-rose-500">*</span></label>
+                    <input type="date" required value={dueDate} onChange={e => setDueDate(e.target.value)}
+                      className={`w-full p-3 sm:p-3.5 rounded-xl border outline-none text-xs sm:text-sm font-bold transition-colors ${theme.inputField} ${isDeveloperTheme ? '[color-scheme:dark]' : ''}`} />
+                  </div>
+                </>
+              )}
 
+              {/* Footer Modal */}
+              <div className={`flex gap-3 pt-4 sm:pt-5 mt-2 sm:mt-4 border-t shrink-0 ${isDeveloperTheme ? 'border-zinc-800' : 'border-slate-100'}`}>
+                <button type="button" onClick={() => { resetForm(); setShowAddModal(false); }} className={`flex-1 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${isDeveloperTheme ? 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>Batal</button>
+                <button type="submit" className={`flex-1 py-3 sm:py-3.5 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all active:scale-95 ${theme.btnAdd}`}>Simpan & Proses</button>
+              </div>
+            </form>
           </div>
-        </div>,
-        document.body
+        </div>
       )}
 
       {/* ================================================================= */}
-      {/* MODAL SUCCESS AFTER-EFFECT                                        */}
+      {/* MODAL SUCCESS AFTER-EFFECT (PORTAL)                               */}
       {/* ================================================================= */}
       {showSuccessModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0b1437]/70 backdrop-blur-md animate-in fade-in">
-          <div className="bg-white rounded-[3rem] p-10 flex flex-col items-center text-center shadow-2xl animate-in zoom-in-75 slide-in-from-bottom-10 duration-300 border-[8px] border-white ring-1 ring-slate-100 max-w-sm w-full">
-             <div className="w-24 h-24 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-5xl mb-6 shadow-inner animate-bounce border-4 border-white ring-4 ring-emerald-50">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className={`rounded-[2rem] sm:rounded-[3rem] p-8 sm:p-10 flex flex-col items-center text-center shadow-2xl animate-in zoom-in-75 slide-in-from-bottom-10 duration-300 border-[6px] sm:border-[8px] max-w-xs sm:max-w-sm w-full ${isDeveloperTheme ? 'bg-[#09090b] border-[#18181b] ring-1 ring-emerald-900/50' : 'bg-white border-white ring-1 ring-slate-100'}`}>
+             <div className="w-20 h-20 sm:w-24 sm:h-24 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-4xl sm:text-5xl mb-5 sm:mb-6 shadow-inner animate-bounce border-4 border-white ring-4 ring-emerald-50">
                 <i className="fa-solid fa-check"></i>
              </div>
-             <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">Data Tersimpan!</h2>
-             <p className="text-slate-500 font-medium text-sm">
+             <h2 className={`text-xl sm:text-2xl font-black mb-1 sm:mb-2 tracking-tight ${theme.textPrimary}`}>Data Tersimpan!</h2>
+             <p className={`font-medium text-xs sm:text-sm ${theme.textSecondary}`}>
                 {activeTab === "template" 
                   ? "Sistem automation berhasil di-update." 
-                  : "Tugas urgent telah dikirim ke target!"}
+                  : "Tugas telah di-assign ke anggota tim."}
              </p>
           </div>
         </div>,

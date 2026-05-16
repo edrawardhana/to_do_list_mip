@@ -15,7 +15,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
       // INTERN
       { path: "/tasks", label: "Daily Task", icon: "fa-calendar-day", roles: ["intern"] },
-      { path: "/my-schedule", label: "Jadwal Shift", icon: "fa-calendar-week", roles: ["intern"] },
+      { path: "/my-schedule", label: "Shift Schedule", icon: "fa-calendar-week", roles: ["intern"] },
       { path: "/leave-request", label: "Leave Request", icon: "fa-envelope-open-text", roles: ["intern"] },
 
       // ADMIN OPERASIONAL

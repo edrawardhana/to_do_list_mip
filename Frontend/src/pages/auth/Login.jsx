@@ -34,8 +34,8 @@ export default function Login() {
   const [terminalAuthStep, setTerminalAuthStep] = useState("idle");
   const [terminalUser, setTerminalUser] = useState("");
   const [terminalLogs, setTerminalLogs] = useState([
-    "MCC OS v2.1.0 (Root Console)",
-    "Type 'help' for available commands or 'sudo login <email>' to authenticate.",
+    "MCC OS v2.1.0 (Root Access Node)",
+    "Type 'help' for available commands or 'sudo login <email>' to bypass.",
   ]);
   const terminalBottomRef = useRef(null);
 
@@ -49,7 +49,12 @@ export default function Login() {
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "x") {
         e.preventDefault();
         setDevMode((prev) => !prev);
-        if (!devMode) toast.success("Developer Console Unlocked", { icon: "🔓", style: { background: "#050a15", color: "#34d399" } });
+        if (!devMode) {
+          toast.success("Developer Console Unlocked", { 
+            icon: "🔓", 
+            style: { background: "#0c0c0e", color: "#10b981", border: "none" } 
+          });
+        }
       }
     };
     window.addEventListener("keydown", handleSecretKey);
@@ -69,58 +74,45 @@ export default function Login() {
     const loadId = toast.loading("Sedang memverifikasi akun...");
 
     try {
-      // BYPASS AXIOS BUAT TESTING ROLE DUMMY KITA
       if (email.includes("@mcc.com")) {
-        await new Promise(resolve => setTimeout(resolve, 800)); // Fake delay
+        await new Promise(resolve => setTimeout(resolve, 800)); 
         
-        // Sesuaikan dengan parameter AuthContext baru: login(token, userData)
         const dummyUser = {
           id: "dummy-123",
-          full_name: "Rekiel Dummy",
+          full_name: "Bagas Rhinaldy",
           email: email,
-          role: email.includes("admin") ? "admin" : "intern",
+          role: email.includes("superadmin") ? "super_admin" : email.includes("admin") ? "admin" : "intern",
           is_locked: false
         };
         login("dummy-token-123", dummyUser); 
         toast.success(`Login Berhasil!`, { id: loadId });
         navigate("/dashboard");
-        return; // Berhenti di sini, gak usah jalanin axios di bawah
+        return;
       }
 
-      // KODE ASLI LU (Jalan kalau emailnya BUKAN @mcc.com)
       const response = await api.post("/auth/login", { email, password });
-
-      console.log("ISI RESPON BACKEND (LOGIN):", response.data);
-
       const resData = response.data?.data || response.data;
       const token = resData?.access_token || resData?.token || response.data?.authorization?.token;
       let userData = resData?.user || resData?.profile || (resData?.id ? resData : null);
 
-      // Skenario: Backend Laravel cuma kirim Token, gak kirim data User
       if (token && !userData) {
         try {
-          console.log("Token ditemukan! Mencoba fetch data user dari /auth/me...");
-          const meRes = await api.get("/auth/me", {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          console.log("ISI RESPON BACKEND (ME):", meRes.data);
+          const meRes = await api.get("/auth/me", { headers: { Authorization: `Bearer ${token}` } });
           userData = meRes.data?.data || meRes.data?.user || meRes.data;
         } catch (err) {
-          console.warn("Gagal fetch /auth/me, backend mungkin belum punya endpoint ini.");
+          console.warn("Me endpoint error fallback active.");
         }
       }
 
       if (token) {
-        // Jika masih gagal dapet data, kita buat data darurat biar sistem Frontend gak stuck
         if (!userData || !userData.id) {
-          userData = { id: "darurat-123", email: email, role: email.includes("admin") ? "super_admin" : "intern", full_name: "Karyawan (Fallback)" };
+          userData = { id: "fallback-id", email: email, role: "intern", full_name: "User MCC" };
         }
-        // Fungsi login dari AuthContext akan otomatis menyimpan token & user_data ke localStorage
         login(token, userData);
-        toast.success("Login Berhasil! Selamat datang.", { id: loadId });
+        toast.success("Login Berhasil!", { id: loadId });
         navigate("/");
       } else {
-        toast.error("Token tidak ditemukan dari balasan server.", { id: loadId });
+        toast.error("Token tidak ditemukan dari server.", { id: loadId });
       }
     } catch (err) {
       let errorMsg = "Terjadi kesalahan koneksi.";
@@ -131,11 +123,7 @@ export default function Login() {
       } else {
         errorMsg = err.message;
       }
-      toast.error(errorMsg, {
-        id: loadId,
-        duration: 4000,
-        style: { borderRadius: "12px", background: "#1b254b", color: "#fff" },
-      });
+      toast.error(errorMsg, { id: loadId });
     } finally {
       setIsLoading(false);
     }
@@ -150,14 +138,13 @@ export default function Login() {
 
     let newLogs = [...terminalLogs];
 
-    // Pengecekan 2-Step: Jika Terminal sedang menunggu input password
     if (terminalAuthStep === "password") {
       newLogs.push(`Password: ${"*".repeat(cmd.length)}`);
       setTerminalLogs(newLogs);
       setTerminalInput("");
-      setTerminalAuthStep("idle"); // reset state
+      setTerminalAuthStep("idle");
 
-      newLogs = [...newLogs, "Authenticating Developer Credentials..."];
+      newLogs = [...newLogs, "Authenticating Developer Session..."];
       setTerminalLogs(newLogs);
 
       try {
@@ -172,19 +159,19 @@ export default function Login() {
         }
 
         if (userData && userData.role === "developer") {
-          newLogs = [...newLogs, "Access Granted. Redirecting to Root Console..."];
+          newLogs = [...newLogs, "Access Granted. Initializing Matrix Orchestration Core..."];
           setTerminalLogs(newLogs);
           setTimeout(() => {
             login(token, userData);
-            toast.success("Root Access Granted", { style: { background: "#050a15", color: "#34d399" } });
+            toast.success("Welcome Back, Developer", { style: { background: "#0c0c0e", color: "#10b981", border: "none" } });
             navigate("/dashboard");
-          }, 1500);
+          }, 1200);
         } else {
-          newLogs = [...newLogs, "Access Denied: User does not have developer privileges."];
+          newLogs = [...newLogs, "Access Denied: Level hak akses akun Anda tidak valid."];
           setTerminalLogs(newLogs);
         }
       } catch (err) {
-        newLogs = [...newLogs, "Access Denied: Invalid credentials or server error."];
+        newLogs = [...newLogs, "Access Denied: Kredensial pengembang salah atau server mati."];
         setTerminalLogs(newLogs);
       }
       return;
@@ -195,7 +182,7 @@ export default function Login() {
     if (lowerCmd === "clear") {
       setTerminalLogs([]);
     } else if (lowerCmd === "help") {
-      newLogs.push("Available commands: clear, help, sudo login <email>");
+      newLogs.push("Command list: clear, help, sudo login <email>");
       setTerminalLogs(newLogs);
     } else if (lowerCmd.startsWith("sudo login")) {
       const email = cmd.substring(10).trim();
@@ -208,7 +195,7 @@ export default function Login() {
         setTerminalLogs(newLogs);
       }
     } else if (cmd !== "") {
-      newLogs.push(`bash: ${cmd}: command not found`);
+      newLogs.push(`bash: ${cmd}: command not found atau akses ditolak.`);
       setTerminalLogs(newLogs);
     }
     setTerminalInput("");
@@ -232,22 +219,14 @@ export default function Login() {
         }
         body { font-family: 'Outfit', sans-serif; }
         
-        /* Transisi blur buat Dev Mode */
-        .page-wrapper {
-          transition: all 0.8s cubic-bezier(0.87,0,0.13,1);
-        }
-        .page-wrapper.dev-active {
-          filter: blur(12px) brightness(0.25);
-          transform: scale(0.96);
-        }
+        .page-wrapper { transition: all 0.8s cubic-bezier(0.87,0,0.13,1); }
+        .page-wrapper.dev-active { filter: blur(15px) brightness(0.2); transform: scale(0.95); }
 
-        /* Custom Terminal Scrollbar */
-        .terminal-scroll::-webkit-scrollbar { width: 6px; }
+        .terminal-scroll::-webkit-scrollbar { width: 5px; }
         .terminal-scroll::-webkit-scrollbar-track { background: transparent; }
-        .terminal-scroll::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.2); border-radius: 10px; }
-        .terminal-scroll::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.4); }
-        .terminal-scroll { scrollbar-width: thin; scrollbar-color: rgba(16, 185, 129, 0.2) transparent; }
-        .radial-vignette { background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.8) 120%); }
+        .terminal-scroll::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.15); border-radius: 10px; }
+        .terminal-scroll { scrollbar-width: thin; scrollbar-color: rgba(16, 185, 129, 0.15) transparent; }
+        .radial-vignette { background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.9) 130%); }
 
         .page {
           min-height: 100vh; display: flex; align-items: center; justify-content: center;
@@ -256,7 +235,7 @@ export default function Login() {
         }
         .page::before {
           content: ''; position: absolute; inset: 0;
-          background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+          background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
           background-size: 48px 48px; pointer-events: none;
         }
         .orb { position: absolute; border-radius: 50%; filter: blur(90px); pointer-events: none; }
@@ -320,86 +299,83 @@ export default function Login() {
       `}</style>
 
       {/* ========================================= */}
-      {/* TERMINAL UI (GOD MODE) */}
-      {/* Muncul kalo Ctrl+Shift+X dipencet */}
+      {/* TERMINAL UI (GOD MODE SEAMLESS ULTIMATE)  */}
       {/* ========================================= */}
       <div 
-        className={`fixed inset-0 z-[100] flex items-center justify-center transition-all duration-700 ease-[cubic-bezier(0.87,0,0.13,1)] p-4 sm:p-8 ${
-          devMode ? "opacity-100 backdrop-blur-sm" : "opacity-0 pointer-events-none"
+        className={`fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 transition-all duration-700 ease-[cubic-bezier(0.85,0,0.15,1)] ${
+          devMode ? "opacity-100 backdrop-blur-md" : "opacity-0 pointer-events-none"
         }`}
       >
-        <div className="w-full max-w-4xl absolute z-20 perspective-[2000px]">
+        <div className="w-full max-w-4xl absolute z-20 transition-all duration-700">
           <div 
-            className="bg-[#0a0a0f]/95 backdrop-blur-2xl rounded-xl border border-black overflow-hidden font-mono text-sm sm:text-base h-[65vh] flex flex-col relative transition-all duration-700 delay-75 shadow-2xl"
+            // FIX: Hapus border putih/abu, pasang full shadow raksasa dan warna murni solid hitam premium
+            className="bg-[#0b0b0f] rounded-3xl overflow-hidden font-mono text-sm sm:text-base h-[62vh] flex flex-col relative border-none shadow-[0_40px_100px_rgba(0,0,0,0.85)]"
             style={{ 
-              transform: devMode ? 'rotateX(0deg) translateY(0) scale(1)' : 'rotateX(10deg) translateY(40px) scale(0.95)',
-              boxShadow: devMode ? '0 25px 80px -10px rgba(0, 0, 0, 0.9), 0 0 60px rgba(16, 185, 129, 0.15)' : 'none'
+              transform: devMode ? 'rotateX(0deg) scale(1) translateY(0)' : 'rotateX(12deg) scale(0.94) translateY(30px)',
             }}
           >
-            {/* Window Controls / Header */}
-            <div className="bg-[#12121a] px-4 py-3 flex items-center justify-between border-b border-white/5 relative z-20">
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-3.5 h-3.5 rounded-full bg-rose-500/90 hover:bg-rose-400 cursor-pointer transition-all shadow-[0_0_10px_rgba(244,63,94,0.4)]" 
-                  onClick={() => setDevMode(false)}
-                  title="Close Terminal"
-                />
-                <div className="w-3.5 h-3.5 rounded-full bg-amber-500/90 shadow-[0_0_10px_rgba(245,158,11,0.4)]" />
-                <div className="w-3.5 h-3.5 rounded-full bg-emerald-500/90 shadow-[0_0_10px_rgba(16,185,129,0.4)]" />
+            {/* Header Terminal macOS Authentic Design */}
+            <div className="bg-[#13131a] px-5 py-4 flex items-center justify-between relative z-20 border-b border-white/[0.03]">
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Tombol macOS Hex Code Asli & Efek Soft Glow */}
+                <div onClick={() => setDevMode(false)} className="w-3.5 h-3.5 rounded-full bg-[#ff5f56] hover:bg-[#ff473e] cursor-pointer transition-colors shadow-[0_0_10px_rgba(255,95,86,0.3)]" title="Close Terminal" />
+                <div className="w-3.5 h-3.5 rounded-full bg-[#ffbd2e] shadow-[0_0_10px_rgba(255,189,46,0.2)]" />
+                <div className="w-3.5 h-3.5 rounded-full bg-[#27c93f] shadow-[0_0_10px_rgba(39,201,63,0.2)]" />
               </div>
-              <div className="text-slate-400/80 text-xs tracking-[0.2em] font-medium absolute left-1/2 -translate-x-1/2">
-                MCC_OS_ROOT_TERM
+              <div className="text-zinc-500 font-mono text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] absolute left-1/2 -translate-x-1/2">
+                MCC CORE TERMINAL v3.1
               </div>
               <div className="w-10" />
             </div>
 
-            {/* Terminal Body */}
-            <div className="flex-1 p-6 sm:p-8 overflow-y-auto text-emerald-400/90 space-y-2.5 relative z-10 terminal-scroll">
+            {/* Terminal Outputs */}
+            <div className="flex-1 p-6 sm:p-8 overflow-y-auto text-emerald-400/90 space-y-3 relative z-10 terminal-scroll bg-transparent">
               {terminalLogs.map((log, index) => {
                 const isPrompt = log.startsWith("root@mcc");
-                const isError = log.toLowerCase().includes("denied") || log.toLowerCase().includes("not found");
-                const isSuccess = log.toLowerCase().includes("granted") || log.toLowerCase().includes("unlocked");
+                const isError = log.toLowerCase().includes("denied") || log.toLowerCase().includes("not found") || log.toLowerCase().includes("invalid") || log.toLowerCase().includes("gagal");
+                const isSuccess = log.toLowerCase().includes("granted") || log.toLowerCase().includes("unlocked") || log.toLowerCase().includes("success");
                 const isIntro = log.includes("v2.1.0") || log.includes("Type 'help'");
                 
                 return (
-                  <div key={index} className={`leading-relaxed tracking-wide ${
-                    isPrompt ? "text-emerald-300 font-semibold mt-5" : 
-                    isError ? "text-rose-400" : 
-                    isSuccess ? "text-teal-300 animate-pulse drop-shadow-[0_0_8px_rgba(45,212,191,0.5)]" :
-                    isIntro ? "text-emerald-500/70 italic" : "text-emerald-500/90"
+                  <div key={index} className={`leading-relaxed tracking-wide text-xs sm:text-sm ${
+                    isPrompt ? "text-emerald-400 font-black mt-4" : 
+                    isError ? "text-amber-500/90 font-bold" : // FIX: Lampu merah diganti oren senja adem
+                    isSuccess ? "text-teal-300 font-bold drop-shadow-[0_0_8px_rgba(45,212,191,0.3)]" :
+                    isIntro ? "text-zinc-600 font-medium italic" : "text-emerald-500/80"
                   }`}>
                     {log}
                   </div>
                 );
               })}
               
+              {/* Terminal Form Input */}
               <form onSubmit={handleTerminalSubmit} className="flex items-center mt-4 group">
-                <span className="text-emerald-300 font-semibold mr-3 shrink-0 drop-shadow-[0_0_8px_rgba(110,231,183,0.3)]">
+                <span className="text-emerald-400 font-black mr-3 shrink-0 text-xs sm:text-sm">
                   {terminalAuthStep === "password" ? "Password:" : "root@mcc-sync:~#"}
                 </span>
                 <input
                   type={terminalAuthStep === "password" ? "password" : "text"}
                   value={terminalInput}
                   onChange={(e) => setTerminalInput(e.target.value)}
-                  className="flex-1 bg-transparent outline-none text-emerald-100 border-none focus:ring-0 p-0 transform translate-y-[1px] caret-emerald-400 font-medium placeholder-emerald-800/40"
+                  className="flex-1 bg-transparent outline-none text-emerald-200 border-none focus:ring-0 p-0 transform translate-y-[0.5px] caret-emerald-400 font-bold text-xs sm:text-sm placeholder-emerald-950/40"
                   autoFocus={devMode}
                   autoComplete="off"
                   spellCheck="false"
-                  placeholder={terminalAuthStep === "idle" ? "Enter command..." : ""}
+                  placeholder={terminalAuthStep === "idle" ? "Enter system root command..." : ""}
                 />
               </form>
               <div ref={terminalBottomRef} className="h-4" />
             </div>
 
-            {/* CRT TV scanline & vignette effects */}
-            <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.15)_50%)] bg-[length:100%_4px] z-0 opacity-40 mix-blend-overlay"></div>
-            <div className="absolute inset-0 pointer-events-none radial-vignette opacity-80 z-0"></div>
+            {/* Matrix Scanlines & Vignette Layer Simulation */}
+            <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.12)_50%)] bg-[length:100%_4px] z-0 opacity-30 mix-blend-overlay"></div>
+            <div className="absolute inset-0 pointer-events-none radial-vignette opacity-90 z-0"></div>
           </div>
         </div>
       </div>
 
       {/* ========================================= */}
-      {/* NORMAL LOGIN UI (Desain Dewa Lu) */}
+      {/* NORMAL LOGIN UI                           */}
       {/* ========================================= */}
       <div className={`page-wrapper w-full h-full ${devMode ? 'dev-active' : ''}`}>
         <div className="page">
