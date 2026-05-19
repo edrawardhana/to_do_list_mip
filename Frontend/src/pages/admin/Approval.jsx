@@ -69,16 +69,24 @@ const Approval = () => {
       const lData = lRes.data?.data || lRes.data || [];
 
       setPendingTasks(
-        tData.filter(t => t.status === 'pending').map(t => ({
-          ...t,
-          internName:          t.uploader?.full_name || "Intern",
-          division:            t.uploader?.division?.name || t.division?.name || "—",
-          taskTitle:           t.taskTemplate?.title || t.template?.title || "Tugas Harian",
-          notes:               t.description,
-          photo:               t.evidence_url,
-          submittedAt:         t.created_at,
-          participants_detail: t.participants_detail || [],
-        }))
+        tData
+          .filter(t => t.status === 'pending' && t.submitted_at)
+          .sort((a, b) => {
+            // Urutkan dari yang mengumpulkan paling awal (tertua ke terbaru)
+            const aTime = a.submitted_at ? new Date(a.submitted_at) : new Date(a.created_at);
+            const bTime = b.submitted_at ? new Date(b.submitted_at) : new Date(b.created_at);
+            return aTime - bTime;
+          })
+          .map(t => ({
+            ...t,
+            internName:          t.uploader?.full_name || "Intern",
+            division:            t.uploader?.division?.name || t.division?.name || "—",
+            taskTitle:           t.taskTemplate?.title || t.template?.title || "Tugas Harian",
+            notes:               t.description,
+            photo:               t.evidence_url,
+            submittedAt:         t.submitted_at || t.created_at, // ← gunakan submitted_at jika ada
+            participants_detail: t.participants_detail || [],
+          }))
       );
       setPendingLeaves(
         lData.filter(l => l.status === 'pending').map(l => ({
@@ -149,7 +157,19 @@ const Approval = () => {
     } catch { toast.error("Gagal memproses penolakan"); }
   };
 
+  // Format tanggal saja
   const fmt = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : "—";
+
+  // Format waktu submit: "HH:mm WIB" untuk sorting transparency
+  const fmtTime = (d) => {
+    if (!d) return "—";
+    return new Date(d).toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: '2-digit', month: 'short',
+      hour: '2-digit', minute: '2-digit',
+      hour12: false,
+    }) + " WIB";
+  };
 
   const exStyle = (type) => ({
     swap_shift:  { icon: "fa-code-compare",      color: "text-blue-500",    bg: "bg-blue-50",    bar: "bg-blue-500",    label: "Swap Shift" },
@@ -294,7 +314,14 @@ const Approval = () => {
                           <p className="text-[10px] font-medium text-slate-400">{task.division}</p>
                         </div>
                       </div>
-                      <span className="text-[10px] font-black bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-slate-400 shadow-sm shrink-0">{fmt(task.submittedAt)}</span>
+                      <div className="text-right">
+                        <span className="text-[10px] font-black bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-slate-400 shadow-sm shrink-0 block">{fmtTime(task.submittedAt)}</span>
+                        {task.submitted_at && (
+                          <span className="text-[9px] text-emerald-500 font-bold mt-1 flex items-center gap-1 justify-end">
+                            <i className="fa-solid fa-clock-rotate-left" /> Waktu Kirim
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Card Body */}

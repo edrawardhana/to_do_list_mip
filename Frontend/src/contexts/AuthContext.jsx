@@ -90,14 +90,15 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (newData) => {
     setLoading(true);
     try {
-      const response = await api.put('/auth/profile', newData);
+      const response = await api.put(`/profiles/${user.id}`, newData);
       const updatedUser = { ...user, ...newData, ...(response.data?.user || response.data?.data || {}) };
       setUser(updatedUser);
       localStorage.setItem("user_data", JSON.stringify(updatedUser));
       return { success: true, message: "Profil diperbarui!" };
     } catch (error) {
       console.error(error);
-      return { success: false, message: "Gagal update profil." };
+      const errorMsg = error.response?.data?.message || "Gagal update profil.";
+      return { success: false, message: errorMsg };
     } finally {
       setLoading(false);
     }
@@ -108,8 +109,7 @@ export const AuthProvider = ({ children }) => {
     const isIntern     = role === "intern";
     const isAdmin      = role === "admin";
     const isSuperAdmin = role === "super_admin";
-    const isDeveloper  = role === "developer";
-    const isAnyAdmin   = isAdmin || isSuperAdmin || isDeveloper;
+    const isAnyAdmin   = isAdmin || isSuperAdmin;
 
     // Status shift hari ini untuk intern:
     //   null  → masih loading / error (jangan blokir)
@@ -137,7 +137,6 @@ export const AuthProvider = ({ children }) => {
       isIntern,
       isAdmin,
       isSuperAdmin,
-      isDeveloper,
       isAnyAdmin,
       isLocked: isLockedStatus,
       hasShiftToday,

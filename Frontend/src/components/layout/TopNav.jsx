@@ -2,14 +2,87 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 const TopNav = ({ onToggleSidebar }) => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const location = useLocation();
   
   const [now, setNow] = useState(new Date());
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef(null);
+
+  // States for Edit Profile
+  const [fullName, setFullName] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [username, setUsername] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setFullName(user.full_name || "");
+      setNickname(user.nickname || "");
+      setUsername(user.username || "");
+    }
+  }, [user, isProfileOpen]);
+
+  const handleAvatarChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setAvatarFile(e.target.files[0]);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!fullName.trim() || !username.trim()) {
+      toast.error("Nama lengkap dan username tidak boleh kosong.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // 1. Upload avatar jika ada file terpilih
+      let newAvatarUrl = null;
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append("avatar", avatarFile);
+        
+        const avatarRes = await api.post("/profiles/avatar", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data"
+          }
+        });
+        if (avatarRes.data?.status === "success") {
+          newAvatarUrl = avatarRes.data.avatar_url;
+        }
+      }
+
+      // 2. Update profile details
+      const payload = {
+        full_name: fullName,
+        nickname: nickname,
+        username: username,
+      };
+      if (newAvatarUrl) {
+        payload.avatar_url = newAvatarUrl;
+      }
+
+      const res = await updateProfile(payload);
+      if (res.success) {
+        toast.success("✅ Profil berhasil diperbarui!");
+        setIsProfileOpen(false);
+        setAvatarFile(null); // Reset file selection
+      } else {
+        toast.error(res.message || "Gagal memperbarui profil.");
+      }
+    } catch (err) {
+      console.error(err);
+      const msg = err.response?.data?.message || "Gagal memperbarui profil.";
+      toast.error(msg);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // ── Notifikasi dari API ───────────────────────────────────────────────────
   const [notifications, setNotifications] = useState([]);
@@ -281,8 +354,14 @@ const TopNav = ({ onToggleSidebar }) => {
                 {user?.role?.replace("_", " ") || "Guest"}
               </p>
             </div>
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm ring-2 ring-white/5 group-hover:ring-white/30 transition-all ${isDeveloper ? 'bg-emerald-600' : isSuperAdmin ? 'bg-purple-600' : isAdmin ? 'bg-blue-600' : 'bg-gradient-to-br from-sky-400 to-indigo-600'}`}>
-              {user?.nickname?.charAt(0) || user?.full_name?.charAt(0) || "U"}
+            <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm ring-2 ring-white/5 group-hover:ring-white/30 transition-all shrink-0">
+              {user?.avatar_url ? (
+                <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+              ) : (
+                <div className={`w-full h-full flex items-center justify-center text-white text-sm font-bold ${isDeveloper ? 'bg-emerald-600' : isSuperAdmin ? 'bg-purple-600' : isAdmin ? 'bg-blue-600' : 'bg-gradient-to-br from-sky-400 to-indigo-600'}`}>
+                  {user?.nickname?.charAt(0) || user?.full_name?.charAt(0) || "U"}
+                </div>
+              )}
             </div>
           </div>
 
@@ -297,27 +376,72 @@ const TopNav = ({ onToggleSidebar }) => {
                   <i className="fa-solid fa-xmark text-sm"></i>
                 </button>
 
-                <div className={`w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg ring-4 ring-[#0b1437] relative z-10 ${isDeveloper ? 'bg-emerald-600' : isSuperAdmin ? 'bg-purple-600' : isAdmin ? 'bg-blue-600' : 'bg-gradient-to-br from-sky-400 to-indigo-600'}`}>
-                  {user?.nickname?.charAt(0) || user?.full_name?.charAt(0) || "U"}
-                  {/* Ikon Kamera kecil buat ganti foto */}
-                  <div className="absolute bottom-0 right-0 w-6 h-6 bg-slate-800 border-2 border-[#0b1437] rounded-full flex items-center justify-center text-[10px] cursor-pointer hover:bg-sky-500 transition-colors">
-                    <i className="fa-solid fa-camera"></i>
+                <div className="relative w-20 h-20 shrink-0 z-10">
+                  {/* Container Image (overflow-hidden) */}
+                  <div className="w-full h-full rounded-full overflow-hidden shadow-lg ring-4 ring-[#0b1437]">
+                    {user?.avatar_url ? (
+                      <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className={`w-full h-full flex items-center justify-center text-white text-2xl font-bold ${isDeveloper ? 'bg-emerald-600' : isSuperAdmin ? 'bg-purple-600' : isAdmin ? 'bg-blue-600' : 'bg-gradient-to-br from-sky-400 to-indigo-600'}`}>
+                        {user?.nickname?.charAt(0) || user?.full_name?.charAt(0) || "U"}
+                      </div>
+                    )}
                   </div>
+                  {/* Ikon Kamera kecil buat ganti foto (di luar overflow-hidden) */}
+                  <label className="absolute bottom-0 right-0 w-6 h-6 bg-slate-800 border-2 border-[#0b1437] rounded-full flex items-center justify-center text-[10px] cursor-pointer hover:bg-sky-500 transition-colors text-white shadow-md z-20">
+                    <i className="fa-solid fa-camera"></i>
+                    <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                  </label>
                 </div>
                 
                 <h3 className="font-black text-white text-lg mt-3 tracking-tight">{user?.full_name || "Guest User"}</h3>
-                <p className="text-xs font-medium text-sky-400 mt-0.5">{user?.email || "user@mcc.com"}</p>
+                <p className="text-xs font-medium text-sky-400 mt-0.5 mb-1">{user?.email || "user@mcc.com"}</p>
+                {user?.internship_batch && (
+                  <div className="mt-1.5 bg-sky-500/20 border border-sky-500/30 text-sky-300 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-[0_0_10px_rgba(14,165,233,0.1)]">
+                    <i className="fa-solid fa-graduation-cap"></i>
+                    {user.internship_batch}
+                  </div>
+                )}
               </div>
 
               {/* Form Edit Profile Singkat */}
               <div className="p-5 space-y-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Nickname</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Nama Lengkap</label>
+                  <div className="relative">
+                    <i className="fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input 
+                      type="text" 
+                      value={fullName} 
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white font-medium focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
+                      placeholder="Masukkan nama lengkap..."
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Username</label>
+                  <div className="relative">
+                    <i className="fa-solid fa-user-gear absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input 
+                      type="text" 
+                      value={username} 
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white font-medium focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
+                      placeholder="Masukkan username..."
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Nama Panggilan</label>
                   <div className="relative">
                     <i className="fa-solid fa-at absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                     <input 
                       type="text" 
-                      defaultValue={user?.nickname || user?.full_name?.split(" ")[0]} 
+                      value={nickname} 
+                      onChange={(e) => setNickname(e.target.value)}
                       className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white font-medium focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
                       placeholder="Masukkan nama panggilan..."
                     />
@@ -325,18 +449,29 @@ const TopNav = ({ onToggleSidebar }) => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Upload Foto</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">
+                    Upload Foto Profil {avatarFile && <span className="text-emerald-400 font-bold">(Terpilih)</span>}
+                  </label>
                   <input 
                     type="file" 
+                    accept="image/*"
+                    onChange={handleAvatarChange}
                     className="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-white/10 file:text-white file:font-semibold hover:file:bg-white/20 transition-all cursor-pointer border border-white/5 rounded-xl bg-white/[0.02]"
                   />
                 </div>
 
                 <button 
-                  onClick={() => setIsProfileOpen(false)} 
-                  className="w-full py-3 bg-sky-500 hover:bg-sky-400 text-white rounded-xl text-sm font-bold shadow-md shadow-sky-500/20 transition-all mt-2"
+                  onClick={handleSaveProfile} 
+                  disabled={isSaving}
+                  className="w-full py-3 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-500/50 text-white rounded-xl text-sm font-bold shadow-md shadow-sky-500/20 transition-all mt-2 flex items-center justify-center gap-2"
                 >
-                  Simpan Perubahan
+                  {isSaving ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin"></i> Menyimpan...
+                    </>
+                  ) : (
+                    "Simpan Perubahan"
+                  )}
                 </button>
               </div>
 

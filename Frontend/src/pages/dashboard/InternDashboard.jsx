@@ -7,7 +7,7 @@ const InternDashboard = () => {
   const { user } = useAuth();
   const [greeting, setGreeting] = useState("");
   const [progress, setProgress] = useState({ percentage: 0, completed: 0, total: 0 });
-  const [shiftInfo, setShiftInfo] = useState({ pagi: [], siang: [], full: [], libur: [] });
+  const [shiftInfo, setShiftInfo] = useState({ pagi: [], middle: [], siang: [], full: [], libur: [] });
   const [todayTasks, setTodayTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [schedules, setSchedules] = useState([]);
@@ -20,7 +20,7 @@ const InternDashboard = () => {
         const response = await api.get('/dashboard/intern');
         const data = response.data?.data || response.data || {};
         setProgress(data.progress || { percentage: 0, completed: 0, total: 0 });
-        setShiftInfo(data.shiftInfo || { pagi: [], siang: [], full: [], libur: [] });
+        setShiftInfo(data.shiftInfo || { pagi: [], middle: [], siang: [], full: [], libur: [] });
         setTodayTasks(data.todayTasks || []);
       } catch (error) {
         console.error("Gagal memuat data intern:", error);
@@ -85,6 +85,7 @@ const InternDashboard = () => {
   // Shift config for calendar coloring
   const shiftStyle = {
     morning:   { bg: 'bg-emerald-50/80', text: 'text-emerald-600', hover: 'hover:bg-emerald-100', dot: 'bg-emerald-500' },
+    middle:    { bg: 'bg-yellow-50/80',  text: 'text-yellow-600',  hover: 'hover:bg-yellow-100',  dot: 'bg-yellow-500' },
     afternoon: { bg: 'bg-amber-50/80',   text: 'text-amber-600',   hover: 'hover:bg-amber-100',   dot: 'bg-amber-500' },
     full:      { bg: 'bg-purple-50/80',  text: 'text-purple-600',  hover: 'hover:bg-purple-100',  dot: 'bg-purple-500' },
   };
@@ -101,10 +102,10 @@ const InternDashboard = () => {
   // Today's shift
   const todaySchedule = getScheduleForDay(currentDay);
   const todayShiftLabel = todaySchedule
-    ? { morning: 'Pagi', afternoon: 'Siang', full: 'Cuti' }[todaySchedule.shift_type] || todaySchedule.shift_type
+    ? { morning: 'Pagi', middle: 'Middle', afternoon: 'Sore', full: 'Cuti' }[todaySchedule.shift_type] || todaySchedule.shift_type
     : 'Libur';
   const todayShiftTime = todaySchedule
-    ? { morning: '08:00 - 15:00', afternoon: '15:00 - 22:00', full: 'Hari Cuti' }[todaySchedule.shift_type] || '-'
+    ? { morning: '08:00 - 15:00', middle: '10:00 - 17:00', afternoon: '15:00 - 22:00', full: 'Hari Cuti' }[todaySchedule.shift_type] || '-'
     : '-';
 
   // Build calendar days
@@ -243,95 +244,118 @@ const InternDashboard = () => {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6">
           {/* Pagi */}
-          <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-6 hover:border-emerald-200 transition-colors group">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-                  <i className="fa-solid fa-sun text-[15px]"></i>
-                </div>
-                <h4 className="text-[15px] font-bold text-slate-900">Pagi</h4>
+          <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5 hover:border-emerald-200 transition-colors group">
+            <div className="mb-5 pb-4 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-100 transition-colors shrink-0">
+                <i className="fa-solid fa-sun text-lg"></i>
               </div>
-              <span className="text-[11px] font-black tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">08:00 - 15:00</span>
+              <div className="min-w-0">
+                <h4 className="text-sm font-bold text-slate-900 leading-tight">Pagi</h4>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5 whitespace-nowrap">08:00 - 15:00</p>
+              </div>
             </div>
-            <div className="space-y-3.5">
+            <div className="space-y-3">
               {shiftInfo.pagi?.length > 0 ? shiftInfo.pagi.map((nama, i) => (
-                <div key={i} className="flex items-center gap-3 text-sm text-slate-700 font-bold hover:text-emerald-600 transition-colors cursor-default">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]"></div>
-                  {nama}
+                <div key={i} className="flex items-center gap-3 text-xs text-slate-700 font-bold hover:text-emerald-600 transition-colors cursor-default">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)] shrink-0"></div>
+                  <span className="truncate">{nama}</span>
                 </div>
               )) : (
-                <div className="text-xs text-slate-400 font-bold italic">Tidak ada</div>
+                <div className="text-[11px] text-slate-400 font-bold italic">Tidak ada</div>
+              )}
+            </div>
+          </div>
+
+          {/* Middle */}
+          <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5 hover:border-yellow-200 transition-colors group">
+            <div className="mb-5 pb-4 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-yellow-50 text-yellow-500 flex items-center justify-center group-hover:bg-yellow-100 transition-colors shrink-0">
+                <i className="fa-solid fa-hourglass-half text-lg"></i>
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-sm font-bold text-slate-900 leading-tight">Middle</h4>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5 whitespace-nowrap">10:00 - 17:00</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {shiftInfo.middle?.length > 0 ? shiftInfo.middle.map((nama, i) => (
+                <div key={i} className="flex items-center gap-3 text-xs text-slate-700 font-bold hover:text-yellow-600 transition-colors cursor-default">
+                  <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 shadow-[0_0_6px_rgba(234,179,8,0.5)] shrink-0"></div>
+                  <span className="truncate">{nama}</span>
+                </div>
+              )) : (
+                <div className="text-[11px] text-slate-400 font-bold italic">Tidak ada</div>
               )}
             </div>
           </div>
 
           {/* Siang */}
-          <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-6 hover:border-amber-200 transition-colors group">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-500 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
-                  <i className="fa-solid fa-cloud-sun text-[15px]"></i>
-                </div>
-                <h4 className="text-[15px] font-bold text-slate-900">Siang</h4>
+          <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5 hover:border-amber-200 transition-colors group">
+            <div className="mb-5 pb-4 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center group-hover:bg-amber-100 transition-colors shrink-0">
+                <i className="fa-solid fa-cloud-sun text-lg"></i>
               </div>
-              <span className="text-[11px] font-black tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">15:00 - 22:00</span>
+              <div className="min-w-0">
+                <h4 className="text-sm font-bold text-slate-900 leading-tight">Sore</h4>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5 whitespace-nowrap">15:00 - 22:00</p>
+              </div>
             </div>
-            <div className="space-y-3.5">
+            <div className="space-y-3">
               {shiftInfo.siang?.length > 0 ? shiftInfo.siang.map((nama, i) => (
-                <div key={i} className="flex items-center gap-3 text-sm text-slate-700 font-bold hover:text-amber-600 transition-colors cursor-default">
-                  <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)]"></div>
-                  {nama}
+                <div key={i} className="flex items-center gap-3 text-xs text-slate-700 font-bold hover:text-amber-600 transition-colors cursor-default">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)] shrink-0"></div>
+                  <span className="truncate">{nama}</span>
                 </div>
               )) : (
-                <div className="text-xs text-slate-400 font-bold italic">Tidak ada</div>
+                <div className="text-[11px] text-slate-400 font-bold italic">Tidak ada</div>
               )}
             </div>
           </div>
 
           {/* Full Day → Cuti */}
-          <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-6 hover:border-purple-200 transition-colors group">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-500 flex items-center justify-center group-hover:bg-purple-100 transition-colors">
-                  <i className="fa-solid fa-umbrella-beach text-[15px]"></i>
-                </div>
-                <h4 className="text-[15px] font-bold text-slate-900">Cuti</h4>
+          <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5 hover:border-purple-200 transition-colors group">
+            <div className="mb-5 pb-4 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-500 flex items-center justify-center group-hover:bg-purple-100 transition-colors shrink-0">
+                <i className="fa-solid fa-umbrella-beach text-lg"></i>
               </div>
-              <span className="text-[11px] font-black tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">HARI CUTI</span>
+              <div className="min-w-0">
+                <h4 className="text-sm font-bold text-slate-900 leading-tight">Cuti</h4>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5 whitespace-nowrap">Hari Cuti</p>
+              </div>
             </div>
-            <div className="space-y-3.5">
+            <div className="space-y-3">
               {shiftInfo.full?.length > 0 ? shiftInfo.full.map((nama, i) => (
-                <div key={i} className="flex items-center gap-3 text-sm text-slate-700 font-bold hover:text-purple-600 transition-colors cursor-default">
-                  <div className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_6px_rgba(168,85,247,0.5)]"></div>
-                  {nama}
+                <div key={i} className="flex items-center gap-3 text-xs text-slate-700 font-bold hover:text-purple-600 transition-colors cursor-default">
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_6px_rgba(168,85,247,0.5)] shrink-0"></div>
+                  <span className="truncate">{nama}</span>
                 </div>
               )) : (
-                <div className="text-xs text-slate-400 font-bold italic">Tidak ada</div>
+                <div className="text-[11px] text-slate-400 font-bold italic">Tidak ada</div>
               )}
             </div>
           </div>
 
           {/* Libur */}
-          <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-6 hover:border-rose-200 transition-colors group">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center group-hover:bg-rose-100 transition-colors">
-                  <i className="fa-solid fa-bed text-[15px]"></i>
-                </div>
-                <h4 className="text-[15px] font-bold text-slate-900">Libur</h4>
+          <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5 hover:border-rose-200 transition-colors group">
+            <div className="mb-5 pb-4 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center group-hover:bg-rose-100 transition-colors shrink-0">
+                <i className="fa-solid fa-bed text-lg"></i>
               </div>
-              <span className="text-[11px] font-black tracking-wider text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">ISTIRAHAT</span>
+              <div className="min-w-0">
+                <h4 className="text-sm font-bold text-slate-900 leading-tight">Libur</h4>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5 whitespace-nowrap">Istirahat</p>
+              </div>
             </div>
-            <div className="space-y-3.5">
+            <div className="space-y-3">
               {shiftInfo.libur?.length > 0 ? shiftInfo.libur.map((nama, i) => (
-                <div key={i} className="flex items-center gap-3 text-sm text-slate-700 font-bold hover:text-rose-600 transition-colors cursor-default">
-                  <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.5)]"></div>
-                  {nama}
+                <div key={i} className="flex items-center gap-3 text-xs text-slate-700 font-bold hover:text-rose-600 transition-colors cursor-default">
+                  <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.5)] shrink-0"></div>
+                  <span className="truncate">{nama}</span>
                 </div>
               )) : (
-                <div className="text-xs text-slate-400 font-bold italic">Tidak ada</div>
+                <div className="text-[11px] text-slate-400 font-bold italic">Tidak ada</div>
               )}
             </div>
           </div>
@@ -432,7 +456,8 @@ const InternDashboard = () => {
           {/* Legend */}
           <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2 justify-center">
             <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>Pagi</span>
-            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>Siang</span>
+            <span className="flex items-center gap-1 text-[10px] font-bold text-yellow-600"><span className="w-2 h-2 rounded-full bg-yellow-500 inline-block"></span>Middle</span>
+            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>Sore</span>
             <span className="flex items-center gap-1 text-[10px] font-bold text-purple-600"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block"></span>Cuti</span>
             <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400"><span className="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>Libur</span>
           </div>

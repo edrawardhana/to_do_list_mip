@@ -114,6 +114,39 @@ class AuthController extends Controller
     }
 
     /**
+     * Change password for first-time login or normal settings
+     */
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required|string',
+            'new_password'     => 'required|string|min:6|confirmed',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        // Pastikan password saat ini cocok
+        if (!Hash::check($request->current_password, $user->password_hash)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Password saat ini salah.'
+            ], 422);
+        }
+
+        // Update password dan matikan paksaan ganti password
+        $user->update([
+            'password_hash'         => Hash::make($request->new_password),
+            'needs_password_change' => false,
+        ]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Password berhasil diubah.'
+        ]);
+    }
+
+    /**
      * Get the token array structure.
      */
     protected function respondWithToken($token)

@@ -16,13 +16,15 @@
     "browser-image-compression": "^2.0.2",
     "firebase": "^12.12.0",
     "lucide-react": "^1.8.0",
+    "papaparse": "^5.5.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.14.0",
     "react-webcam": "^7.2.0",
     "recharts": "^3.8.1",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

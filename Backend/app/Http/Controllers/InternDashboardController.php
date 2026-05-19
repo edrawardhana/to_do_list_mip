@@ -52,6 +52,7 @@ class InternDashboardController extends Controller
         $scheduleMap = $todaySchedules->keyBy('user_id');
 
         $pagi  = [];
+        $middle = [];
         $siang = [];
         $full  = [];
         $libur = [];
@@ -62,6 +63,8 @@ class InternDashboardController extends Controller
                 $libur[] = $u->full_name;
             } elseif ($schedule->shift_type === 'morning') {
                 $pagi[] = $u->full_name;
+            } elseif ($schedule->shift_type === 'middle') {
+                $middle[] = $u->full_name;
             } elseif ($schedule->shift_type === 'afternoon') {
                 $siang[] = $u->full_name;
             } elseif ($schedule->shift_type === 'full') {
@@ -81,10 +84,11 @@ class InternDashboardController extends Controller
                     'total'      => $total,
                 ],
                 'shiftInfo' => [
-                    'pagi'  => $pagi,
-                    'siang' => $siang,
-                    'full'  => $full,
-                    'libur' => $libur,
+                    'pagi'   => $pagi,
+                    'middle' => $middle,
+                    'siang'  => $siang,
+                    'full'   => $full,
+                    'libur'  => $libur,
                 ],
             ],
         ]);

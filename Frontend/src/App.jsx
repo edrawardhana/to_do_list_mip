@@ -9,7 +9,7 @@ import SelectiveLockGuard from "./components/guards/SelectiveLockGuard";
 
 // Pages - Public
 import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
+import ChangePasswordForce from "./pages/auth/ChangePasswordForce";
 
 // Pages - Universal (Semua Role)
 import Dashboard from "./pages/dashboard/Dashboard";
@@ -49,7 +49,12 @@ function App() {
         <Routes>
           {/* RUTE PUBLIK */}
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/change-password-force" element={
+            <ProtectedRoute>
+              <ChangePasswordForce />
+            </ProtectedRoute>
+          } />
+          {/* Registrasi publik ditutup — akun dibuat oleh Superadmin */}
 
           {/* RUTE TERPROTEKSI */}
           <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>

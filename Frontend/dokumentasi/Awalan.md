@@ -1,116 +1,88 @@
-# Dokumentasi Frontend
+# Dokumentasi Frontend - SiREKAP MIP
 
-Dokumentasi tentang project Frontend To-Do List MIP.
+Dokumentasi ini menjelaskan konfigurasi, struktur folder, dan alur antarmuka pengguna (UI) dari aplikasi Frontend To-Do List & Logbook Magang MIP.
 
-Berikut penjelasan singkat untuk dokumentasi:
-
-🔐 Catatan Konfigurasi: Supabase RLS & Custom Auth
-Masalah
-Aplikasi menggunakan custom authentication via Laravel backend (bukan Supabase Auth). Akibatnya, supabase.auth.getSession() selalu mengembalikan null/undefined karena Supabase tidak mengenali sesi login yang dikelola Laravel.
-Ketika RLS (Row Level Security) aktif di Supabase, semua query dari frontend yang tidak memiliki sesi Supabase valid akan ditolak dengan error 500 meskipun data di database ada.
-Root Cause
-Laravel Auth (JWT) ≠ Supabase Auth Session
-→ auth.uid() = NULL
-→ RLS policy gagal mengenali user
-→ Query diblokir → Error 500
-Solusi yang Diterapkan
-Karena keamanan autentikasi sudah sepenuhnya dihandle oleh Laravel API, RLS Supabase dinonaktifkan pada tabel profiles:
-sqlALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
-⚠️ Penting untuk Developer
-
-Jangan aktifkan RLS pada tabel manapun selama sistem masih menggunakan custom Laravel auth
-Keamanan data dijaga di level Laravel middleware & policy, bukan di Supabase RLS
-Jika di masa depan ingin mengaktifkan RLS, sistem login harus dimigrasi menggunakan supabase.auth.signInWithPassword() agar auth.uid() terisi dengan benar
 ---
 
-## Tech Stack
+## Catatan Konfigurasi Penting: Supabase RLS & Custom Auth
 
-| Komponen | Teknologi |
-|----------|-----------|
-| Framework | React 19 |
-| Build Tool | Vite 7 |
-| Bahasa | JavaScript (JSX) |
-| Deployment | Zeabur / Vercel |
+### Masalah & Solusi
+Aplikasi menggunakan custom authentication via Laravel backend (bukan Supabase Auth secara langsung). Akibatnya, `supabase.auth.getSession()` selalu mengembalikan `null`/`undefined` karena Supabase tidak mengenali sesi login yang dikelola Laravel.
+
+Ketika RLS (Row Level Security) aktif di Supabase, semua query dari frontend yang tidak memiliki sesi Supabase valid akan ditolak dengan error 500 meskipun data di database ada.
+
+**Solusi yang Diterapkan**:
+Karena keamanan autentikasi sudah sepenuhnya dikelola oleh Laravel API Gateway & Middleware, RLS Supabase dinonaktifkan pada tabel `profiles`:
+```sql
+ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
+```
+
+> **⚠️ Penting untuk Developer**: Keamanan data dijaga di level Laravel middleware & policy. Jika di masa depan ingin mengaktifkan RLS kembali, sistem login harus dimigrasi menggunakan `supabase.auth.signInWithPassword()` agar `auth.uid()` terisi dengan benar.
+
+---
+
+## Tech Stack & Dependensi
+- **Framework**: React 19
+- **Build Tool**: Vite 7
+- **CSS Engine**: Tailwind CSS 3.4
+- **HTTP Client**: Axios (dikonfigurasi dengan interceptor token auth di `src/api/axios.js`)
+- **Utility**: FontAwesome v6 (untuk ikon), React Hot Toast (untuk notifikasi/toast)
 
 ---
 
 ## Cara Menjalankan di Lokal
 
-### 1. Masuk ke folder Frontend
+1. **Masuk ke folder Frontend**:
+   ```bash
+   cd Frontend
+   ```
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+3. **Konfigurasi Environment**:
+   Buat file `.env` di folder `Frontend/` dengan isi:
+   ```env
+   VITE_API_URL=http://localhost:8000/api
+   ```
+4. **Jalankan development server**:
+   ```bash
+   npm run dev
+   ```
 
-```bash
-cd to_do_list_mip/Frontend
-```
-
-### 2. Install dependencies
-
-```bash
-npm install
-```
-
-### 3. Konfigurasi ENV
-
-Buat file `.env` di folder `Frontend/` dengan isi:
-
-```env
-VITE_API_URL=http://localhost:8000/api
-```
-
-> Kalau mau langsung ke production, ganti ke `https://todolist-mip.zeabur.app/api`
-
-### 4. Jalankan development server
-
-```bash
-npm run dev
-```
-
-Frontend jalan di `http://localhost:5173`.
+Aplikasi frontend dapat diakses di `http://localhost:5173`.
 
 ---
 
-## Struktur Folder
+## Struktur Folder Frontend
 
-```
+```text
 Frontend/
-  src/
-    App.jsx         -> Komponen utama (root)
-    App.css         -> Styling untuk App
-    index.css       -> Styling global
-    main.jsx        -> Entry point React
-    assets/         -> Gambar dan file statis
-  public/           -> File publik (favicon, dll)
-  document/         -> Dokumentasi (file ini)
-  .env              -> Konfigurasi environment
-  Dockerfile        -> Untuk deploy Docker
-  zeabur.json       -> Config deploy Zeabur
-  vercel.json       -> Config deploy Vercel
+  ├── src/
+  │    ├── api/            # Konfigurasi axios.js
+  │    ├── components/     # UI components (Navbar, Sidebar, InternTaskCard, dll)
+  │    ├── contexts/       # AuthContext.jsx untuk mengelola sesi login & user info global
+  │    ├── pages/          # Halaman Utama aplikasi
+  │    │    ├── login/     # Halaman Login
+  │    │    ├── intern/    # Dashboard Intern, InternTasks, InternLogbook, Absen
+  │    │    ├── admin/     # Approval Center, AdminTaskCRUD
+  │    │    └── dashboard/ # Halaman khusus Superadmin & Developer
+  │    ├── App.jsx         # Root Router & Routing Guards
+  │    └── main.jsx        # Entry point React
+  ├── public/              # Gambar statis, ikon, & logo
+  └── dokumentasi/         # File panduan teknis (file ini)
 ```
 
 ---
 
-## Status Saat Ini
+## Panduan Fitur di Antarmuka (UI)
 
-Frontend saat ini dalam kondisi **clean state** (tampilan default Vite React). Belum ada halaman fitur yang diimplementasi. Semua fitur lama (Login, Dashboard, Absen) sudah dihapus dan akan dibuat ulang sesuai kebutuhan baru.
+1. **Daftar Tugas Intern (`InternTasks.jsx`)**:
+   - Menampilkan list tugas hari ini yang di-generate dari template.
+   - Apabila tugas merupakan kolaborasi bersama, nama rekan kerja yang dikonfirmasi akan ditampilkan di bawah detail tugas.
+   - Status tugas dipetakan ke: `Todo` (belum dikerjakan), `Menunggu Rekan` (jika rekan kerja belum ACC tag), `Menunggu ACC` (menunggu validasi admin), `Selesai` (disetujui admin), dan `Revisi` (ditolak admin dengan feedback catatan).
 
----
-
-## Deployment
-
-Frontend bisa di-deploy ke:
-
-- **Zeabur** - config ada di `zeabur.json`
-- **Vercel** - config ada di `vercel.json`
-
-Env variabel yang perlu diset di platform deployment:
-
-```
-VITE_API_URL=https://todolist-mip.zeabur.app/api
-```
-
----
-
-## Catatan
-
-- Frontend menggunakan Vite, jadi variabel env harus prefix `VITE_` supaya bisa diakses di kode.
-- Untuk build production: `npm run build` (output di folder `dist/`).
-- Jangan lupa sesuaikan `VITE_API_URL` tergantung environment (lokal atau production).
+2. **Approval Center Admin (`Approval.jsx`)**:
+   - Terbagi menjadi tab "Laporan Tugas" dan "Pengajuan Izin".
+   - Antrean laporan tugas hanya memuat tugas dengan status `pending` yang **telah dikirim** (`submitted_at` terisi).
+   - Memiliki fitur "ACC" instan dan "Revisi/Tolak" dengan kolom pengisian alasan revisi untuk intern.

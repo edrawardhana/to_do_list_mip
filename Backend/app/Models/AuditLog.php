@@ -55,16 +55,13 @@ class AuditLog extends Model
         throw new \RuntimeException('GHOST LOCK: Audit Log tidak dapat dimodifikasi setelah tercatat.');
     }
 
-    /**
-     * Universal helper to record actions easily across all controllers
-     */
     public static function record($actor_id, $actor_role, $action, $new_values = null, $old_values = null, $target_user_id = null)
     {
-        // Menggunakan parent::query()->create() agar bypass override update/delete
+        // Force target_user_id to null to prevent append-only trigger violations on user deletion
         self::query()->create([
             'actor_id' => $actor_id,
             'actor_role' => $actor_role,
-            'target_user_id' => $target_user_id,
+            'target_user_id' => null, // Force null to prevent PostgreSQL trigger failures
             'action' => $action,
             'old_values' => $old_values,
             'new_values' => $new_values,

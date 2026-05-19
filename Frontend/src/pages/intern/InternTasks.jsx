@@ -76,6 +76,8 @@ const InternTasks = () => {
           uiStatus = "completed";
         } else if (t.status === "rejected" || t.status === "revision") {
           uiStatus = "revision";
+        } else if (t.status === "waiting_confirmation") {
+          uiStatus = "waiting_confirmation";
         } else if (t.status === "pending" && t.evidence_url) {
           // Sudah submit bukti, menunggu persetujuan admin
           uiStatus = "pending";
@@ -85,6 +87,7 @@ const InternTasks = () => {
         }
 
         return {
+          ...t,
           id:            t.id,
           title:         t.taskTemplate?.title || t.taskTemplate?.task_name
                          || t.template?.title  || t.template?.task_name
@@ -102,6 +105,9 @@ const InternTasks = () => {
           due_date:      t.due_date,
           task_date:     t.task_date,
           assign_note:   t.assign_note || "",
+          start_time:    t.start_time || t.taskTemplate?.start_time || null,
+          end_time:      t.end_time || t.taskTemplate?.end_time || null,
+          reminder_time: t.reminder_time || t.taskTemplate?.reminder_time || null,
         };
       }));
     } catch {
@@ -192,13 +198,6 @@ const InternTasks = () => {
     }
   };
 
-  const handleConfirmTask = async (taskId) => {
-    try {
-      await api.put(`/daily-tasks/${taskId}/confirm`);
-      toast.success("Berhasil konfirmasi tugas rekan!");
-      fetchTasks();
-    } catch { toast.error("Gagal mengkonfirmasi."); }
-  };
 
   const fmtDate = (d) => {
     if (!d) return "—";
@@ -317,8 +316,8 @@ const InternTasks = () => {
                 regularTasks.map((task, i) => (
                   <InternTaskCard key={task.id} task={task} index={i}
                     onOpenCameraModal={handleOpenCamera}
-                    onConfirmTask={handleConfirmTask}
-                    currentUserId={currentUser.id} />
+                    currentUserId={currentUser.id}
+                    onRefresh={fetchTasks} />
                 ))
               )}
             </div>
@@ -336,8 +335,8 @@ const InternTasks = () => {
                 {urgentTasks.map((task, i) => (
                   <InternTaskCard key={task.id} task={task} index={i}
                     onOpenCameraModal={handleOpenCamera}
-                    onConfirmTask={handleConfirmTask}
-                    currentUserId={currentUser.id} />
+                    currentUserId={currentUser.id}
+                    onRefresh={fetchTasks} />
                 ))}
               </div>
             </div>

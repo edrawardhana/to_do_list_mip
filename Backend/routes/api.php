@@ -17,35 +17,35 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SuperadminDashboardController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\InternDashboardController;
-use App\Http\Controllers\HousekeepingController;
 
 // Endpoint publik (Bisa diakses tanpa login)
 Route::get('/divisions', [DivisionController::class, 'index']);
 
 // JWT Auth Endpoints
 Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
+    // ⚠️ Registrasi publik DITUTUP — akun hanya dibuat oleh Superadmin
     Route::post('/login', [AuthController::class, 'login']);
 
-    // Endpoint terproteksi dengan JWT Laravel
     Route::middleware('auth:api')->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
+        Route::put('/change-password', [AuthController::class, 'changePassword']);
     });
 });
 
 // Resources terproteksi dengan JWT Laravel
 Route::middleware('auth:api')->group(function () {
-    
-    // Exception Routes (Sakit, Izin, Tugas Luar, Swap Shift) -- Pengganti Attendance
+
+    // Exception Routes (Sakit, Izin, Tugas Luar, Swap Shift)
     Route::apiResource('exceptions', ExceptionController::class)->except(['show']);
 
     // Daily Task (Logbook) Routes
-    // ⚠️ Submit route MUST be before apiResource so it's not captured by {id} wildcard
+    // ⚠️ Specific routes MUST be before apiResource to avoid wildcard capture
     Route::post('/daily-tasks/assign', [DailyTaskController::class, 'assignTask']);
     Route::post('/daily-tasks/{id}/submit', [DailyTaskController::class, 'submit']);
+    Route::put('/daily-tasks/{id}/confirm', [DailyTaskController::class, 'confirm']);  // ← Tugas Bersama: ACC
+    Route::put('/daily-tasks/{id}/reject', [DailyTaskController::class, 'reject']);    // ← Tugas Bersama: Tolak
     Route::apiResource('daily-tasks', DailyTaskController::class)->except(['show']);
-
 
     // Whiteboard Routes
     Route::apiResource('whiteboards', WhiteboardController::class)->except(['show']);
@@ -56,8 +56,17 @@ Route::middleware('auth:api')->group(function () {
     // Audit Logs (Superadmin/Admin)
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
 
-    // Employee/Profile Management (List for tagging, Update for Approval)
+    // Employee/Profile Management
+    Route::post('/profiles/avatar', [ProfileController::class, 'uploadAvatar']);
     Route::post('/profiles/fcm-token', [ProfileController::class, 'updateFcmToken']);
+    Route::get('/profiles/template-csv', [ProfileController::class, 'downloadTemplateCsv']); // ← Download template CSV
+    Route::post('/profiles/download-user-detail', [ProfileController::class, 'downloadUserDetail']); // ← Download detail user baru
+    Route::post('/profiles/store-manual', [ProfileController::class, 'storeManual']);   // ← Buat akun manual
+    Route::post('/profiles/import-csv', [ProfileController::class, 'importCsv']);       // ← Impor CSV massal
+    Route::post('/profiles/bulk-lock', [ProfileController::class, 'bulkLock']);         // ← Kunci massal
+    Route::post('/profiles/bulk-destroy', [ProfileController::class, 'bulkDestroy']);   // ← Hapus massal
+    Route::post('/profiles/bulk-reset-password', [ProfileController::class, 'bulkResetPassword']); // ← Reset password massal
+    Route::post('/profiles/{id}/reset-password', [ProfileController::class, 'resetPassword']); // ← Reset password
     Route::apiResource('profiles', ProfileController::class)->only(['index', 'update', 'show', 'destroy']);
 
     // Schedules (Shift Dinamis)
@@ -83,11 +92,8 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/dashboard/admin', [AdminDashboardController::class, 'index']);
     Route::get('/dashboard/intern', [InternDashboardController::class, 'index']);
 
-    // Reports & Analytics (Sprint 4)
+    // Reports & Analytics
     Route::get('/reports/monthly', [ReportController::class, 'monthly']);
 
-    // Housekeeping (Developer only)
-    Route::get('/housekeeping/preview',  [HousekeepingController::class, 'preview']);
-    Route::post('/housekeeping/cleanup', [HousekeepingController::class, 'cleanup']);
+    // ⚠️ Housekeeping routes DIHAPUS — data cleanup berjalan otomatis via scheduler
 });
-

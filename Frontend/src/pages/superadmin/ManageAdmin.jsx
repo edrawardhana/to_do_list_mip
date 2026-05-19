@@ -3,24 +3,46 @@ import { useAuth } from "../../contexts/AuthContext";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
 import ConfirmModal from "../../components/ui/ConfirmModal";
-
+import Papa from "papaparse";
+import * as XLSX from "xlsx";
 const ManageAdmin = () => {
-  const { user, isSuperAdmin, isDeveloper } = useAuth();
-
-  // ==========================================
-  // LOGIC WARNA TEMA DINAMIS (Hanya untuk Bawah)
-  // ==========================================
-  const isDeveloperTheme = isDeveloper;
-  const isPurpleTheme = isSuperAdmin && !isDeveloperTheme;
-
+  const { user, isSuperAdmin } = useAuth();
+  
+  // Theme selalu Purple (Developer dihapus)
+  const isDeveloperTheme = false;
+  
   const [users, setUsers] = useState([]);
   const [divisionsList, setDivisionsList] = useState([]);
+  const [batchesList, setBatchesList] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("semua");
   const [filterDivision, setFilterDivision] = useState("semua");
+  const [filterBatch, setFilterBatch] = useState("semua");
+
+  // Selection
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  // Modals
   const [modalState, setModalState] = useState({ isOpen: false, type: "danger", title: "", message: "", actionText: "Ya", onConfirm: () => { } });
   const closeModal = () => setModalState(s => ({ ...s, isOpen: false }));
+  
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addMode, setAddMode] = useState("manual"); // 'manual' or 'csv'
+  
+  // Form State
+  const [manualForm, setManualForm] = useState({ full_name: "", username: "", email: "", division_id: "", role: "intern", internship_batch: "" });
+  const [csvFile, setCsvFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Credentials Result
+  const [newCredentials, setNewCredentials] = useState([]);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchData = async () => {
     setLoading(true);
@@ -28,19 +50,32 @@ const ManageAdmin = () => {
       const [usersRes, divsRes] = await Promise.all([api.get("/profiles"), api.get("/divisions")]);
       const profilesData = usersRes.data?.data || usersRes.data || [];
       const divsData = divsRes.data?.data || divsRes.data || [];
-      setUsers(profilesData.filter(u => u.role !== "developer").map(u => ({
+      
+      const mappedUsers = profilesData.filter(u => u.role !== "developer").map(u => ({
         id: u.id,
         name: u.full_name || u.name || "Unknown",
         email: u.email || "",
         division: u.division?.name || u.division || "Unknown",
+        division_id: u.division_id || u.division?.id,
         role: u.role || "intern",
         is_locked: u.is_locked || false,
-      })));
-      if (divsData.length > 0) setDivisionsList(divsData.map(d => d.name));
+        batch: u.internship_batch || "-",
+      }));
+      setUsers(mappedUsers);
+      
+      if (divsData.length > 0) {
+        setDivisionsList(divsData);
+        if(!manualForm.division_id) setManualForm(prev => ({...prev, division_id: divsData[0].id}));
+      }
+
+      const uniqueBatches = [...new Set(mappedUsers.map(u => u.batch).filter(b => b && b !== "-"))];
+      setBatchesList(uniqueBatches.sort());
+
     } catch {
       toast.error("Gagal memuat data pengguna");
     } finally {
       setLoading(false);
+      setSelectedIds([]);
     }
   };
 
@@ -50,12 +85,24 @@ const ManageAdmin = () => {
     let data = users;
     if (filterRole !== "semua") data = data.filter(u => filterRole === "intern" ? u.role === "intern" : u.role === filterRole);
     if (filterDivision !== "semua") data = data.filter(u => u.division === filterDivision);
+    if (filterBatch !== "semua") data = data.filter(u => u.batch === filterBatch);
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       data = data.filter(u => (u.name || "").toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q) || (u.division || "").toLowerCase().includes(q));
     }
     return data;
-  }, [users, filterRole, filterDivision, searchQuery]);
+  }, [users, filterRole, filterDivision, filterBatch, searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterRole, filterDivision, filterBatch]);
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredUsers.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredUsers, currentPage]);
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
   const stats = useMemo(() => ({
     interns: users.filter(u => u.role === "intern").length,
@@ -65,13 +112,6 @@ const ManageAdmin = () => {
   }), [users]);
 
   const getRoleBadge = (role) => {
-    if (isDeveloperTheme) {
-      switch (role) {
-        case "super_admin": return { cls: "bg-purple-500/15 text-purple-400 border-purple-500/30", icon: "fa-crown", label: "Super Admin" };
-        case "admin": return { cls: "bg-sky-500/15 text-sky-400 border-sky-500/30", icon: "fa-shield-halved", label: "Admin" };
-        default: return { cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", icon: "fa-user-graduate", label: "Intern" };
-      }
-    }
     switch (role) {
       case "super_admin": return { cls: "bg-purple-100 text-purple-700 border-purple-200", icon: "fa-crown", label: "Super Admin" };
       case "admin": return { cls: "bg-sky-100 text-sky-700 border-sky-200", icon: "fa-shield-halved", label: "Admin" };
@@ -79,6 +119,17 @@ const ManageAdmin = () => {
     }
   };
 
+  // ── SELECTION LOGIC ────────────────────────────────────────────────────────
+  const toggleSelectAll = () => {
+    const selectableUsers = filteredUsers.filter(u => u.id !== user?.id);
+    if (selectedIds.length === selectableUsers.length) setSelectedIds([]);
+    else setSelectedIds(selectableUsers.map(u => u.id));
+  };
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  // ── SINGLE ACTIONS ─────────────────────────────────────────────────────────
   const handleRoleChange = (id, name, currentRole, newRole) => {
     if (id === user?.id) { toast.error("Tidak bisa mengubah role akun sendiri."); return; }
     const h = { intern: 1, admin: 2, super_admin: 3 };
@@ -96,6 +147,30 @@ const ManageAdmin = () => {
     });
   };
 
+  const handleResetPassword = (id, name, username, email, role) => {
+    setModalState({
+      isOpen: true, type: "reset", title: "Reset Password", message: `Reset password untuk ${name}? Password baru sementara akan digenerate otomatis.`, actionText: "Ya, Reset!",
+      onConfirm: async () => {
+        try {
+          const res = await api.post(`/profiles/${id}/reset-password`);
+          const tempPassword = res.data.temporary_password;
+          
+          setNewCredentials([{
+            full_name: name,
+            username: username,
+            email: email,
+            password: tempPassword,
+            role: role
+          }]);
+          
+          toast.success(`Password untuk ${name} berhasil direset!`);
+        } catch (err) {
+          toast.error(err.response?.data?.message || "Gagal mereset password.");
+        }
+      }
+    });
+  };
+
   const handleDelete = (id, name) => {
     setModalState({
       isOpen: true, type: "delete", title: "Hapus Permanen", message: `BAHAYA! Hapus permanen akun ${name}? Tidak dapat dibatalkan.`, actionText: "Ya, Hapus!",
@@ -103,61 +178,251 @@ const ManageAdmin = () => {
     });
   };
 
-  const D = isDeveloperTheme;
+  // ── BULK ACTIONS ───────────────────────────────────────────────────────────
+  const handleBulkLock = (lockStatus) => {
+    setModalState({
+      isOpen: true, type: lockStatus ? "lock" : "unlock", title: lockStatus ? "Kunci Massal" : "Buka Massal", 
+      message: `Terapkan status ${lockStatus ? "KUNCI" : "BUKA"} pada ${selectedIds.length} akun terpilih?`, actionText: "Ya, Terapkan",
+      onConfirm: async () => {
+        try {
+          await api.post(`/profiles/bulk-lock`, { ids: selectedIds, is_locked: lockStatus });
+          toast.success(`Berhasil memperbarui ${selectedIds.length} akun.`);
+          fetchData();
+        } catch { toast.error("Gagal menerapkan aksi massal."); }
+      }
+    });
+  };
+
+  const handleBulkDelete = () => {
+    setModalState({
+      isOpen: true, type: "delete", title: "Hapus Massal (BAHAYA)", 
+      message: `Hapus PERMANEN ${selectedIds.length} akun terpilih? Tindakan ini tidak bisa dibatalkan!`, actionText: "YA, HAPUS PERMANEN",
+      onConfirm: async () => {
+        try {
+          await api.post(`/profiles/bulk-destroy`, { ids: selectedIds });
+          toast.success(`${selectedIds.length} akun berhasil dihapus.`);
+          fetchData();
+        } catch { toast.error("Gagal menghapus akun massal."); }
+      }
+    });
+  };
+
+  const handleBulkResetPassword = () => {
+    setModalState({
+      isOpen: true, type: "reset", title: "Reset Massal", 
+      message: `Reset password untuk ${selectedIds.length} akun terpilih? Password baru sementara akan digenerate otomatis.`, actionText: "Ya, Reset!",
+      onConfirm: async () => {
+        try {
+          const res = await api.post(`/profiles/bulk-reset-password`, { ids: selectedIds });
+          const resets = res.data.data?.resets || [];
+          
+          setNewCredentials(resets);
+          setSelectedIds([]);
+          
+          toast.success(`${resets.length} password berhasil direset!`);
+        } catch (err) {
+          toast.error(err.response?.data?.message || "Gagal melakukan reset massal.");
+        }
+      }
+    });
+  };
+
+  // ── CREATE / IMPORT ACTIONS ────────────────────────────────────────────────
+  const submitManual = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const res = await api.post('/profiles/store-manual', manualForm);
+      const createdProfile = res.data.data?.profile || {};
+      const plainPassword = res.data.data?.plain_password || "";
+      setNewCredentials([{ 
+        full_name: createdProfile.full_name, 
+        username: createdProfile.username,
+        email: createdProfile.email, 
+        password: plainPassword, 
+        role: createdProfile.role 
+      }]);
+      setIsAddModalOpen(false);
+      setManualForm({ full_name: "", username: "", email: "", division_id: divisionsList[0]?.id || "", role: "intern", internship_batch: "" });
+      fetchData();
+      toast.success("Akun berhasil dibuat!");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Gagal membuat akun.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const submitCsv = async (e) => {
+    e.preventDefault();
+    if (!csvFile) return toast.error("Pilih file terlebih dahulu.");
+    setIsSubmitting(true);
+    
+    try {
+      let finalFile = csvFile;
+
+      // Jika file adalah Excel, konversi ke CSV secara murni di frontend!
+      if (csvFile.name.endsWith('.xlsx') || csvFile.name.endsWith('.xls')) {
+        const data = await csvFile.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // Konversi sheet pertama menjadi string CSV murni
+        const csvString = XLSX.utils.sheet_to_csv(worksheet);
+        
+        // Ubah string CSV kembali menjadi Blob File untuk dikirim ke backend
+        finalFile = new File([csvString], "converted_excel.csv", { type: "text/csv" });
+      }
+
+      const formData = new FormData();
+      formData.append('csv_file', finalFile);
+      
+      const res = await api.post('/profiles/import-csv', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const imported = res.data.data?.created || [];
+      const mappedCreds = imported.map(u => ({
+        full_name: u.full_name,
+        username: u.username,
+        email: u.email,
+        password: u.password,
+        role: u.role
+      }));
+      setNewCredentials(mappedCreds);
+      setIsAddModalOpen(false);
+      setCsvFile(null);
+      fetchData();
+      
+      if (res.data.data?.errors?.length > 0) {
+        toast.success(`${mappedCreds.length} akun berhasil diimpor. Ada beberapa error, cek console.`);
+        console.warn("Import errors:", res.data.data.errors);
+      } else {
+        toast.success(`${mappedCreds.length} akun berhasil diimpor!`);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Gagal mengimpor file.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const downloadExcelTemplate = (e) => {
+    e.preventDefault();
+    try {
+      const headers = ['full_name', 'email', 'username', 'division_name', 'role', 'internship_batch'];
+      const exampleRows = [
+        ['Budi Santoso', 'budi@mip.co.id', 'budisan', 'IT', 'intern', 'Batch 1 2026'],
+        ['Siti Aminah', 'siti@mip.co.id', 'sitiamin', 'Media dan Production', 'admin', ''],
+      ];
+      
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...exampleRows]);
+      
+      // Mengatur lebar kolom agar rapi
+      worksheet['!cols'] = [
+        { wch: 20 }, // full_name
+        { wch: 25 }, // email
+        { wch: 15 }, // username
+        { wch: 25 }, // division_name
+        { wch: 10 }, // role
+        { wch: 20 }, // internship_batch
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Template Users");
+      
+      // Generate buffer murni
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      
+      // Buat Blob
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'format_import_users.xlsx'; // DIJAMIN NAMA FILE BENAR!
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Template Excel berhasil diunduh!');
+    } catch (err) {
+      toast.error('Gagal mengunduh template Excel.');
+      console.error('Download template error:', err);
+    }
+  };
+
+  const downloadCredentialsCsv = () => {
+    if (newCredentials.length === 0) return;
+    const csv = Papa.unparse(newCredentials);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    // Generate descriptive filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `user_credentials_${timestamp}.csv`;
+    
+    link.href = url;
+    link.download = filename;
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Kredensial berhasil diunduh!");
+  };
+
+  const copyCredentials = () => {
+    const text = newCredentials.map(c => `Nama: ${c.full_name}\nUsername: ${c.username}\nEmail: ${c.email}\nPassword: ${c.password}\nRole: ${c.role}\n---`).join("\n");
+    navigator.clipboard.writeText(text);
+    toast.success("Kredensial disalin ke clipboard!");
+  };
 
   return (
     <>
       <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 sm:pt-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
 
-        {/* ================================================================= */}
-        {/* HERO SECTION (FORCE DARK THEME - DEVELOPER STYLE)                 */}
-        {/* ================================================================= */}
-        <div className="bg-[#09090b] rounded-[2.5rem] border border-[#27272a] shadow-2xl relative overflow-hidden flex flex-col text-white">
-          <div className="absolute -top-32 -right-32 w-96 h-96 bg-zinc-500/10 rounded-full blur-[100px] pointer-events-none" />
-          <div className="absolute -bottom-32 -left-32 w-72 h-72 bg-sky-500/5 rounded-full blur-[100px] pointer-events-none" />
+        {/* HERO SECTION - Premium Purple */}
+        <div className="bg-gradient-to-br from-[#1e0a3c] to-[#3b0764] rounded-[2.5rem] border border-purple-500/20 shadow-2xl relative overflow-hidden flex flex-col text-white">
+          <div className="absolute -top-32 -right-32 w-96 h-96 bg-purple-500/30 rounded-full blur-[100px] pointer-events-none" />
+          <div className="absolute -bottom-32 -left-32 w-72 h-72 bg-sky-500/20 rounded-full blur-[100px] pointer-events-none" />
 
-          <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col md:flex-row justify-between gap-8 border-b border-zinc-800">
+          <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col md:flex-row justify-between gap-8 border-b border-white/10">
             <div>
               <div className="flex items-center gap-3 mb-5">
-                <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shadow-inner shrink-0">
-                  <i className="fa-solid fa-user-shield text-xl" />
+                <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shadow-inner shrink-0">
+                  <i className="fa-solid fa-user-shield text-xl text-purple-300" />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 bg-zinc-900/60 px-3 py-1.5 rounded-lg border border-zinc-800">
+                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-purple-200 bg-black/20 px-3 py-1.5 rounded-lg border border-white/5">
                   Access & Role Management
                 </span>
               </div>
               <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight">
-                Role Controller.
+                Superadmin Center.
               </h1>
-              <p className="text-sm font-medium text-zinc-500 leading-relaxed max-w-md">
-                Kelola akses, role, dan keamanan akun pengguna sistem secara terpusat.
+              <p className="text-sm font-medium text-purple-200/80 leading-relaxed max-w-md">
+                Kelola akun pengguna, batch intern, hak akses, dan lakukan impor massal.
               </p>
-              <div className="flex flex-wrap gap-2 mt-5">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
-                  <span className="relative flex h-2 w-2 shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                  </span>
-                  Roles Synced
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-wider">
-                  <i className="fa-solid fa-shield-halved" /> Security Protocol
-                </div>
-              </div>
+              
+              <button onClick={() => setIsAddModalOpen(true)} className="mt-6 px-6 py-3 bg-white text-purple-900 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-purple-100 hover:scale-105 transition-all shadow-lg flex items-center gap-2 w-max">
+                <i className="fa-solid fa-user-plus" /> Tambah Pengguna
+              </button>
             </div>
 
-            {/* Stats mini */}
-            <div className="w-full lg:w-80 shrink-0 bg-zinc-900/50 border border-zinc-800/60 rounded-3xl p-5 sm:p-6 backdrop-blur-md flex flex-col justify-center gap-4">
+            {/* Stats */}
+            <div className="w-full lg:w-80 shrink-0 bg-black/20 border border-white/10 rounded-3xl p-5 sm:p-6 backdrop-blur-md flex flex-col justify-center gap-4">
               {[
-                { label: "Interns", val: stats.interns, icon: "fa-user-graduate", cls: "text-emerald-400" },
-                { label: "Admins", val: stats.admins, icon: "fa-shield-halved", cls: "text-sky-400" },
-                { label: "Supers", val: stats.supers, icon: "fa-crown", cls: "text-purple-400" },
-                { label: "Locked", val: stats.locked, icon: "fa-lock", cls: "text-rose-400" },
+                { label: "Interns", val: stats.interns, icon: "fa-user-graduate", cls: "text-emerald-300" },
+                { label: "Admins", val: stats.admins, icon: "fa-shield-halved", cls: "text-sky-300" },
+                { label: "Supers", val: stats.supers, icon: "fa-crown", cls: "text-purple-300" },
+                { label: "Locked", val: stats.locked, icon: "fa-lock", cls: "text-rose-300" },
               ].map(s => (
                 <div key={s.label} className="flex items-center justify-between gap-8">
                   <div className="flex items-center gap-3">
                     <div className={`w-6 flex justify-center ${s.cls}`}><i className={`fa-solid ${s.icon} text-sm`} /></div>
-                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-zinc-500">{s.label}</span>
+                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-purple-200">{s.label}</span>
                   </div>
                   <span className="text-lg sm:text-xl font-black text-white">{loading ? "·" : s.val}</span>
                 </div>
@@ -166,182 +431,391 @@ const ManageAdmin = () => {
           </div>
 
           {/* Toolbar Bawah */}
-          <div className="relative z-10 p-5 sm:p-8 flex flex-col md:flex-row gap-3 items-center bg-zinc-900/30">
-            <div className="relative w-full md:w-80 group">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm text-zinc-600 group-focus-within:text-zinc-400 transition-colors" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Cari nama, email, atau divisi..."
-                className="w-full rounded-xl pl-11 pr-4 py-3 text-sm font-medium outline-none focus:ring-2 border transition-all bg-[#18181b] border-zinc-800 focus:border-zinc-600 text-zinc-200 placeholder:text-zinc-600"
+          <div className="relative z-10 p-5 sm:p-8 flex flex-col md:flex-row gap-3 items-center bg-black/10">
+            <div className="relative w-full md:w-64 group shrink-0">
+              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm text-purple-300/50 group-focus-within:text-purple-200 transition-colors" />
+              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Cari..."
+                className="w-full rounded-xl pl-11 pr-4 py-3 text-sm font-medium outline-none border transition-all bg-white/5 border-white/10 focus:border-white/30 text-white placeholder:text-purple-300/50"
               />
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <div className="flex flex-col sm:flex-row gap-3 w-full">
               {[
                 { val: filterRole, onChange: setFilterRole, opts: [["semua", "Semua Role"], ["intern", "Intern"], ["admin", "Admin"], ["super_admin", "Super Admin"]] },
-                { val: filterDivision, onChange: setFilterDivision, opts: [["semua", "Semua Divisi"], ...divisionsList.map(d => [d, d])] },
+                { val: filterDivision, onChange: setFilterDivision, opts: [["semua", "Semua Divisi"], ...divisionsList.map(d => [d.name, d.name])] },
+                { val: filterBatch, onChange: setFilterBatch, opts: [["semua", "Semua Batch"], ...batchesList.map(b => [b, b])] },
               ].map((sel, i) => (
                 <div key={i} className="relative flex-1 group">
-                  <select
-                    value={sel.val}
-                    onChange={e => sel.onChange(e.target.value)}
-                    className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 appearance-none cursor-pointer border transition-all bg-[#18181b] border-zinc-800 focus:border-zinc-600 text-zinc-300"
-                  >
+                  <select value={sel.val} onChange={e => sel.onChange(e.target.value)} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none appearance-none cursor-pointer border transition-all bg-white/5 border-white/10 text-white hover:bg-white/10">
                     {sel.opts.map(([v, l]) => <option key={v} value={v} className="text-slate-800 bg-white">{l}</option>)}
                   </select>
-                  <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] pointer-events-none text-zinc-600" />
+                  <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] pointer-events-none text-white/50" />
                 </div>
               ))}
-              {(searchQuery || filterRole !== "semua" || filterDivision !== "semua") && (
-                <button
-                  onClick={() => { setSearchQuery(""); setFilterRole("semua"); setFilterDivision("semua"); }}
-                  className="px-5 py-3 rounded-xl text-xs font-black border transition-all bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200 shadow-sm w-full sm:w-auto"
-                >
-                  <i className="fa-solid fa-xmark" />
+              {(searchQuery || filterRole !== "semua" || filterDivision !== "semua" || filterBatch !== "semua") && (
+                <button onClick={() => { setSearchQuery(""); setFilterRole("semua"); setFilterDivision("semua"); setFilterBatch("semua"); }}
+                  className="px-5 py-3 rounded-xl text-xs font-black border transition-all bg-rose-500/20 border-rose-500/30 text-rose-300 hover:bg-rose-500 hover:text-white shrink-0">
+                  Reset
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* ── TABLE (Dinamis Sesuai Role Pengguna) ────────────────────────────────────── */}
-        <div className={`rounded-[2rem] border overflow-hidden shadow-sm ${D ? "bg-[#0f0f11] border-zinc-800" : "bg-white border-slate-200"}`}>
-          {/* Table header bar */}
-          <div className={`px-4 sm:px-6 py-4 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${D ? "bg-[#18181b] border-zinc-800" : "bg-slate-50 border-slate-100"}`}>
+        {/* TABLE */}
+        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-center gap-3">
             <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${D ? "bg-zinc-800 border border-zinc-700 text-zinc-400" : "bg-purple-600 text-white"}`}>
+              <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0">
                 <i className="fa-solid fa-users-gear text-xs" />
               </div>
-              <h3 className={`font-black text-sm ${D ? "text-zinc-200" : "text-slate-800"}`}>Daftar Pengguna Sistem</h3>
+              <h3 className="font-black text-sm text-slate-800">Daftar Pengguna Sistem</h3>
             </div>
-            <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border w-full sm:w-auto text-center ${D ? "bg-zinc-900 border-zinc-800 text-zinc-600" : "bg-slate-100 border-slate-200 text-slate-400"}`}>
+            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border bg-white border-slate-200 text-slate-400">
               {loading ? "Memuat..." : `${filteredUsers.length} pengguna`}
             </span>
           </div>
 
           <div className="overflow-x-auto w-full">
-            <table className="w-full text-left text-sm min-w-[800px]">
-              <thead className={`border-b text-[10px] uppercase font-black tracking-widest ${D ? "bg-[#18181b] border-zinc-800 text-zinc-600" : "bg-white border-slate-100 text-slate-400"}`}>
+            <table className="w-full text-left text-sm min-w-[900px]">
+              <thead className="bg-white border-b border-slate-100 text-[10px] uppercase font-black tracking-widest text-slate-400">
                 <tr>
-                  <th className="px-6 py-4 whitespace-nowrap">Identitas</th>
-                  <th className="px-6 py-4 whitespace-nowrap">Divisi</th>
-                  <th className="px-6 py-4 whitespace-nowrap">Role</th>
-                  <th className="px-6 py-4 text-center whitespace-nowrap">Status</th>
-                  <th className="px-6 py-4 text-right whitespace-nowrap">Aksi</th>
+                  <th className="px-6 py-4 w-10 text-center">
+                    <input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.length === filteredUsers.filter(u => u.id !== user?.id).length && selectedIds.length > 0} 
+                      className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 cursor-pointer" />
+                  </th>
+                  <th className="px-6 py-4">Identitas</th>
+                  <th className="px-6 py-4">Divisi & Batch</th>
+                  <th className="px-6 py-4">Role</th>
+                  <th className="px-6 py-4 text-center">Status</th>
+                  <th className="px-6 py-4 text-right">Aksi</th>
                 </tr>
               </thead>
-              <tbody className={`divide-y ${D ? "divide-zinc-800/60" : "divide-slate-50"}`}>
-
-                {/* Loading */}
-                {loading && Array.from({ length: 6 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="px-6 py-4"><div className="flex items-center gap-3"><div className={`w-9 h-9 rounded-xl shrink-0 ${D ? "bg-zinc-800" : "bg-slate-100"}`} /><div className="space-y-1.5"><div className={`h-3 w-28 rounded ${D ? "bg-zinc-800" : "bg-slate-100"}`} /><div className={`h-2 w-36 rounded ${D ? "bg-zinc-900" : "bg-slate-50"}`} /></div></div></td>
-                    <td className="px-6 py-4"><div className={`h-7 w-24 rounded-lg ${D ? "bg-zinc-800" : "bg-slate-100"}`} /></td>
-                    <td className="px-6 py-4"><div className={`h-7 w-20 rounded-lg ${D ? "bg-zinc-800" : "bg-slate-100"}`} /></td>
-                    <td className="px-6 py-4 text-center"><div className={`h-7 w-16 rounded-lg mx-auto ${D ? "bg-zinc-800" : "bg-slate-100"}`} /></td>
-                    <td className="px-6 py-4"><div className={`h-8 w-40 rounded-lg ml-auto ${D ? "bg-zinc-800" : "bg-slate-100"}`} /></td>
-                  </tr>
-                ))}
-
-                {/* Rows */}
-                {!loading && filteredUsers.map(u => {
-                  const badge = getRoleBadge(u.role);
-                  return (
-                    <tr key={u.id} className={`transition-colors group ${D ? "hover:bg-zinc-800/30" : "hover:bg-slate-50/80"}`}>
-                      {/* Identitas */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 border ${badge.cls}`}>
-                            {(u.name || "?").charAt(0).toUpperCase()}
+              <tbody className="divide-y divide-slate-50">
+                {loading ? (
+                  <tr><td colSpan="6" className="py-16 text-center text-slate-400 font-bold animate-pulse">Memuat data...</td></tr>
+                ) : filteredUsers.length === 0 ? (
+                  <tr><td colSpan="6" className="py-16 text-center text-slate-400 font-bold">Tidak ada pengguna.</td></tr>
+                ) : (
+                  paginatedUsers.map(u => {
+                    const badge = getRoleBadge(u.role);
+                    const isSelected = selectedIds.includes(u.id);
+                    return (
+                      <tr key={u.id} className={`transition-colors group hover:bg-slate-50/80 ${isSelected ? 'bg-purple-50' : ''}`}>
+                        <td className="px-6 py-4 text-center">
+                          {u.id !== user?.id ? (
+                            <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(u.id)}
+                              className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 cursor-pointer" />
+                          ) : (
+                            <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-2 py-1 rounded-md border border-purple-200">
+                              YOU
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 border ${badge.cls}`}>
+                              {(u.name || "?").charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-black text-[13px] sm:text-sm text-slate-800 leading-tight truncate">{u.name}</p>
+                              <p className="text-[9px] sm:text-[10px] font-medium text-slate-400 mt-0.5 truncate">{u.email || "—"}</p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className={`font-black text-[13px] sm:text-sm leading-tight truncate max-w-[150px] sm:max-w-xs ${D ? "text-zinc-200" : "text-slate-800"}`}>{u.name}</p>
-                            <p className={`text-[9px] sm:text-[10px] font-medium mt-0.5 truncate max-w-[150px] sm:max-w-xs ${D ? "text-zinc-600" : "text-slate-400"}`}>{u.email || "—"}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1.5 items-start">
+                            <span className="px-3 py-1 rounded-lg text-[9px] font-bold border bg-slate-50 text-slate-600 border-slate-200">
+                              <i className="fa-solid fa-building mr-1" /> {u.division}
+                            </span>
+                            {u.batch !== "-" && (
+                              <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 border border-blue-100">
+                                BATCH: {u.batch}
+                              </span>
+                            )}
                           </div>
-                        </div>
-                      </td>
-
-                      {/* Divisi */}
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[9px] sm:text-[10px] font-bold border inline-flex items-center gap-1.5 whitespace-nowrap ${D ? "bg-zinc-800/50 text-zinc-400 border-zinc-700" : "bg-slate-50 text-slate-600 border-slate-200"}`}>
-                          <i className="fa-solid fa-building text-[8px] sm:text-[9px]" /> {u.division}
-                        </span>
-                      </td>
-
-                      {/* Role badge */}
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-wider border inline-flex items-center gap-1.5 whitespace-nowrap ${badge.cls}`}>
-                          <i className={`fa-solid ${badge.icon}`} /> {badge.label}
-                        </span>
-                      </td>
-
-                      {/* Status lock */}
-                      <td className="px-6 py-4 text-center">
-                        {u.is_locked ? (
-                          <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-wider border inline-flex items-center gap-1.5 ${D ? "bg-rose-500/10 text-rose-400 border-rose-500/20" : "bg-rose-50 text-rose-600 border-rose-100"}`}>
-                            <i className="fa-solid fa-lock" /> Terkunci
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border inline-flex items-center gap-1.5 ${badge.cls}`}>
+                            <i className={`fa-solid ${badge.icon}`} /> {badge.label}
                           </span>
-                        ) : (
-                          <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-wider border inline-flex items-center gap-1.5 ${D ? "bg-zinc-800 text-zinc-500 border-zinc-700" : "bg-slate-50 text-slate-400 border-slate-200"}`}>
-                            <i className="fa-solid fa-unlock" /> Aman
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Aksi */}
-                      <td className="px-6 py-4">
-                        <div className="inline-flex items-center gap-1.5 sm:gap-2 justify-end w-full">
-                          {/* Lock/Unlock */}
-                          <button onClick={() => handleToggleLock(u.id, u.name, u.is_locked)} title={u.is_locked ? "Buka Akun" : "Kunci Akun"}
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-colors text-xs shrink-0 ${u.is_locked
-                              ? (D ? "bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/30" : "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100")
-                              : (D ? "bg-rose-500/15 text-rose-400 border-rose-500/30 hover:bg-rose-500/30" : "bg-rose-50 text-rose-500 border-rose-200 hover:bg-rose-100")}`}>
-                            <i className={`fa-solid ${u.is_locked ? "fa-unlock" : "fa-lock"}`} />
-                          </button>
-
-                          {/* Role dropdown */}
-                          <div className="relative shrink-0">
-                            <select value={u.role} onChange={e => handleRoleChange(u.id, u.name, u.role, e.target.value)}
-                              className={`w-28 sm:w-32 border rounded-xl pl-2 sm:pl-3 pr-6 py-2 text-[10px] sm:text-[11px] font-bold outline-none appearance-none cursor-pointer transition-all ${D ? "bg-[#18181b] border-zinc-700 text-zinc-300 hover:border-zinc-500" : "bg-white border-slate-200 text-slate-700 hover:border-purple-400"}`}>
-                              <option value="user">USER/INTERN</option>
-                              <option value="admin">ADMIN</option>
-                              <option value="super_admin">SUPER ADMIN</option>
-                            </select>
-                            <i className={`fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] pointer-events-none ${D ? "text-zinc-600" : "text-slate-400"}`} />
-                          </div>
-
-                          {/* Delete */}
-                          <button onClick={() => handleDelete(u.id, u.name)} title="Hapus Akun"
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-colors text-xs shrink-0 ${D ? "bg-zinc-900 border-zinc-800 text-zinc-600 hover:bg-rose-500/15 hover:text-rose-400 hover:border-rose-500/30" : "bg-slate-50 border-slate-200 text-slate-400 hover:bg-rose-500 hover:text-white hover:border-rose-500"}`}>
-                            <i className="fa-solid fa-trash-can" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                {/* Empty state */}
-                {!loading && filteredUsers.length === 0 && (
-                  <tr>
-                    <td colSpan="5" className={`py-16 text-center ${D ? "bg-[#0f0f11]" : "bg-slate-50/50"}`}>
-                      <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3 border ${D ? "bg-zinc-900 border-zinc-800 text-zinc-700" : "bg-white border-slate-100 text-slate-300"}`}>
-                        <i className="fa-solid fa-user-slash text-xl" />
-                      </div>
-                      <p className={`font-black mb-1 ${D ? "text-zinc-400" : "text-slate-700"}`}>Tidak ada pengguna.</p>
-                      <p className={`text-xs font-medium ${D ? "text-zinc-700" : "text-slate-400"}`}>Coba ubah filter atau gunakan kata kunci lain.</p>
-                    </td>
-                  </tr>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {u.is_locked ? (
+                            <span className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border inline-flex items-center gap-1.5 bg-rose-50 text-rose-600 border-rose-100">
+                              <i className="fa-solid fa-lock" /> Terkunci
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-600 border-emerald-100">
+                              <i className="fa-solid fa-shield-check" /> Aman
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {u.id !== user?.id ? (
+                            <div className="inline-flex items-center gap-2 justify-end w-full">
+                              <button onClick={() => handleToggleLock(u.id, u.name, u.is_locked)} title={u.is_locked ? "Buka Akun" : "Kunci Akun"}
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-colors text-xs shrink-0 ${u.is_locked ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-rose-500 hover:text-white hover:border-rose-500'}`}>
+                                <i className={`fa-solid ${u.is_locked ? "fa-unlock" : "fa-lock"}`} />
+                              </button>
+                              <div className="relative shrink-0">
+                                <select value={u.role} onChange={e => handleRoleChange(u.id, u.name, u.role, e.target.value)}
+                                  className="w-32 border rounded-xl pl-3 pr-6 py-2 text-[11px] font-bold outline-none appearance-none cursor-pointer transition-all bg-white border-slate-200 text-slate-700 hover:border-purple-400">
+                                  <option value="intern">USER/INTERN</option>
+                                  <option value="admin">ADMIN</option>
+                                  <option value="super_admin">SUPER ADMIN</option>
+                                </select>
+                                <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] pointer-events-none text-slate-400" />
+                              </div>
+                              <button onClick={() => handleResetPassword(u.id, u.name, u.username, u.email, u.role)} title="Reset Password"
+                                className="w-8 h-8 rounded-lg flex items-center justify-center border transition-colors text-xs shrink-0 bg-slate-50 border-slate-200 text-slate-400 hover:bg-purple-500 hover:text-white hover:border-purple-500">
+                                <i className="fa-solid fa-key" />
+                              </button>
+                              <button onClick={() => handleDelete(u.id, u.name)} title="Hapus Akun"
+                                className="w-8 h-8 rounded-lg flex items-center justify-center border transition-colors text-xs shrink-0 bg-slate-50 border-slate-200 text-slate-400 hover:bg-rose-500 hover:text-white hover:border-rose-500">
+                                <i className="fa-solid fa-trash-can" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] font-bold text-slate-400 italic block text-right pr-4">
+                              <i className="fa-solid fa-circle-info mr-1" /> Hanya lihat (Akun Anda)
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
+
+          {/* PAGINATION */}
+          {totalPages > 1 && (
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <span className="text-[11px] font-bold text-slate-500">
+                Menampilkan <span className="font-black text-slate-700">{Math.min((currentPage - 1) * itemsPerPage + 1, filteredUsers.length)}</span> - <span className="font-black text-slate-700">{Math.min(currentPage * itemsPerPage, filteredUsers.length)}</span> dari <span className="font-black text-slate-700">{filteredUsers.length}</span> pengguna
+              </span>
+              <div className="flex items-center gap-1.5 font-sans">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center border transition-all text-xs bg-white border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white"
+                >
+                  <i className="fa-solid fa-chevron-left" />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs transition-all border ${
+                      currentPage === page
+                        ? "bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-500/20"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center border transition-all text-xs bg-white border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white"
+                >
+                  <i className="fa-solid fa-chevron-right" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
 
-      {/* SEMUA MODAL DI LUAR ANIMASI CONTAINER */}
+      {/* FLOATING ACTION PANEL (Bulk Actions) */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 inset-x-0 mx-auto w-max z-50 animate-in slide-in-from-bottom-10 fade-in duration-300">
+          <div className="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-6 backdrop-blur-lg">
+            <div className="flex items-center gap-3 border-r border-slate-700 pr-6">
+              <div className="w-8 h-8 bg-purple-500/20 text-purple-400 rounded-lg flex items-center justify-center font-black text-xs">
+                {selectedIds.length}
+              </div>
+              <span className="text-sm font-bold text-slate-200">Akun Terpilih</span>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => handleBulkLock(false)} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-emerald-500/20 hover:text-emerald-400 text-slate-300 text-xs font-black uppercase tracking-widest transition-colors">
+                <i className="fa-solid fa-unlock mr-2" /> Buka
+              </button>
+              <button onClick={() => handleBulkLock(true)} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-amber-500/20 hover:text-amber-400 text-slate-300 text-xs font-black uppercase tracking-widest transition-colors">
+                <i className="fa-solid fa-lock mr-2" /> Kunci
+              </button>
+              <button onClick={handleBulkResetPassword} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-purple-500/20 hover:text-purple-400 text-slate-300 text-xs font-black uppercase tracking-widest transition-colors">
+                <i className="fa-solid fa-key mr-2" /> Reset
+              </button>
+              <button onClick={handleBulkDelete} className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/20 text-xs font-black uppercase tracking-widest transition-colors ml-2">
+                <i className="fa-solid fa-trash mr-2" /> Hapus
+              </button>
+            </div>
+            <button onClick={() => setSelectedIds([])} className="absolute -top-3 -right-3 w-8 h-8 bg-slate-700 text-slate-300 rounded-full border-4 border-slate-900 flex items-center justify-center hover:bg-slate-600 transition-colors shadow-lg text-xs">
+              <i className="fa-solid fa-xmark" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD / IMPORT USERS */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95">
+            <div className="p-6 md:p-8 flex justify-between items-center border-b border-slate-100 bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                  <i className="fa-solid fa-user-plus text-sm" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-800">Tambah Akun</h3>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Manual / Import CSV</p>
+                </div>
+              </div>
+              <button onClick={() => setIsAddModalOpen(false)} className="w-8 h-8 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors">
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-slate-100 bg-white">
+              <button onClick={() => setAddMode("manual")} className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 ${addMode === "manual" ? "border-purple-600 text-purple-700 bg-purple-50/50" : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"}`}>
+                <i className="fa-solid fa-keyboard mr-1.5" /> Input Manual
+              </button>
+              <button onClick={() => setAddMode("csv")} className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 ${addMode === "csv" ? "border-purple-600 text-purple-700 bg-purple-50/50" : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"}`}>
+                <i className="fa-solid fa-file-csv mr-1.5" /> Import CSV
+              </button>
+            </div>
+
+            <div className="p-6 md:p-8 bg-white">
+              {addMode === "manual" ? (
+                <form onSubmit={submitManual} className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Nama Lengkap</label>
+                    <input type="text" required value={manualForm.full_name} onChange={e => setManualForm({...manualForm, full_name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Budi Santoso" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Username</label>
+                      <input type="text" required value={manualForm.username} onChange={e => setManualForm({...manualForm, username: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none" placeholder="budi123" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Email</label>
+                      <input type="email" required value={manualForm.email} onChange={e => setManualForm({...manualForm, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none" placeholder="budi@example.com" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Divisi</label>
+                      <select required value={manualForm.division_id} onChange={e => setManualForm({...manualForm, division_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-purple-500 outline-none">
+                        {divisionsList.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Role</label>
+                      <select required value={manualForm.role} onChange={e => setManualForm({...manualForm, role: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-purple-500 outline-none">
+                        <option value="intern">Intern</option>
+                        <option value="admin">Admin</option>
+                        <option value="super_admin">Super Admin</option>
+                      </select>
+                    </div>
+                  </div>
+                  {manualForm.role === "intern" && (
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Internship Batch (Opsional)</label>
+                      <input type="text" value={manualForm.internship_batch} onChange={e => setManualForm({...manualForm, internship_batch: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Contoh: Batch 1 2026" />
+                    </div>
+                  )}
+                  <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 flex gap-3 items-start mt-2">
+                    <i className="fa-solid fa-circle-info text-amber-500 mt-0.5" />
+                    <p className="text-[11px] text-amber-700 font-medium">Password akan dibuat otomatis. Kamu akan melihatnya di layar setelah akun berhasil dibuat.</p>
+                  </div>
+                  <button type="submit" disabled={isSubmitting} className="w-full mt-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-sm transition-colors shadow-lg shadow-purple-500/30 disabled:opacity-50">
+                    {isSubmitting ? "Memproses..." : "Buat Akun"}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={submitCsv} className="space-y-4 text-center">
+                  <div className="border-2 border-dashed border-purple-200 rounded-2xl p-8 bg-purple-50 relative group cursor-pointer hover:border-purple-400 hover:bg-purple-100/50 transition-all">
+                    <input type="file" accept=".xlsx, .xls, .csv" onChange={e => setCsvFile(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                    <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-4 border border-purple-100 group-hover:scale-110 transition-transform">
+                      <i className="fa-solid fa-file-excel text-3xl text-emerald-500" />
+                    </div>
+                    {csvFile ? (
+                      <div>
+                        <p className="font-bold text-purple-700 text-sm">{csvFile.name}</p>
+                        <p className="text-xs text-purple-500 mt-1">{(csvFile.size / 1024).toFixed(2)} KB</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="font-bold text-purple-700 text-sm">Klik atau Seret file Excel/CSV ke sini</p>
+                        <p className="text-xs text-purple-500 mt-1">Gunakan template Excel agar format lebih rapi</p>
+                      </div>
+                    )}
+                  </div>
+                  <button type="submit" disabled={isSubmitting || !csvFile} className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-sm transition-colors shadow-lg shadow-purple-500/30 disabled:opacity-50">
+                    {isSubmitting ? "Mengimpor..." : "Mulai Import Massal"}
+                  </button>
+                  <button type="button" onClick={downloadExcelTemplate} className="block w-full mt-4 text-[11px] font-bold text-slate-400 hover:text-emerald-600 underline bg-transparent border-none cursor-pointer text-center">
+                    Download Template Excel
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FLOATING CREDENTIALS CARD */}
+      {newCredentials.length > 0 && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh] animate-in zoom-in-95">
+            <div className="p-6 md:p-8 bg-emerald-500 border-b border-emerald-600 text-white flex justify-between items-center">
+              <div>
+                <h3 className="font-black text-2xl mb-1 flex items-center gap-2">
+                  <i className="fa-solid fa-circle-check" /> Akun Berhasil Dibuat
+                </h3>
+                <p className="text-sm font-medium text-emerald-100">Simpan kredensial ini segera. Password tidak akan ditampilkan lagi.</p>
+              </div>
+            </div>
+            
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-slate-50">
+              <div className="space-y-4">
+                {newCredentials.map((c, i) => (
+                  <div key={i} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-black text-slate-800">{c.full_name}</p>
+                      <p className="text-xs font-medium text-slate-500">
+                        {c.email} • <span className="font-bold text-purple-600">@{c.username}</span> • <span className="uppercase text-slate-400">{c.role}</span>
+                      </p>
+                    </div>
+                    <div className="bg-slate-100 border border-slate-200 px-4 py-2 rounded-xl text-center shrink-0">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Password</p>
+                      <p className="font-mono text-sm font-bold text-slate-800">{c.password}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-200 bg-white flex flex-col sm:flex-row gap-3">
+              <button onClick={downloadCredentialsCsv} className="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors border border-slate-200">
+                <i className="fa-solid fa-download mr-1" /> Download CSV
+              </button>
+              <button onClick={copyCredentials} className="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors border border-slate-200">
+                <i className="fa-solid fa-copy mr-1" /> Copy Text
+              </button>
+              <button onClick={() => setNewCredentials([])} className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm transition-colors shadow-lg shadow-emerald-500/20">
+                Tutup & Selesai
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ConfirmModal {...modalState} onClose={closeModal} isDark={isDeveloperTheme} />
     </>
   );

@@ -3,14 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 
 class User extends Authenticatable implements JWTSubject
 {
-    use HasUuids, Notifiable, SoftDeletes;
+    use HasUuids, Notifiable;
 
     // Explicitly define the table name because the model is User but table is profiles
     protected $table = 'profiles';
@@ -28,7 +27,9 @@ class User extends Authenticatable implements JWTSubject
         'is_locked',
         'avatar_url',
         'phone_number',
-        'fcm_token'
+        'fcm_token',
+        'internship_batch', // Batch/angkatan magang
+        'needs_password_change',
     ];
 
     protected $hidden = [
@@ -38,6 +39,7 @@ class User extends Authenticatable implements JWTSubject
     protected $casts = [
         'is_verified' => 'boolean',
         'is_locked' => 'boolean',
+        'needs_password_change' => 'boolean',
     ];
 
     /**

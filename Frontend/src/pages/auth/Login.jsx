@@ -475,9 +475,7 @@ export default function Login() {
               </button>
             </form>
 
-            <div className="register-link">
-              Belum punya akun? <Link to="/register">Daftar di sini</Link>
-            </div>
+            {/* Registrasi publik ditutup — akun hanya dibuat oleh Superadmin */}
             <p className="footer">&copy; 2026 <span>Mip Activity</span>. All rights reserved.</p>
           </div>
         </div>

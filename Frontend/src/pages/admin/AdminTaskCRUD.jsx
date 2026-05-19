@@ -5,8 +5,8 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../contexts/AuthContext";
 
 const AdminTaskCRUD = () => {
-  const { user, isSuperAdmin, isDeveloper } = useAuth();
-  const canManageAll = isSuperAdmin || isDeveloper;
+  const { user, isSuperAdmin } = useAuth();
+  const canManageAll = isSuperAdmin;
   const myDivisionId = user?.division_id || user?.division?.id;
   const myDivisionName = user?.division?.name || user?.division_name || "IT Support";
 
@@ -23,28 +23,38 @@ const AdminTaskCRUD = () => {
   const [dueDate, setDueDate] = useState("");
   const [assignNote, setAssignNote] = useState("");
   const [taskDivisionId, setTaskDivisionId] = useState(myDivisionId || "");
+  const [startTime, setStartTime] = useState("08:00");
+  const [endTime, setEndTime] = useState("15:00");
+  const [reminderTime, setReminderTime] = useState("14:30");
 
   const [taskTemplates, setTaskTemplates] = useState([]);
   const [liveTasks, setLiveTasks] = useState([]);
+  const [todaySchedules, setTodaySchedules] = useState([]);
   const [interns, setInterns] = useState([]);
   const [divisions, setDivisions] = useState([]);
   const [filterDivision, setFilterDivision] = useState(canManageAll ? "Semua" : (myDivisionId || myDivisionName));
   const [loading, setLoading] = useState(true);
+  const [editTaskId, setEditTaskId] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [tplRes, tasksRes, profRes, divRes] = await Promise.all([
+      const todayDate = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
+      const todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth()+1).padStart(2,'0')}-${String(todayDate.getDate()).padStart(2,'0')}`;
+
+      const [tplRes, tasksRes, profRes, divRes, schedRes] = await Promise.all([
         api.get('/task-templates'),
         api.get('/daily-tasks'),
         api.get('/profiles'),
-        canManageAll ? api.get('/divisions') : Promise.resolve({ data: [] })
+        canManageAll ? api.get('/divisions') : Promise.resolve({ data: [] }),
+        api.get('/schedules', { params: { date: todayStr } })
       ]);
       
       setTaskTemplates(tplRes.data?.data || tplRes.data || []);
       
       const allTasks = tasksRes.data?.data || tasksRes.data || [];
-      setLiveTasks(allTasks.filter(t => t.template_id === null)); // Urgent task = no template
+      // Tampilkan tugas hari ini yang tidak punya template di tab Tugas Dadakan
+      setLiveTasks(allTasks.filter(t => t.template_id === null && t.task_date === todayStr));
       
       const allProfiles = profRes.data?.data || profRes.data || [];
       setInterns(allProfiles.filter(p => p.role === 'intern'));
@@ -52,6 +62,7 @@ const AdminTaskCRUD = () => {
       if (canManageAll) {
         setDivisions(divRes.data?.data || divRes.data || []);
       }
+      setTodaySchedules(schedRes.data?.data || schedRes.data || []);
     } catch (error) {
       console.error("Gagal memuat data tasks:", error);
     } finally {
@@ -88,45 +99,95 @@ const AdminTaskCRUD = () => {
   const modalInterns = useMemo(() => {
     return interns.filter(i => {
       const internDivId = i.division_id || i.division?.id;
+      
+      if (activeTab === "live") {
+        const isOnShift = todaySchedules.some(s => s.user_id === i.id);
+        if (!isOnShift) return false;
+      }
+
       if (canManageAll) {
         return taskDivisionId ? internDivId === taskDivisionId : true;
       }
       return internDivId === myDivisionId || i.division?.name === myDivisionName || i.division === myDivisionName;
     });
-  }, [interns, taskDivisionId, canManageAll, myDivisionId, myDivisionName]);
+  }, [interns, taskDivisionId, canManageAll, myDivisionId, myDivisionName, activeTab, todaySchedules]);
+
+  const handleOpenAddModal = (tab) => {
+    setActiveTab(tab);
+    setEditTaskId(null);
+    setTaskName("");
+    setTaskDetail("");
+    setAssignee("");
+    setDueDate("");
+    setAssignNote("");
+    setStartTime("08:00");
+    setEndTime("15:00");
+    setReminderTime("14:30");
+    setShowAddModal(true);
+  };
+
+  const handleEditTask = (task, isLive) => {
+    setActiveTab(isLive ? "live" : "template");
+    setEditTaskId(task.id);
+    setTaskName(task.title || task.description || "");
+    setTaskDetail(task.description || "");
+    setTaskDivisionId(task.division_id || myDivisionId || "");
+    setStartTime(task.start_time || "08:00");
+    setEndTime(task.end_time || "15:00");
+    setReminderTime(task.reminder_time || "14:30");
+    
+    if (isLive) {
+      setAssignee(task.uploader_id || "");
+      setDueDate(task.due_date || task.task_date || "");
+      setAssignNote(task.assign_note || "");
+    }
+    setShowAddModal(true);
+  };
 
   // Handler Submit
   const handleSubmitTask = async (e) => {
     e.preventDefault();
     try {
       if (activeTab === "template") {
-        await api.post('/task-templates', { 
+        const payload = { 
           title: taskName, 
           description: taskDetail,
+          start_time: startTime,
+          end_time: endTime,
+          reminder_time: reminderTime,
           division_id: canManageAll ? taskDivisionId : myDivisionId
-        });
+        };
+        if (editTaskId) {
+          await api.put(`/task-templates/${editTaskId}`, payload);
+        } else {
+          await api.post('/task-templates', payload);
+        }
       } else {
-        await api.post('/daily-tasks', {
+        const payload = {
           uploader_id: assignee, 
           description: taskName,
           due_date: dueDate,
           assign_note: assignNote,
+          start_time: startTime,
+          end_time: endTime,
+          reminder_time: reminderTime,
           division_id: canManageAll ? taskDivisionId : myDivisionId
-        });
+        };
+        if (editTaskId) {
+          await api.put(`/daily-tasks/${editTaskId}`, payload);
+        } else {
+          await api.post('/daily-tasks', payload);
+        }
       }
       setShowAddModal(false);
       setShowSuccessModal(true);
-      setTaskName("");
-      setTaskDetail("");
-      setAssignee("");
-      setDueDate("");
-      setAssignNote("");
       fetchData();
       setTimeout(() => {
         setShowSuccessModal(false);
       }, 2000);
     } catch (error) {
-      toast.error("Gagal menyimpan tugas!");
+      console.error("Gagal menyimpan tugas:", error.response?.data || error);
+      toast.error(error.response?.data?.message || "Gagal menyimpan tugas!");
     }
   };
 
@@ -207,7 +268,7 @@ const AdminTaskCRUD = () => {
 
           <div className="shrink-0 mt-4 md:mt-0">
             <button 
-              onClick={() => setShowAddModal(true)}
+              onClick={() => handleOpenAddModal(activeTab)}
               className="w-full md:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-3 active:scale-95 border border-blue-500 group"
             >
               <i className="fa-solid fa-plus text-lg group-hover:rotate-90 transition-transform duration-300"></i> 
@@ -309,7 +370,7 @@ const AdminTaskCRUD = () => {
                   
                   {/* Aksi Edit/Delete di Pojok Kanan Atas Card */}
                   <div className="flex items-center gap-2 shrink-0 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="px-5 py-2.5 bg-slate-50 border border-slate-200 text-slate-500 hover:text-amber-500 hover:border-amber-300 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 hover:bg-amber-50">
+                    <button onClick={() => handleEditTask(task, false)} className="px-5 py-2.5 bg-slate-50 border border-slate-200 text-slate-500 hover:text-amber-500 hover:border-amber-300 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 hover:bg-amber-50">
                       <i className="fa-solid fa-pen"></i> Edit
                     </button>
                     <button onClick={() => handleDeleteTemplate(task.id)} className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-500 hover:text-rose-500 hover:border-rose-300 rounded-xl text-xs font-bold shadow-sm transition-all hover:bg-rose-50">
@@ -323,9 +384,26 @@ const AdminTaskCRUD = () => {
                     <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0 mt-0.5 text-slate-400">
                         <i className="fa-solid fa-list-check text-xs"></i>
                     </div>
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Instruksi Pelaksanaan Besok</p>
+                    <div className="flex-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Instruksi Pelaksanaan</p>
                         <p className="text-xs font-medium text-slate-600 leading-relaxed italic">"{task.description || 'Tidak ada instruksi detail.'}"</p>
+                        {/* ── TAMPILKAN JAM KERJA TEMPLATE ── */}
+                        {(task.start_time || task.end_time || task.reminder_time) && (
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            {task.start_time && task.end_time && (
+                              <span className="bg-blue-50 text-blue-600 border border-blue-100 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                <i className="fa-regular fa-clock"></i>
+                                {task.start_time} – {task.end_time} WIB
+                              </span>
+                            )}
+                            {task.reminder_time && (
+                              <span className="bg-amber-50 text-amber-600 border border-amber-100 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                <i className="fa-solid fa-bell"></i>
+                                Reminder {task.reminder_time} WIB
+                              </span>
+                            )}
+                          </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -358,6 +436,23 @@ const AdminTaskCRUD = () => {
                         {task.assign_note && (
                           <p className="text-[11px] mt-2 text-slate-500 italic">"{task.assign_note}"</p>
                         )}
+                        {/* ── TAMPILKAN JAM KERJA TUGAS URGENT ── */}
+                        {(task.start_time || task.end_time || task.reminder_time) && (
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            {task.start_time && task.end_time && (
+                              <span className="bg-blue-50 text-blue-600 border border-blue-100 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                <i className="fa-regular fa-clock"></i>
+                                {task.start_time} – {task.end_time} WIB
+                              </span>
+                            )}
+                            {task.reminder_time && (
+                              <span className="bg-amber-50 text-amber-600 border border-amber-100 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                <i className="fa-solid fa-bell"></i>
+                                Reminder {task.reminder_time} WIB
+                              </span>
+                            )}
+                          </div>
+                        )}
                     </div>
                 </div>
 
@@ -374,9 +469,14 @@ const AdminTaskCRUD = () => {
                     </div>
 
                     {/* Aksi Hapus Urgent */}
-                    <button onClick={() => handleDeleteLiveTask(task.id)} className="w-11 h-11 flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-300 rounded-2xl text-sm font-bold shadow-sm transition-all md:opacity-0 group-hover:opacity-100 shrink-0">
-                    <i className="fa-solid fa-trash"></i>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleEditTask(task, true)} className="w-11 h-11 flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-400 hover:bg-amber-50 hover:text-amber-500 hover:border-amber-300 rounded-2xl text-sm font-bold shadow-sm transition-all md:opacity-0 group-hover:opacity-100 shrink-0">
+                        <i className="fa-solid fa-pen"></i>
+                      </button>
+                      <button onClick={() => handleDeleteLiveTask(task.id)} className="w-11 h-11 flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-300 rounded-2xl text-sm font-bold shadow-sm transition-all md:opacity-0 group-hover:opacity-100 shrink-0">
+                        <i className="fa-solid fa-trash"></i>
+                      </button>
+                    </div>
                 </div>
             </div>
           ))}
@@ -394,9 +494,9 @@ const AdminTaskCRUD = () => {
             <div className={`px-8 py-6 border-b border-slate-100 flex justify-between items-center shrink-0 ${activeTab === "template" ? "bg-blue-50/50" : "bg-rose-50/50"}`}>
               <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
                 {activeTab === "template" ? (
-                  <><div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shadow-inner border border-blue-200"><i className="fa-solid fa-robot text-sm"></i></div> Setup Blueprint</>
+                  <><div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shadow-inner border border-blue-200"><i className="fa-solid fa-robot text-sm"></i></div> {editTaskId ? "Edit Blueprint" : "Setup Blueprint"}</>
                 ) : (
-                  <><div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shadow-inner border border-rose-200"><i className="fa-solid fa-bolt text-sm"></i></div> Tambah Urgent</>
+                  <><div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shadow-inner border border-rose-200"><i className="fa-solid fa-bolt text-sm"></i></div> {editTaskId ? "Edit Tugas Urgent" : "Tambah Urgent"}</>
                 )}
               </h2>
               <button onClick={() => setShowAddModal(false)} className="w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:bg-rose-100 hover:text-rose-500 hover:border-rose-200 transition-colors shadow-sm cursor-pointer">
@@ -451,6 +551,40 @@ const AdminTaskCRUD = () => {
                         placeholder="Contoh: Pastikan matikan PC sebelum pulang, cabut kabel router di lantai 2 jika shift sore."
                       ></textarea>
                     </div>
+
+                    {/* ── JAM KERJA TEMPLATE ── */}
+                    <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 space-y-4">
+                      <p className="text-[11px] font-black uppercase tracking-widest text-blue-600 flex items-center gap-2">
+                        <i className="fa-solid fa-clock"></i> Konfigurasi Jam Kerja & Pengingat
+                      </p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="text-[10px] font-black uppercase text-slate-500 block mb-1.5 tracking-widest">Jam Mulai</label>
+                          <input
+                            type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
+                            className="w-full bg-white border border-blue-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black uppercase text-slate-500 block mb-1.5 tracking-widest">Jam Selesai</label>
+                          <input
+                            type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
+                            className="w-full bg-white border border-blue-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black uppercase text-slate-500 block mb-1.5 tracking-widest">Jam Pengingat</label>
+                          <input
+                            type="time" value={reminderTime} onChange={(e) => setReminderTime(e.target.value)}
+                            className="w-full bg-white border border-blue-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-blue-500 font-medium">
+                        <i className="fa-solid fa-circle-info mr-1"></i>
+                        Intern hanya bisa submit laporan antara Jam Mulai - Jam Selesai. Notifikasi pengingat otomatis dikirim pada Jam Pengingat.
+                      </p>
+                    </div>
                   </>
                 )}
 
@@ -479,6 +613,40 @@ const AdminTaskCRUD = () => {
                       Catatan Penugasan <span className="text-slate-400 font-medium normal-case tracking-normal">Opsional</span>
                     </label>
                     <textarea value={assignNote} onChange={(e) => setAssignNote(e.target.value)} rows="3" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none" placeholder="Contoh: Pastikan bawa kabel HDMI cadangan."></textarea>
+                  </div>
+
+                  {/* ── JAM KERJA TUGAS URGENT ── */}
+                  <div className="bg-rose-50 border border-rose-100 rounded-2xl p-5 space-y-4">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-rose-600 flex items-center gap-2">
+                      <i className="fa-solid fa-clock"></i> Konfigurasi Jam Kerja & Pengingat
+                    </p>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 block mb-1.5 tracking-widest">Jam Mulai</label>
+                        <input
+                          type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
+                          className="w-full bg-white border border-rose-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-rose-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 block mb-1.5 tracking-widest">Jam Selesai</label>
+                        <input
+                          type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
+                          className="w-full bg-white border border-rose-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-rose-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 block mb-1.5 tracking-widest">Jam Pengingat</label>
+                        <input
+                          type="time" value={reminderTime} onChange={(e) => setReminderTime(e.target.value)}
+                          className="w-full bg-white border border-rose-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-rose-500"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-rose-500 font-medium">
+                      <i className="fa-solid fa-circle-info mr-1"></i>
+                      Intern hanya bisa submit laporan antara Jam Mulai - Jam Selesai. Notifikasi pengingat otomatis dikirim pada Jam Pengingat.
+                    </p>
                   </div>
                   </>
                 )}

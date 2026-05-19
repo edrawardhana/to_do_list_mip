@@ -22,6 +22,15 @@ const ProtectedRoute = ({ children, roles }) => {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
+  // 2.5 FORCE CHANGE PASSWORD
+  if (user?.needs_password_change && location.pathname !== "/change-password-force") {
+    return <Navigate to="/change-password-force" replace />;
+  }
+
+  if (!user?.needs_password_change && location.pathname === "/change-password-force") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   // 3. NORMALISASI ROLE
   const rawRole = user?.role?.toLowerCase().replace(/_|\s/g, "").trim();
   const currentRole = rawRole;

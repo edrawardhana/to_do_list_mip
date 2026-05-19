@@ -20,8 +20,8 @@ class SuperadminDashboardController extends Controller
     {
         $authUser = Auth::user();
 
-        // Security: Only super_admin and developer can access this
-        if (!in_array($authUser->role, ['super_admin', 'developer'])) {
+        // Security: Only super_admin can access this
+        if ($authUser->role !== 'super_admin') {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
         }
 

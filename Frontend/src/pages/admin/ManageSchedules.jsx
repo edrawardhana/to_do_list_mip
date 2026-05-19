@@ -122,9 +122,10 @@ export default function ManageSchedules() {
   // Get shift type label
   const getShiftLabel = (type) => {
     const labels = {
-      morning: '🌅 Pagi (08:00 - 12:00)',
-      afternoon: '🌆 Siang (13:00 - 17:00)',
-      full: '🌞 Full Day (08:00 - 17:00)'
+      morning: '🌅 Pagi (08:00 - 15:00 WIB)',
+      middle: '⏳ Middle (10:00 - 17:00 WIB)',
+      afternoon: '🌆 Sore (15:00 - 22:00 WIB)',
+      full: '🌞 Full Day (08:00 - 17:00 WIB)'
     };
     return labels[type] || type;
   };
@@ -133,6 +134,7 @@ export default function ManageSchedules() {
   const getShiftBadge = (type) => {
     const badges = {
       morning: 'bg-blue-100 text-blue-700',
+      middle: 'bg-yellow-100 text-yellow-700',
       afternoon: 'bg-orange-100 text-orange-700',
       full: 'bg-purple-100 text-purple-700'
     };
@@ -364,9 +366,10 @@ export default function ManageSchedules() {
                 </label>
                 <div className="space-y-2">
                   {[
-                    { value: 'morning', label: '🌅 Pagi', time: '08:00 - 12:00' },
-                    { value: 'afternoon', label: '🌆 Siang', time: '13:00 - 17:00' },
-                    { value: 'full', label: '🌞 Full Day', time: '08:00 - 17:00' }
+                    { value: 'morning', label: '🌅 Pagi', time: '08:00 - 15:00 WIB' },
+                    { value: 'middle', label: '⏳ Middle', time: '10:00 - 17:00 WIB' },
+                    { value: 'afternoon', label: '🌆 Sore', time: '15:00 - 22:00 WIB' },
+                    { value: 'full', label: '🌞 Full Day', time: '08:00 - 17:00 WIB' }
                   ].map((shift) => (
                     <label
                       key={shift.value}

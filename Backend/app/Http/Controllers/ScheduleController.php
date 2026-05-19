@@ -27,7 +27,7 @@ class ScheduleController extends Controller
                   ->whereNull('deleted_at');
             });
         }
-        // superadmin/developer sees all
+        // superadmin sees all
 
         if ($request->has('date')) {
             $query->whereDate('shift_date', $request->date);
@@ -55,7 +55,7 @@ class ScheduleController extends Controller
         $request->validate([
             'user_id' => 'required|uuid|exists:profiles,id',
             'shift_date' => 'required|date',
-            'shift_type' => 'required|in:morning,afternoon,full'
+            'shift_type' => 'required|in:morning,middle,afternoon,full'
         ]);
 
         $intern = User::findOrFail($request->user_id);
@@ -115,7 +115,7 @@ class ScheduleController extends Controller
 
         $request->validate([
             'shift_date' => 'sometimes|date',
-            'shift_type' => 'sometimes|in:morning,afternoon,full'
+            'shift_type' => 'sometimes|in:morning,middle,afternoon,full'
         ]);
 
         $schedule->update($request->only(['shift_date', 'shift_type']));

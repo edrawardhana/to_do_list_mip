@@ -66,18 +66,28 @@ export default function MySchedule() {
       light: 'bg-green-50 border-green-200',
       text: 'text-green-700',
       badge: 'bg-green-500 text-white',
-      label: 'Morning',
-      time: '08:00 - 15:00',
+      label: 'Pagi',
+      time: '08:00 - 15:00 WIB',
       icon: '🌅',
       short: 'M',
+    },
+    middle: {
+      bg: 'bg-yellow-500',
+      light: 'bg-yellow-50 border-yellow-200',
+      text: 'text-yellow-700',
+      badge: 'bg-yellow-500 text-white',
+      label: 'Middle',
+      time: '10:00 - 17:00 WIB',
+      icon: '⏳',
+      short: 'MD',
     },
     afternoon: {
       bg: 'bg-orange-500',
       light: 'bg-orange-50 border-orange-200',
       text: 'text-orange-700',
       badge: 'bg-orange-500 text-white',
-      label: 'Afternoon',
-      time: '15:00 - 22:00',
+      label: 'Sore',
+      time: '15:00 - 22:00 WIB',
       icon: '🌇',
       short: 'A',
     },
@@ -100,12 +110,13 @@ export default function MySchedule() {
   const stats = schedules.reduce(
     (acc, s) => {
       if (s.shift_type === 'morning') acc.morning++;
+      else if (s.shift_type === 'middle') acc.middle++;
       else if (s.shift_type === 'afternoon') acc.afternoon++;
       else if (s.shift_type === 'full') acc.full++;
       acc.total++;
       return acc;
     },
-    { morning: 0, afternoon: 0, full: 0, total: 0 }
+    { morning: 0, middle: 0, afternoon: 0, full: 0, total: 0 }
   );
 
   // Find today's schedule
@@ -185,18 +196,22 @@ export default function MySchedule() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="bg-white rounded-2xl border border-slate-200 p-4 text-center shadow-sm">
             <p className="text-3xl font-bold text-slate-800">{stats.total}</p>
             <p className="text-sm text-slate-500 mt-1">Total Hari Kerja</p>
           </div>
           <div className="bg-green-50 rounded-2xl border border-green-200 p-4 text-center shadow-sm">
             <p className="text-3xl font-bold text-green-700">{stats.morning}</p>
-            <p className="text-sm text-green-600 mt-1">🌅 Morning</p>
+            <p className="text-sm text-green-600 mt-1">🌅 Pagi</p>
+          </div>
+          <div className="bg-yellow-50 rounded-2xl border border-yellow-200 p-4 text-center shadow-sm">
+            <p className="text-3xl font-bold text-yellow-700">{stats.middle}</p>
+            <p className="text-sm text-yellow-600 mt-1">⏳ Middle</p>
           </div>
           <div className="bg-orange-50 rounded-2xl border border-orange-200 p-4 text-center shadow-sm">
             <p className="text-3xl font-bold text-orange-700">{stats.afternoon}</p>
-            <p className="text-sm text-orange-600 mt-1">🌇 Afternoon</p>
+            <p className="text-sm text-orange-600 mt-1">🌇 Sore</p>
           </div>
           <div className="bg-purple-50 rounded-2xl border border-purple-200 p-4 text-center shadow-sm">
             <p className="text-3xl font-bold text-purple-700">{stats.full}</p>
@@ -326,11 +341,15 @@ export default function MySchedule() {
           <div className="flex flex-wrap gap-4 items-center justify-center text-sm">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold">M</div>
-              <span className="text-slate-600">Morning (08:00 - 15:00)</span>
+              <span className="text-slate-600">Pagi (08:00 - 15:00)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center text-white font-bold">MD</div>
+              <span className="text-slate-600">Middle (10:00 - 17:00)</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold">A</div>
-              <span className="text-slate-600">Afternoon (15:00 - 22:00)</span>
+              <span className="text-slate-600">Sore (15:00 - 22:00)</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center text-white font-bold">C</div>

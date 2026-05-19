@@ -9,6 +9,11 @@ const SHIFT_CONFIG = {
     text: 'M', color: 'text-white', label: 'Morning', time: '08:00 - 15:00',
     badgeClass: 'bg-green-500 text-white',
   },
+  middle: {
+    bg: 'bg-yellow-500', light: 'bg-yellow-50', border: 'border-yellow-200',
+    text: 'MD', color: 'text-white', label: 'Middle', time: '10:00 - 17:00',
+    badgeClass: 'bg-yellow-500 text-white',
+  },
   afternoon: {
     bg: 'bg-orange-500', light: 'bg-orange-50', border: 'border-orange-200',
     text: 'A', color: 'text-white', label: 'Afternoon', time: '15:00 - 22:00',
@@ -23,7 +28,7 @@ const SHIFT_CONFIG = {
 
 const OFF_BADGE = { bg: 'bg-gray-100', text: 'OFF', color: 'text-gray-500', label: 'Day Off' };
 
-const CYCLE = { morning: 'afternoon', afternoon: 'full', full: null };
+const CYCLE = { morning: 'middle', middle: 'afternoon', afternoon: 'full', full: null };
 
 export default function ManageSchedulesCalendar() {
   const [schedules, setSchedules] = useState([]);

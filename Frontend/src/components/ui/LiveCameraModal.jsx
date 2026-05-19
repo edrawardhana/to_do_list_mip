@@ -6,7 +6,7 @@ import api from "../../api/axios";
 
 /* ─────────────────────────────────────────────────────────────────────────
    SharedTaskTagging — fetch rekan dari API, bukan hardcoded
-───────────────────────────────────────────────────────────────────────── */
+ ───────────────────────────────────────────────────────────────────────── */
 const SharedTaskTagging = ({ currentUser, onTagsChange }) => {
   const [search, setSearch]           = useState("");
   const [taggedUsers, setTaggedUsers] = useState([currentUser]);
@@ -99,28 +99,18 @@ const SharedTaskTagging = ({ currentUser, onTagsChange }) => {
             ))}
           </div>
         )}
-        {search && filteredOptions.length === 0 && (
-          <div className="absolute bottom-full mb-2 z-10 w-full bg-white border border-slate-200 rounded-xl shadow-xl p-3 text-center">
-            <p className="text-xs text-slate-400">Tidak ada rekan ditemukan</p>
-          </div>
-        )}
       </div>
     </div>
   );
 };
 
 /* ─────────────────────────────────────────────────────────────────────────
-   LiveCameraModal — kamera live + upload file + submit ke backend
-───────────────────────────────────────────────────────────────────────── */
+   LiveCameraModal — kamera live + submit ke backend
+ ───────────────────────────────────────────────────────────────────────── */
 const LiveCameraModal = ({ task, currentUser, onClose, onSubmit }) => {
   const webcamRef   = useRef(null);
-  const fileInputRef = useRef(null);
 
-  // "camera" | "upload"
-  const [mode, setMode]               = useState("camera");
   const [imgSrc, setImgSrc]           = useState(null);       // base64 preview (kamera)
-  const [uploadFile, setUploadFile]   = useState(null);       // File object (upload)
-  const [uploadPreview, setUploadPreview] = useState(null);   // URL.createObjectURL
   const [description, setDescription] = useState(
     task?.assign_note || `Berhasil melaksanakan tugas ${task?.title || ""}`
   );
@@ -129,11 +119,6 @@ const LiveCameraModal = ({ task, currentUser, onClose, onSubmit }) => {
   const [cameraError, setCameraError] = useState(false);
 
   const videoConstraints = { facingMode: "environment", aspectRatio: 16 / 9 };
-
-  // Bersihkan object URL saat unmount
-  useEffect(() => {
-    return () => { if (uploadPreview) URL.revokeObjectURL(uploadPreview); };
-  }, [uploadPreview]);
 
   /* ── Kamera ── */
   const capture = useCallback(() => {
@@ -144,65 +129,22 @@ const LiveCameraModal = ({ task, currentUser, onClose, onSubmit }) => {
 
   const retakeCamera = () => setImgSrc(null);
 
-  /* ── Upload File ── */
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validasi tipe
-    const allowed = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
-    if (!allowed.includes(file.type)) {
-      alert("Format file harus JPEG, PNG, GIF, atau WEBP.");
-      return;
-    }
-    // Validasi ukuran (max 10 MB)
-    if (file.size > 10 * 1024 * 1024) {
-      alert("Ukuran file maksimal 10 MB.");
-      return;
-    }
-
-    if (uploadPreview) URL.revokeObjectURL(uploadPreview);
-    setUploadFile(file);
-    setUploadPreview(URL.createObjectURL(file));
-  };
-
-  const clearUpload = () => {
-    if (uploadPreview) URL.revokeObjectURL(uploadPreview);
-    setUploadFile(null);
-    setUploadPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  /* ── Switch mode ── */
-  const switchMode = (newMode) => {
-    setMode(newMode);
-    setImgSrc(null);
-    clearUpload();
-    setCameraError(false);
-  };
-
   /* ── Apakah ada gambar yang siap dikirim ── */
-  const hasImage = mode === "camera" ? !!imgSrc : !!uploadFile;
+  const hasImage = !!imgSrc;
 
   /* ── Submit ── */
   const handleSubmit = async () => {
-    if (!hasImage) return;
+    if (!imgSrc) return;
     if (!description.trim()) {
       alert("Catatan pelaksanaan tidak boleh kosong.");
       return;
     }
     setIsLoading(true);
     try {
-      let imageFile;
-
-      if (mode === "camera") {
-        // Konversi base64 → File
-        const res  = await fetch(imgSrc);
-        const blob = await res.blob();
-        imageFile  = new File([blob], `laporan-${task.id}.jpg`, { type: "image/jpeg" });
-      } else {
-        imageFile = uploadFile;
-      }
+      // Konversi base64 → File
+      const res  = await fetch(imgSrc);
+      const blob = await res.blob();
+      const imageFile  = new File([blob], `laporan-${task.id}.jpg`, { type: "image/jpeg" });
 
       // Kompres gambar di sisi client sebelum upload
       const compressOptions = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
@@ -218,7 +160,6 @@ const LiveCameraModal = ({ task, currentUser, onClose, onSubmit }) => {
       await onSubmit(formData);
 
     } catch (error) {
-      // Hanya tampilkan error jika bukan error yang sudah ditangani parent
       console.error("Gagal kirim:", error);
       if (!error._handled) {
         alert("Terjadi kesalahan, coba lagi.");
@@ -260,94 +201,40 @@ const LiveCameraModal = ({ task, currentUser, onClose, onSubmit }) => {
         {/* ── Body ── */}
         <div className="overflow-y-auto flex-1 p-6 flex flex-col gap-5 bg-slate-50/50">
 
-          {/* ── Mode Switcher ── */}
-          <div className="flex gap-2 bg-slate-100 p-1 rounded-2xl">
-            <button onClick={() => switchMode("camera")}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all
-                ${mode === "camera" ? "bg-white text-[#0b1437] shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
-              <i className="fa-solid fa-camera text-sm"></i> Kamera Live
-            </button>
-            <button onClick={() => switchMode("upload")}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all
-                ${mode === "upload" ? "bg-white text-[#0b1437] shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
-              <i className="fa-solid fa-upload text-sm"></i> Upload Foto
-            </button>
-          </div>
-
           {/* ── Area Gambar ── */}
-          {mode === "camera" ? (
-            <div className="relative w-full aspect-video bg-slate-900 rounded-2xl overflow-hidden shadow-inner border-[6px] border-white group shrink-0">
-              {cameraError && !imgSrc ? (
-                /* Kamera error — tampilkan fallback upload */
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 gap-3">
-                  <i className="fa-solid fa-camera-slash text-4xl text-slate-500 mb-1"></i>
-                  <p className="text-sm text-slate-300 font-medium">Akses kamera ditolak atau tidak tersedia.</p>
-                  <button onClick={() => switchMode("upload")}
-                    className="mt-1 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors">
-                    <i className="fa-solid fa-upload mr-1.5"></i> Upload Foto Saja
+          <div className="relative w-full aspect-video bg-slate-900 rounded-2xl overflow-hidden shadow-inner border-[6px] border-white group shrink-0">
+            {cameraError && !imgSrc ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 gap-3">
+                <i className="fa-solid fa-camera-slash text-4xl text-slate-500 mb-1"></i>
+                <p className="text-sm text-slate-300 font-medium">Akses kamera ditolak atau tidak tersedia.</p>
+              </div>
+            ) : !imgSrc ? (
+              <>
+                <Webcam
+                  audio={false}
+                  ref={webcamRef}
+                  screenshotFormat="image/jpeg"
+                  videoConstraints={videoConstraints}
+                  onUserMediaError={() => setCameraError(true)}
+                  className="object-cover w-full h-full"
+                />
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center opacity-90 group-hover:opacity-100 transition-opacity">
+                  <button onClick={capture}
+                    className="w-14 h-14 rounded-full border-[3px] border-white/50 flex items-center justify-center hover:border-white shadow-xl bg-black/20 backdrop-blur-sm">
+                    <div className="w-10 h-10 bg-white rounded-full active:scale-90 transition-transform shadow-inner"></div>
                   </button>
                 </div>
-              ) : !imgSrc ? (
-                <>
-                  <Webcam
-                    audio={false}
-                    ref={webcamRef}
-                    screenshotFormat="image/jpeg"
-                    videoConstraints={videoConstraints}
-                    onUserMediaError={() => setCameraError(true)}
-                    className="object-cover w-full h-full"
-                  />
-                  <div className="absolute bottom-4 left-0 right-0 flex justify-center opacity-90 group-hover:opacity-100 transition-opacity">
-                    <button onClick={capture}
-                      className="w-14 h-14 rounded-full border-[3px] border-white/50 flex items-center justify-center hover:border-white shadow-xl bg-black/20 backdrop-blur-sm">
-                      <div className="w-10 h-10 bg-white rounded-full active:scale-90 transition-transform shadow-inner"></div>
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <img src={imgSrc} alt="Preview" className="object-cover w-full h-full" />
-                  <button onClick={retakeCamera}
-                    className="absolute top-3 right-3 bg-black/40 backdrop-blur-md text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-white/20 hover:bg-black/60 shadow-lg">
-                    <i className="fa-solid fa-rotate-right mr-1.5"></i> Foto Ulang
-                  </button>
-                </>
-              )}
-            </div>
-          ) : (
-            /* ── Mode Upload ── */
-            <div className="w-full">
-              {!uploadPreview ? (
-                <label
-                  htmlFor="evidence-file-input"
-                  className="flex flex-col items-center justify-center w-full aspect-video bg-slate-100 border-2 border-dashed border-slate-300 rounded-2xl cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-all group">
-                  <i className="fa-solid fa-cloud-arrow-up text-4xl text-slate-400 group-hover:text-blue-500 mb-3 transition-colors"></i>
-                  <p className="text-sm font-bold text-slate-500 group-hover:text-blue-600 transition-colors">Klik untuk pilih foto</p>
-                  <p className="text-xs text-slate-400 mt-1">JPEG, PNG, GIF, WEBP — maks. 10 MB</p>
-                  <input
-                    id="evidence-file-input"
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                </label>
-              ) : (
-                <div className="relative w-full aspect-video bg-slate-900 rounded-2xl overflow-hidden shadow-inner border-[6px] border-white">
-                  <img src={uploadPreview} alt="Preview" className="object-cover w-full h-full" />
-                  <button onClick={clearUpload}
-                    className="absolute top-3 right-3 bg-black/40 backdrop-blur-md text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-white/20 hover:bg-black/60 shadow-lg">
-                    <i className="fa-solid fa-rotate-right mr-1.5"></i> Ganti Foto
-                  </button>
-                  <div className="absolute bottom-3 left-3 bg-black/50 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10 max-w-[80%] truncate">
-                    <i className="fa-solid fa-file-image mr-1.5"></i>
-                    {uploadFile?.name}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+              </>
+            ) : (
+              <>
+                <img src={imgSrc} alt="Preview" className="object-cover w-full h-full" />
+                <button onClick={retakeCamera}
+                  className="absolute top-3 right-3 bg-black/40 backdrop-blur-md text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-white/20 hover:bg-black/60 shadow-lg">
+                  <i className="fa-solid fa-rotate-right mr-1.5"></i> Foto Ulang
+                </button>
+              </>
+            )}
+          </div>
 
           {/* ── Assign Note (read-only jika ada) ── */}
           {task?.assign_note && (

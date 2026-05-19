@@ -5,16 +5,14 @@ import toast from "react-hot-toast";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 
 const DivisionAnalytics = () => {
-  const { user, isAdmin, isSuperAdmin, isDeveloper } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
 
-  const canManage = isSuperAdmin || isDeveloper;
+  const canManage = isSuperAdmin;
 
-  // ==========================================
-  // LOGIC WARNA TEMA DINAMIS (Hanya untuk Card & Modal Content)
-  // ==========================================
-  const isDeveloperTheme = isDeveloper;
-  const isPurpleTheme = isSuperAdmin && !isDeveloperTheme;
-  const isBlueTheme = isAdmin && !isSuperAdmin && !isDeveloperTheme;
+  // ── Theme selalu Premium Purple (Developer role telah dihapus) ─────────
+  const isDeveloperTheme = false;
+  const isPurpleTheme    = isSuperAdmin;
+  const isBlueTheme      = isAdmin && !isSuperAdmin;
 
   const [divisions, setDivisions] = useState([]);
   const [loading, setLoading] = useState(true);
