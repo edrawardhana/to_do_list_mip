@@ -10,6 +10,9 @@ const ALWAYS_ALLOWED_PATHS = [
   "/settings",
 ];
 
+// Path yang mendapat styling khusus "special" per role
+const SPECIAL_PATHS = ["/audit-log", "/broadcasts"];
+
 const Sidebar = ({ mobileOpen, setMobileOpen }) => {
   const { user, logout, isAdmin, isSuperAdmin, isIntern, isRestrictedAccess } =
     useAuth();
@@ -125,19 +128,37 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     navActiveText: "text-white font-bold tracking-wide",
     navActiveBorder: "bg-white",
     isDarkLogo: false,
+    // Special item styling (AuditLog & Broadcast)
+    specialNormal: null,
+    specialActiveBg: null,
+    specialActiveText: null,
+    specialActiveBorder: null,
   };
 
   // 2. ADMIN (Full Biru Navy Tua Gelap)
   if (isAdmin) {
     theme = {
-      sidebarBg: "bg-[#0c1938] border-r border-blue-950",
-      logoBorder: "border-white/5",
-      logoutBorder: "border-white/5",
-      navNormal: "text-slate-400 hover:bg-blue-600/10 hover:text-blue-300",
-      navActiveBg: "bg-blue-600/15 border border-blue-600/20",
-      navActiveText: "text-blue-500 font-bold tracking-wide",
-      navActiveBorder: "bg-blue-600",
+      sidebarBg:
+        "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-r border-blue-400/20 shadow-2xl",
+      logoBorder: "border-blue-400/20",
+      logoutBorder: "border-blue-400/20",
+      navNormal:
+        "text-blue-200/60 hover:text-white hover:bg-white/10 transition-all duration-300",
+      navActiveBg:
+        "bg-gradient-to-r from-blue-500/30 to-blue-500/5 backdrop-blur-md border border-blue-400/20",
+      navActiveText:
+        "text-white font-bold tracking-wide drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]",
+      navActiveBorder: "bg-blue-400 shadow-[0_0_15px_rgba(96,165,250,0.8)]",
       isDarkLogo: false,
+      // Special: Admin — biru navy senada sidebar
+      specialNormal:
+        "text-blue-100/70 hover:text-white hover:bg-white/10 transition-all duration-300",
+      specialActiveBg:
+        "bg-gradient-to-r from-blue-400/30 to-blue-400/5 backdrop-blur-md border border-blue-300/30",
+      specialActiveText:
+        "text-white font-bold tracking-wide drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]",
+      specialActiveBorder:
+        "bg-blue-300 shadow-[0_0_15px_rgba(147,197,253,0.8)]",
     };
   }
   // 3. SUPERADMIN (Full Ungu Tua Gelap)
@@ -151,6 +172,13 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       navActiveText: "text-purple-400 font-bold tracking-wide",
       navActiveBorder: "bg-purple-400",
       isDarkLogo: false,
+      // Special: SuperAdmin — ungu terang
+      specialNormal:
+        "text-purple-300/70 hover:bg-purple-100/10 hover:text-purple-200 transition-all duration-300",
+      specialActiveBg: "bg-purple-100/10 border border-purple-200/30",
+      specialActiveText: "text-purple-200 font-bold tracking-wide",
+      specialActiveBorder:
+        "bg-purple-300 shadow-[0_0_10px_rgba(216,180,254,0.5)]",
     };
   }
 
@@ -185,6 +213,10 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
               isRestrictedAccess &&
               !ALWAYS_ALLOWED_PATHS.includes(item.path);
 
+            // Apakah item ini termasuk "special" (AuditLog / Broadcast)?
+            const isSpecial =
+              SPECIAL_PATHS.includes(item.path) && theme.specialNormal !== null;
+
             if (isItemRestricted) {
               return (
                 <div
@@ -203,6 +235,20 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
               );
             }
 
+            // Pilih set style yang dipakai: special atau normal
+            const resolvedNormal = isSpecial
+              ? theme.specialNormal
+              : theme.navNormal;
+            const resolvedActiveBg = isSpecial
+              ? theme.specialActiveBg
+              : theme.navActiveBg;
+            const resolvedActiveText = isSpecial
+              ? theme.specialActiveText
+              : theme.navActiveText;
+            const resolvedActiveBorder = isSpecial
+              ? theme.specialActiveBorder
+              : theme.navActiveBorder;
+
             return (
               <NavLink
                 key={item.path}
@@ -212,8 +258,8 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm group relative ${
                     isActive
-                      ? `${theme.navActiveBg} ${theme.navActiveText}`
-                      : theme.navNormal
+                      ? `${resolvedActiveBg} ${resolvedActiveText}`
+                      : resolvedNormal
                   }`
                 }
               >
@@ -221,7 +267,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                   <>
                     {isActive && (
                       <div
-                        className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full ${theme.navActiveBorder}`}
+                        className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full ${resolvedActiveBorder}`}
                       ></div>
                     )}
                     <i

@@ -211,26 +211,28 @@ const TopNav = ({ onToggleSidebar }) => {
 
   if (isAdmin) {
     navTheme =
-      "bg-blue-950/95 backdrop-blur-xl border-blue-900 text-white shadow-xl shadow-blue-900/10";
-    dividerColor = "border-blue-800/50";
+      "bg-gradient-to-r from-[#162447] to-[#1a3a6c] border-b border-blue-400/20 backdrop-blur-xl text-white shadow-xl shadow-blue-900/30";
+    dividerColor = "border-blue-400/20";
+
     textColorMain = "text-white";
-    textColorMuted = "text-slate-400";
-    textGradient = "from-white to-slate-400";
-    btnStyle = "text-slate-300 hover:text-white hover:bg-white/10";
-    dropdownBg = "bg-[#0b1437]";
-    dropdownBorder = "border-white/10";
-    dropdownText = "text-slate-300";
-    dropdownHoverBg = "bg-white/[0.03]";
-    inputBg = "bg-white/5";
-    inputBorder = "border-white/10";
-    avatarFallbackBg = "bg-blue-600";
+    textColorMuted = "text-blue-200/60";
+    textGradient = "from-white via-blue-50 to-blue-200";
+    btnStyle =
+      "text-blue-100 hover:text-white hover:bg-white/10 transition-all duration-200 rounded-lg";
+    dropdownBg = "bg-[#162447]";
+    dropdownBorder = "border-blue-400/20";
+    dropdownText = "text-blue-100";
+    dropdownHoverBg = "bg-blue-500/20";
+    inputBg = "bg-black/20";
+    inputBorder = "border-blue-400/20 focus:border-blue-400/50";
+    avatarFallbackBg = "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]";
   } else if (isSuperAdmin) {
     navTheme =
-      "bg-purple-950/95 backdrop-blur-xl border-purple-900 text-white shadow-xl shadow-purple-900/10";
+      "bg-[#1e1544]/95 backdrop-blur-xl border-b border-purple-500/20 text-white shadow-xl shadow-purple-900/20";
     dividerColor = "border-purple-800/50";
     textColorMain = "text-white";
     textColorMuted = "text-slate-400";
-    textGradient = "from-white to-slate-400";
+    textGradient = "from-white to-purple-200";
     btnStyle = "text-slate-300 hover:text-white hover:bg-white/10";
     dropdownBg = "bg-[#161224]";
     dropdownBorder = "border-white/10";
