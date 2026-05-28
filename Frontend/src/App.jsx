@@ -37,7 +37,6 @@ import Reports from "./pages/admin/Reports";
 import ManageAdmin from "./pages/superadmin/ManageAdmin";
 import DivisionAnalytics from "./pages/superadmin/DivisionAnalytics";
 // 👇 IMPORT KOMPONEN CONFIG
-import SystemConfig from './pages/developer/SystemConfig';
 import AuditLog from './pages/developer/AuditLog';
 
 function App() {
@@ -139,11 +138,6 @@ function App() {
               } />
 
               {/* 👇 INI YANG KETINGGALAN: RUTE KHUSUS DEVELOPER */}
-              <Route path="system-config" element={
-                <ProtectedRoute roles={["developer"]}>
-                  <SystemConfig />
-                </ProtectedRoute>
-              } />
 
               <Route path="audit-log" element={
                 <ProtectedRoute roles={["admin", "superadmin", "developer"]}>

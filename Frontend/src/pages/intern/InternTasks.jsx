@@ -294,34 +294,79 @@ const InternTasks = () => {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-1 max-w-5xl mx-auto">
       {/* ── HERO ── */}
-      <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-8 md:p-10 rounded-[2.5rem] text-white shadow-lg shadow-blue-500/20 border border-blue-400 relative overflow-hidden">
+      {/* ── HERO & TABS (GABUNGAN) ── */}
+      <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-6 sm:p-8 md:p-10 rounded-[2.5rem] text-white shadow-lg shadow-blue-500/20 border border-blue-400 relative overflow-hidden">
+        {/* Ornamen Background */}
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div className="absolute -bottom-20 -left-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+          
+          {/* KOLOM KIRI: Teks & Tabs */}
           <div className="flex-1">
-            <div className="flex items-center gap-4 mb-5">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm text-white rounded-2xl flex items-center justify-center shadow-lg border border-white/30">
-                <i className="fa-solid fa-clipboard-check text-xl" />
+            <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 backdrop-blur-sm text-white rounded-2xl flex items-center justify-center shadow-lg border border-white/30 shrink-0">
+                <i className="fa-solid fa-clipboard-check text-lg sm:text-xl" />
               </div>
               <div>
-                <span className="text-blue-50 text-[10px] font-black uppercase tracking-widest">
+                <span className="text-sky-50 text-[10px] md:text-[11px] font-black uppercase tracking-widest">
                   Logbook Harian
                 </span>
-                <p className="text-white text-sm font-medium mt-0.5">
-                  Halo, {currentUser.name.split(" ")[0]}! 👋
-                </p>
               </div>
             </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-3 text-white">
+            
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-2 sm:mb-3 text-white">
               Daily Tasks
             </h1>
-            <p className="text-[13px] text-blue-50/80 font-medium border-l-[3px] border-white/50 pl-4 max-w-lg">
-              Selesaikan tugas dan lampirkan bukti. Cek riwayat di tab Riwayat
-              Tugas.
+            <p className="text-xs sm:text-[13px] md:text-sm text-blue-50/90 font-medium border-l-[3px] border-white/50 pl-3 sm:pl-4 max-w-lg leading-relaxed mb-6 sm:mb-8">
+              Selesaikan tugas dan lampirkan bukti. Pantau progress harianmu dan cek riwayat di tab sebelah kanan.
             </p>
+
+            {/* MAIN TABS (Sekarang di dalam Hero) */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {[
+                {
+                  id: "todo",
+                  label: "Tugas Aktif",
+                  icon: "fa-list-check",
+                  count: tasks.filter((t) => t.status !== "completed").length,
+                },
+                {
+                  id: "history",
+                  label: "Riwayat Tugas",
+                  icon: "fa-clock-rotate-left",
+                  count: tasks.length,
+                },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-xs sm:text-sm font-bold transition-all duration-300 border backdrop-blur-md ${
+                    activeTab === tab.id
+                      ? "bg-white text-blue-600 border-white shadow-xl shadow-black/10 scale-105"
+                      : "bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/30"
+                  }`}
+                >
+                  <i className={`fa-solid ${tab.icon}`} />
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span
+                      className={`text-[9px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded-full transition-colors ${
+                        activeTab === tab.id
+                          ? "bg-blue-100 text-blue-600"
+                          : "bg-white/20 text-white"
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Progress Card */}
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 p-7 rounded-3xl w-full md:w-[300px] shrink-0 shadow-xl">
+          {/* KOLOM KANAN: Progress Card */}
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 p-5 sm:p-7 rounded-3xl w-full lg:w-[300px] shrink-0 shadow-xl transition-all duration-300 hover:bg-white/15">
             <div className="flex justify-between items-start mb-3">
               <div>
                 <p className="text-[10px] font-bold text-blue-50 uppercase tracking-widest mb-0.5">
@@ -333,7 +378,7 @@ const InternTasks = () => {
               </div>
               <i className="fa-solid fa-chart-pie text-white/80 text-lg" />
             </div>
-            <h3 className="text-5xl font-black text-white leading-none tracking-tighter mb-3">
+            <h3 className="text-4xl sm:text-5xl font-black text-white leading-none tracking-tighter mb-3">
               {loading ? 0 : progressPct}%
             </h3>
             <div className="w-full h-2.5 bg-black/20 rounded-full overflow-hidden border border-white/10 shadow-inner">
@@ -342,7 +387,7 @@ const InternTasks = () => {
                 style={{ width: `${progressPct}%` }}
               />
             </div>
-            <p className="text-[11px] font-medium text-white/60 mt-3 text-right">
+            <p className="text-[10px] sm:text-[11px] font-medium text-white/60 mt-3 text-right">
               <span className="font-bold text-white">
                 {loading ? "…" : completedCount}
               </span>{" "}
@@ -352,64 +397,23 @@ const InternTasks = () => {
         </div>
       </div>
 
-      {/* ── MAIN TABS ── */}
-      <div className="flex items-center gap-2 px-1">
-        {[
-          {
-            id: "todo",
-            label: "Tugas Aktif",
-            icon: "fa-list-check",
-            count: tasks.filter((t) => t.status !== "completed").length,
-          },
-          {
-            id: "history",
-            label: "Riwayat Tugas",
-            icon: "fa-clock-rotate-left",
-            count: tasks.length,
-          },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold transition-all border ${
-              activeTab === tab.id
-                ? "bg-gradient-to-br from-blue-500 to-cyan-500 text-white border-blue-400 shadow-lg shadow-blue-500/20 scale-105"
-                : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-blue-200"
-            }`}
-          >
-            <i className={`fa-solid ${tab.icon}`} />
-            {tab.label}
-            {tab.count > 0 && (
-              <span
-                className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                  activeTab === tab.id
-                    ? "bg-white/20 text-white"
-                    : "bg-slate-100 text-slate-600"
-                }`}
-              >
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
 
       {/* ══════════════════════════════════════════════════════════════
           TAB: TUGAS HARI INI
       ══════════════════════════════════════════════════════════════ */}
       {activeTab === "todo" && (
-        <div className="space-y-6">
+        <div className="space-y-6 lg:space-y-8 max-w-5xl mx-auto mt-6">
+          
           {/* Rutinitas */}
-          <div className="bg-white p-3 sm:p-4 rounded-[2rem] border border-blue-100 shadow-sm shadow-blue-100/50">
+          <div className="bg-white p-4 sm:p-5 rounded-[2rem] border border-blue-100 shadow-sm shadow-blue-100/50">
             <div className="flex items-center gap-3 mb-4 border-b border-blue-50 pb-3 pl-2 pt-1">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md shadow-blue-500/20">
-                <i className="fa-solid fa-desktop text-sm" />
-              </div>
-              <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">
+              <h2 className="text-xs font-black text-slate-800 uppercase tracking-widest">
                 Semua Tugas Rutin
               </h2>
             </div>
-            <div className="flex flex-col gap-3">
+            
+            {/* KEMBALI KE FLEX-COL 1 KOLOM BIAR GAK GEPENG */}
+            <div className="flex flex-col gap-3 sm:gap-4">
               {loading ? (
                 <p className="text-center text-sm font-bold text-slate-400 py-8">
                   <i className="fa-solid fa-spinner fa-spin mr-2" />
@@ -442,7 +446,7 @@ const InternTasks = () => {
 
           {/* Urgent */}
           {!loading && urgentTasks.length > 0 && (
-            <div className="bg-white p-3 sm:p-4 rounded-[2rem] border border-blue-200 shadow-sm shadow-blue-100 relative overflow-hidden">
+            <div className="bg-white p-4 sm:p-5 rounded-[2rem] border border-blue-200 shadow-sm shadow-blue-100 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
               <div className="flex items-center gap-2 mb-4 border-b border-blue-100 pb-3 pl-2 pt-1">
                 <i className="fa-solid fa-bolt text-rose-500 animate-pulse text-lg" />
@@ -450,7 +454,9 @@ const InternTasks = () => {
                   Tugas Tambahan (Urgent)
                 </h2>
               </div>
-              <div className="flex flex-col gap-3 relative z-10">
+              
+              {/* KEMBALI KE FLEX-COL 1 KOLOM BIAR GAK GEPENG */}
+              <div className="flex flex-col gap-3 sm:gap-4 relative z-10">
                 {urgentTasks.map((task, i) => (
                   <InternTaskCard
                     key={task.id}

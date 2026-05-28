@@ -1,15 +1,14 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+
 const ManageAdmin = () => {
   const { user, isSuperAdmin } = useAuth();
-  
-  // Theme selalu Purple (Developer dihapus)
-  const isDeveloperTheme = false;
   
   const [users, setUsers] = useState([]);
   const [divisionsList, setDivisionsList] = useState([]);
@@ -43,6 +42,16 @@ const ManageAdmin = () => {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Kunci Scroll Layar saat Modal Terbuka
+  useEffect(() => {
+    if (modalState.isOpen || isAddModalOpen || newCredentials.length > 0) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => { document.body.style.overflow = "unset"; };
+  }, [modalState.isOpen, isAddModalOpen, newCredentials.length]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -79,7 +88,9 @@ const ManageAdmin = () => {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    if (isSuperAdmin) fetchData();
+  }, [isSuperAdmin]);
 
   const filteredUsers = useMemo(() => {
     let data = users;
@@ -113,7 +124,7 @@ const ManageAdmin = () => {
 
   const getRoleBadge = (role) => {
     switch (role) {
-      case "super_admin": return { cls: "bg-purple-100 text-purple-700 border-purple-200", icon: "fa-crown", label: "Super Admin" };
+      case "super_admin": return { cls: "bg-pink-100 text-pink-700 border-pink-200", icon: "fa-crown", label: "Super Admin" };
       case "admin": return { cls: "bg-sky-100 text-sky-700 border-sky-200", icon: "fa-shield-halved", label: "Admin" };
       default: return { cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: "fa-user-graduate", label: "Intern" };
     }
@@ -312,8 +323,8 @@ const ManageAdmin = () => {
     try {
       const headers = ['full_name', 'email', 'username', 'division_name', 'role', 'internship_batch'];
       const exampleRows = [
-        ['Budi Santoso', 'budi@mip.co.id', 'budisan', 'IT', 'intern', 'Batch 1 2026'],
-        ['Siti Aminah', 'siti@mip.co.id', 'sitiamin', 'Media dan Production', 'admin', ''],
+        ['Budi Santoso', 'budi@mip.co.id', 'budisan', 'IT Support', 'intern', 'Batch 1 2026'],
+        ['Siti Aminah', 'siti@mip.co.id', 'sitiamin', 'Marketing', 'admin', ''],
       ];
       
       const worksheet = XLSX.utils.aoa_to_sheet([headers, ...exampleRows]);
@@ -380,62 +391,76 @@ const ManageAdmin = () => {
     toast.success("Kredensial disalin ke clipboard!");
   };
 
+  // Proteksi Akses: Jika bukan Superadmin, tolak akses
+  if (!isSuperAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[70vh] bg-rose-50 text-rose-500 font-black text-xl sm:text-2xl px-4 text-center rounded-[2rem] border border-rose-200 shadow-sm mx-4 sm:mx-8">
+        <div>
+          <i className="fa-solid fa-triangle-exclamation text-4xl mb-4 animate-bounce"></i>
+          <p>ACCESS DENIED. VVIP / SUPERADMIN ONLY.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 sm:pt-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
 
-        {/* HERO SECTION - Premium Purple */}
-        <div className="bg-gradient-to-br from-[#1e0a3c] to-[#3b0764] rounded-[2.5rem] border border-purple-500/20 shadow-2xl relative overflow-hidden flex flex-col text-white">
-          <div className="absolute -top-32 -right-32 w-96 h-96 bg-purple-500/30 rounded-full blur-[100px] pointer-events-none" />
-          <div className="absolute -bottom-32 -left-32 w-72 h-72 bg-sky-500/20 rounded-full blur-[100px] pointer-events-none" />
+        {/* ================================================================= */}
+        {/* HERO SECTION - PINK PASTEL VVIP THEME                             */}
+        {/* ================================================================= */}
+        <div className="bg-gradient-to-br from-pink-300 to-rose-400 rounded-[2.5rem] border border-pink-200 shadow-xl relative overflow-hidden flex flex-col text-white">
+          <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/40 rounded-full blur-[80px] pointer-events-none" />
+          <div className="absolute -bottom-32 -left-32 w-72 h-72 bg-rose-100/30 rounded-full blur-[80px] pointer-events-none" />
 
-          <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col md:flex-row justify-between gap-8 border-b border-white/10">
+          <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col md:flex-row justify-between gap-8 border-b border-white/20">
             <div>
               <div className="flex items-center gap-3 mb-5">
-                <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shadow-inner shrink-0">
-                  <i className="fa-solid fa-user-shield text-xl text-purple-300" />
+                <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/40 flex items-center justify-center shadow-inner shrink-0 backdrop-blur-sm">
+                  <i className="fa-solid fa-user-shield text-xl text-white" />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-purple-200 bg-black/20 px-3 py-1.5 rounded-lg border border-white/5">
+                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-pink-50 bg-white/20 px-3 py-1.5 rounded-lg border border-white/30 backdrop-blur-sm">
                   Access & Role Management
                 </span>
               </div>
-              <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight">
-                Superadmin Center.
+              <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight drop-shadow-sm">
+                User Center.
               </h1>
-              <p className="text-sm font-medium text-purple-200/80 leading-relaxed max-w-md">
+              <p className="text-sm font-medium text-pink-50 leading-relaxed max-w-md">
                 Kelola akun pengguna, batch intern, hak akses, dan lakukan impor massal.
               </p>
               
-              <button onClick={() => setIsAddModalOpen(true)} className="mt-6 px-6 py-3 bg-white text-purple-900 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-purple-100 hover:scale-105 transition-all shadow-lg flex items-center gap-2 w-max">
+              <button onClick={() => setIsAddModalOpen(true)} className="mt-6 px-6 py-3.5 bg-white text-pink-600 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-pink-50 hover:scale-105 transition-all shadow-lg shadow-pink-500/30 flex items-center gap-2 w-max">
                 <i className="fa-solid fa-user-plus" /> Tambah Pengguna
               </button>
             </div>
 
-            {/* Stats */}
-            <div className="w-full lg:w-80 shrink-0 bg-black/20 border border-white/10 rounded-3xl p-5 sm:p-6 backdrop-blur-md flex flex-col justify-center gap-4">
+            {/* Stats Widget */}
+            <div className="w-full lg:w-80 shrink-0 bg-white/10 border border-white/20 rounded-3xl p-5 sm:p-6 backdrop-blur-md flex flex-col justify-center gap-4 shadow-lg">
               {[
-                { label: "Interns", val: stats.interns, icon: "fa-user-graduate", cls: "text-emerald-300" },
-                { label: "Admins", val: stats.admins, icon: "fa-shield-halved", cls: "text-sky-300" },
-                { label: "Supers", val: stats.supers, icon: "fa-crown", cls: "text-purple-300" },
-                { label: "Locked", val: stats.locked, icon: "fa-lock", cls: "text-rose-300" },
+                { label: "Interns", val: stats.interns, icon: "fa-user-graduate", cls: "text-emerald-100" },
+                { label: "Admins", val: stats.admins, icon: "fa-shield-halved", cls: "text-sky-100" },
+                { label: "Supers", val: stats.supers, icon: "fa-crown", cls: "text-amber-200" },
+                { label: "Locked", val: stats.locked, icon: "fa-lock", cls: "text-rose-100" },
               ].map(s => (
-                <div key={s.label} className="flex items-center justify-between gap-8">
+                <div key={s.label} className="flex items-center justify-between gap-8 border-b border-white/10 pb-2 last:border-0 last:pb-0">
                   <div className="flex items-center gap-3">
                     <div className={`w-6 flex justify-center ${s.cls}`}><i className={`fa-solid ${s.icon} text-sm`} /></div>
-                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-purple-200">{s.label}</span>
+                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-pink-50 drop-shadow-sm">{s.label}</span>
                   </div>
-                  <span className="text-lg sm:text-xl font-black text-white">{loading ? "·" : s.val}</span>
+                  <span className="text-lg sm:text-xl font-black text-white drop-shadow-sm">{loading ? "·" : s.val}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Toolbar Bawah */}
-          <div className="relative z-10 p-5 sm:p-8 flex flex-col md:flex-row gap-3 items-center bg-black/10">
+          <div className="relative z-10 p-5 sm:p-8 flex flex-col md:flex-row gap-3 items-center bg-black/5 backdrop-blur-sm">
             <div className="relative w-full md:w-64 group shrink-0">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm text-purple-300/50 group-focus-within:text-purple-200 transition-colors" />
+              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm text-pink-200 group-focus-within:text-white transition-colors" />
               <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Cari..."
-                className="w-full rounded-xl pl-11 pr-4 py-3 text-sm font-medium outline-none border transition-all bg-white/5 border-white/10 focus:border-white/30 text-white placeholder:text-purple-300/50"
+                className="w-full rounded-xl pl-11 pr-4 py-3 text-sm font-medium outline-none border transition-all bg-white/10 border-white/20 focus:border-white focus:ring-2 focus:ring-white/30 text-white placeholder:text-pink-100"
               />
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full">
@@ -445,15 +470,15 @@ const ManageAdmin = () => {
                 { val: filterBatch, onChange: setFilterBatch, opts: [["semua", "Semua Batch"], ...batchesList.map(b => [b, b])] },
               ].map((sel, i) => (
                 <div key={i} className="relative flex-1 group">
-                  <select value={sel.val} onChange={e => sel.onChange(e.target.value)} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none appearance-none cursor-pointer border transition-all bg-white/5 border-white/10 text-white hover:bg-white/10">
+                  <select value={sel.val} onChange={e => sel.onChange(e.target.value)} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none appearance-none cursor-pointer border transition-all bg-white/10 border-white/20 text-white hover:bg-white/20 focus:ring-2 focus:ring-white/30">
                     {sel.opts.map(([v, l]) => <option key={v} value={v} className="text-slate-800 bg-white">{l}</option>)}
                   </select>
-                  <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] pointer-events-none text-white/50" />
+                  <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] pointer-events-none text-pink-200" />
                 </div>
               ))}
               {(searchQuery || filterRole !== "semua" || filterDivision !== "semua" || filterBatch !== "semua") && (
                 <button onClick={() => { setSearchQuery(""); setFilterRole("semua"); setFilterDivision("semua"); setFilterBatch("semua"); }}
-                  className="px-5 py-3 rounded-xl text-xs font-black border transition-all bg-rose-500/20 border-rose-500/30 text-rose-300 hover:bg-rose-500 hover:text-white shrink-0">
+                  className="px-5 py-3 rounded-xl text-xs font-black border transition-all bg-white/20 border-white/30 text-white hover:bg-white hover:text-pink-500 shrink-0 shadow-sm">
                   Reset
                 </button>
               )}
@@ -461,27 +486,29 @@ const ManageAdmin = () => {
           </div>
         </div>
 
-        {/* TABLE */}
+        {/* ================================================================= */}
+        {/* TABLE SECTION (LIGHT MODE W/ PINK ACCENTS)                        */}
+        {/* ================================================================= */}
         <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-center gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center shrink-0 border border-pink-200 shadow-sm">
                 <i className="fa-solid fa-users-gear text-xs" />
               </div>
               <h3 className="font-black text-sm text-slate-800">Daftar Pengguna Sistem</h3>
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border bg-white border-slate-200 text-slate-400">
+            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border bg-white border-slate-200 text-slate-400 shadow-sm">
               {loading ? "Memuat..." : `${filteredUsers.length} pengguna`}
             </span>
           </div>
 
-          <div className="overflow-x-auto w-full">
+          <div className="overflow-x-auto w-full custom-scrollbar">
             <table className="w-full text-left text-sm min-w-[900px]">
               <thead className="bg-white border-b border-slate-100 text-[10px] uppercase font-black tracking-widest text-slate-400">
                 <tr>
                   <th className="px-6 py-4 w-10 text-center">
                     <input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.length === filteredUsers.filter(u => u.id !== user?.id).length && selectedIds.length > 0} 
-                      className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 cursor-pointer" />
+                      className="w-4 h-4 rounded text-pink-500 focus:ring-pink-400 border-slate-300 cursor-pointer" />
                   </th>
                   <th className="px-6 py-4">Identitas</th>
                   <th className="px-6 py-4">Divisi & Batch</th>
@@ -494,26 +521,26 @@ const ManageAdmin = () => {
                 {loading ? (
                   <tr><td colSpan="6" className="py-16 text-center text-slate-400 font-bold animate-pulse">Memuat data...</td></tr>
                 ) : filteredUsers.length === 0 ? (
-                  <tr><td colSpan="6" className="py-16 text-center text-slate-400 font-bold">Tidak ada pengguna.</td></tr>
+                  <tr><td colSpan="6" className="py-16 text-center text-slate-400 font-bold">Tidak ada pengguna ditemukan.</td></tr>
                 ) : (
                   paginatedUsers.map(u => {
                     const badge = getRoleBadge(u.role);
                     const isSelected = selectedIds.includes(u.id);
                     return (
-                      <tr key={u.id} className={`transition-colors group hover:bg-slate-50/80 ${isSelected ? 'bg-purple-50' : ''}`}>
+                      <tr key={u.id} className={`transition-colors group hover:bg-slate-50/80 ${isSelected ? 'bg-pink-50/50' : ''}`}>
                         <td className="px-6 py-4 text-center">
                           {u.id !== user?.id ? (
                             <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(u.id)}
-                              className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 cursor-pointer" />
+                              className="w-4 h-4 rounded text-pink-500 focus:ring-pink-400 border-slate-300 cursor-pointer" />
                           ) : (
-                            <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-2 py-1 rounded-md border border-purple-200">
+                            <span className="text-[10px] font-black text-pink-600 bg-pink-50 px-2 py-1 rounded-md border border-pink-200">
                               YOU
                             </span>
                           )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 border ${badge.cls}`}>
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 border shadow-sm ${badge.cls}`}>
                               {(u.name || "?").charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
@@ -525,17 +552,17 @@ const ManageAdmin = () => {
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1.5 items-start">
                             <span className="px-3 py-1 rounded-lg text-[9px] font-bold border bg-slate-50 text-slate-600 border-slate-200">
-                              <i className="fa-solid fa-building mr-1" /> {u.division}
+                              <i className="fa-solid fa-building text-slate-400 mr-1" /> {u.division}
                             </span>
                             {u.batch !== "-" && (
-                              <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 border border-blue-100">
+                              <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest bg-pink-50 text-pink-600 border border-pink-100">
                                 BATCH: {u.batch}
                               </span>
                             )}
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border inline-flex items-center gap-1.5 ${badge.cls}`}>
+                          <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border inline-flex items-center gap-1.5 shadow-sm ${badge.cls}`}>
                             <i className={`fa-solid ${badge.icon}`} /> {badge.label}
                           </span>
                         </td>
@@ -559,7 +586,7 @@ const ManageAdmin = () => {
                               </button>
                               <div className="relative shrink-0">
                                 <select value={u.role} onChange={e => handleRoleChange(u.id, u.name, u.role, e.target.value)}
-                                  className="w-32 border rounded-xl pl-3 pr-6 py-2 text-[11px] font-bold outline-none appearance-none cursor-pointer transition-all bg-white border-slate-200 text-slate-700 hover:border-purple-400">
+                                  className="w-32 border rounded-xl pl-3 pr-6 py-1.5 text-[11px] font-bold outline-none appearance-none cursor-pointer transition-all bg-white border-slate-200 text-slate-700 hover:border-pink-400 focus:ring-2 focus:ring-pink-300">
                                   <option value="intern">USER/INTERN</option>
                                   <option value="admin">ADMIN</option>
                                   <option value="super_admin">SUPER ADMIN</option>
@@ -567,7 +594,7 @@ const ManageAdmin = () => {
                                 <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] pointer-events-none text-slate-400" />
                               </div>
                               <button onClick={() => handleResetPassword(u.id, u.name, u.username, u.email, u.role)} title="Reset Password"
-                                className="w-8 h-8 rounded-lg flex items-center justify-center border transition-colors text-xs shrink-0 bg-slate-50 border-slate-200 text-slate-400 hover:bg-purple-500 hover:text-white hover:border-purple-500">
+                                className="w-8 h-8 rounded-lg flex items-center justify-center border transition-colors text-xs shrink-0 bg-slate-50 border-slate-200 text-slate-400 hover:bg-pink-500 hover:text-white hover:border-pink-500">
                                 <i className="fa-solid fa-key" />
                               </button>
                               <button onClick={() => handleDelete(u.id, u.name)} title="Hapus Akun"
@@ -577,7 +604,7 @@ const ManageAdmin = () => {
                             </div>
                           ) : (
                             <span className="text-[10px] font-bold text-slate-400 italic block text-right pr-4">
-                              <i className="fa-solid fa-circle-info mr-1" /> Hanya lihat (Akun Anda)
+                              <i className="fa-solid fa-circle-info mr-1" /> Akun Anda
                             </span>
                           )}
                         </td>
@@ -609,7 +636,7 @@ const ManageAdmin = () => {
                     onClick={() => setCurrentPage(page)}
                     className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs transition-all border ${
                       currentPage === page
-                        ? "bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-500/20"
+                        ? "bg-pink-500 border-pink-500 text-white shadow-md shadow-pink-500/30"
                         : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
                     }`}
                   >
@@ -631,23 +658,23 @@ const ManageAdmin = () => {
       </div>
 
       {/* FLOATING ACTION PANEL (Bulk Actions) */}
-      {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 inset-x-0 mx-auto w-max z-50 animate-in slide-in-from-bottom-10 fade-in duration-300">
+      {selectedIds.length > 0 && createPortal(
+        <div className="fixed bottom-6 inset-x-0 mx-auto w-max z-[100] animate-in slide-in-from-bottom-10 fade-in duration-300">
           <div className="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-6 backdrop-blur-lg">
             <div className="flex items-center gap-3 border-r border-slate-700 pr-6">
-              <div className="w-8 h-8 bg-purple-500/20 text-purple-400 rounded-lg flex items-center justify-center font-black text-xs">
+              <div className="w-8 h-8 bg-pink-500/20 text-pink-400 rounded-lg flex items-center justify-center font-black text-xs border border-pink-500/30">
                 {selectedIds.length}
               </div>
               <span className="text-sm font-bold text-slate-200">Akun Terpilih</span>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => handleBulkLock(false)} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-emerald-500/20 hover:text-emerald-400 text-slate-300 text-xs font-black uppercase tracking-widest transition-colors">
+              <button onClick={() => handleBulkLock(false)} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-emerald-500/20 hover:text-emerald-400 text-slate-300 text-xs font-black uppercase tracking-widest transition-colors border border-transparent hover:border-emerald-500/30">
                 <i className="fa-solid fa-unlock mr-2" /> Buka
               </button>
-              <button onClick={() => handleBulkLock(true)} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-amber-500/20 hover:text-amber-400 text-slate-300 text-xs font-black uppercase tracking-widest transition-colors">
+              <button onClick={() => handleBulkLock(true)} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-amber-500/20 hover:text-amber-400 text-slate-300 text-xs font-black uppercase tracking-widest transition-colors border border-transparent hover:border-amber-500/30">
                 <i className="fa-solid fa-lock mr-2" /> Kunci
               </button>
-              <button onClick={handleBulkResetPassword} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-purple-500/20 hover:text-purple-400 text-slate-300 text-xs font-black uppercase tracking-widest transition-colors">
+              <button onClick={handleBulkResetPassword} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-pink-500/20 hover:text-pink-400 text-slate-300 text-xs font-black uppercase tracking-widest transition-colors border border-transparent hover:border-pink-500/30">
                 <i className="fa-solid fa-key mr-2" /> Reset
               </button>
               <button onClick={handleBulkDelete} className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/20 text-xs font-black uppercase tracking-widest transition-colors ml-2">
@@ -658,16 +685,20 @@ const ManageAdmin = () => {
               <i className="fa-solid fa-xmark" />
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* MODAL: ADD / IMPORT USERS */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+      {/* ================================================================= */}
+      {/* MODAL: ADD / IMPORT USERS (DIBUNGKUS PORTAL)                        */}
+      {/* ================================================================= */}
+      {isAddModalOpen && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-[#0b1437]/80 backdrop-blur-sm p-4 animate-in fade-in m-0">
           <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95">
-            <div className="p-6 md:p-8 flex justify-between items-center border-b border-slate-100 bg-slate-50">
+            
+            <div className="p-6 md:p-8 flex justify-between items-center border-b border-slate-100 bg-slate-50 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-pink-100 text-pink-600 border border-pink-200 flex items-center justify-center shrink-0 shadow-inner">
                   <i className="fa-solid fa-user-plus text-sm" />
                 </div>
                 <div>
@@ -681,42 +712,42 @@ const ManageAdmin = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-slate-100 bg-white">
-              <button onClick={() => setAddMode("manual")} className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 ${addMode === "manual" ? "border-purple-600 text-purple-700 bg-purple-50/50" : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"}`}>
+            <div className="flex border-b border-slate-100 bg-white shrink-0">
+              <button onClick={() => setAddMode("manual")} className={`flex-1 py-3.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 ${addMode === "manual" ? "border-pink-500 text-pink-600 bg-pink-50/50" : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"}`}>
                 <i className="fa-solid fa-keyboard mr-1.5" /> Input Manual
               </button>
-              <button onClick={() => setAddMode("csv")} className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 ${addMode === "csv" ? "border-purple-600 text-purple-700 bg-purple-50/50" : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"}`}>
+              <button onClick={() => setAddMode("csv")} className={`flex-1 py-3.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 ${addMode === "csv" ? "border-pink-500 text-pink-600 bg-pink-50/50" : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"}`}>
                 <i className="fa-solid fa-file-csv mr-1.5" /> Import CSV
               </button>
             </div>
 
-            <div className="p-6 md:p-8 bg-white">
+            <div className="p-6 md:p-8 bg-white max-h-[60vh] overflow-y-auto custom-scrollbar">
               {addMode === "manual" ? (
                 <form onSubmit={submitManual} className="space-y-4">
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Nama Lengkap</label>
-                    <input type="text" required value={manualForm.full_name} onChange={e => setManualForm({...manualForm, full_name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Budi Santoso" />
+                    <input type="text" required value={manualForm.full_name} onChange={e => setManualForm({...manualForm, full_name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none" placeholder="Budi Santoso" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Username</label>
-                      <input type="text" required value={manualForm.username} onChange={e => setManualForm({...manualForm, username: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none" placeholder="budi123" />
+                      <input type="text" required value={manualForm.username} onChange={e => setManualForm({...manualForm, username: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none" placeholder="budi123" />
                     </div>
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Email</label>
-                      <input type="email" required value={manualForm.email} onChange={e => setManualForm({...manualForm, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none" placeholder="budi@example.com" />
+                      <input type="email" required value={manualForm.email} onChange={e => setManualForm({...manualForm, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none" placeholder="budi@example.com" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Divisi</label>
-                      <select required value={manualForm.division_id} onChange={e => setManualForm({...manualForm, division_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-purple-500 outline-none">
+                      <select required value={manualForm.division_id} onChange={e => setManualForm({...manualForm, division_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none appearance-none cursor-pointer">
                         {divisionsList.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Role</label>
-                      <select required value={manualForm.role} onChange={e => setManualForm({...manualForm, role: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-purple-500 outline-none">
+                      <select required value={manualForm.role} onChange={e => setManualForm({...manualForm, role: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none appearance-none cursor-pointer">
                         <option value="intern">Intern</option>
                         <option value="admin">Admin</option>
                         <option value="super_admin">Super Admin</option>
@@ -726,56 +757,59 @@ const ManageAdmin = () => {
                   {manualForm.role === "intern" && (
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Internship Batch (Opsional)</label>
-                      <input type="text" value={manualForm.internship_batch} onChange={e => setManualForm({...manualForm, internship_batch: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Contoh: Batch 1 2026" />
+                      <input type="text" value={manualForm.internship_batch} onChange={e => setManualForm({...manualForm, internship_batch: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none" placeholder="Contoh: Batch 1 2026" />
                     </div>
                   )}
-                  <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 flex gap-3 items-start mt-2">
-                    <i className="fa-solid fa-circle-info text-amber-500 mt-0.5" />
-                    <p className="text-[11px] text-amber-700 font-medium">Password akan dibuat otomatis. Kamu akan melihatnya di layar setelah akun berhasil dibuat.</p>
+                  <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 flex gap-3 items-start mt-4 shadow-sm">
+                    <i className="fa-solid fa-circle-info text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-[11px] text-amber-700 font-medium leading-relaxed">Password akan dibuat otomatis. Kamu akan melihatnya di layar setelah akun berhasil dibuat.</p>
                   </div>
-                  <button type="submit" disabled={isSubmitting} className="w-full mt-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-sm transition-colors shadow-lg shadow-purple-500/30 disabled:opacity-50">
-                    {isSubmitting ? "Memproses..." : "Buat Akun"}
+                  <button type="submit" disabled={isSubmitting} className="w-full mt-6 py-3.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-black text-sm transition-all shadow-lg shadow-pink-500/30 disabled:opacity-50 active:scale-95">
+                    {isSubmitting ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Memproses...</> : "Buat Akun Sekarang"}
                   </button>
                 </form>
               ) : (
                 <form onSubmit={submitCsv} className="space-y-4 text-center">
-                  <div className="border-2 border-dashed border-purple-200 rounded-2xl p-8 bg-purple-50 relative group cursor-pointer hover:border-purple-400 hover:bg-purple-100/50 transition-all">
+                  <div className="border-2 border-dashed border-pink-200 rounded-2xl p-8 bg-pink-50/50 relative group cursor-pointer hover:border-pink-400 hover:bg-pink-50 transition-all">
                     <input type="file" accept=".xlsx, .xls, .csv" onChange={e => setCsvFile(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                    <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-4 border border-purple-100 group-hover:scale-110 transition-transform">
+                    <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-4 border border-pink-100 group-hover:scale-110 transition-transform">
                       <i className="fa-solid fa-file-excel text-3xl text-emerald-500" />
                     </div>
                     {csvFile ? (
                       <div>
-                        <p className="font-bold text-purple-700 text-sm">{csvFile.name}</p>
-                        <p className="text-xs text-purple-500 mt-1">{(csvFile.size / 1024).toFixed(2)} KB</p>
+                        <p className="font-bold text-pink-700 text-sm">{csvFile.name}</p>
+                        <p className="text-xs text-pink-500 mt-1">{(csvFile.size / 1024).toFixed(2)} KB</p>
                       </div>
                     ) : (
                       <div>
-                        <p className="font-bold text-purple-700 text-sm">Klik atau Seret file Excel/CSV ke sini</p>
-                        <p className="text-xs text-purple-500 mt-1">Gunakan template Excel agar format lebih rapi</p>
+                        <p className="font-bold text-pink-700 text-sm">Klik atau Seret file Excel/CSV ke sini</p>
+                        <p className="text-xs text-pink-500 mt-1">Gunakan template Excel agar format lebih rapi</p>
                       </div>
                     )}
                   </div>
-                  <button type="submit" disabled={isSubmitting || !csvFile} className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-sm transition-colors shadow-lg shadow-purple-500/30 disabled:opacity-50">
-                    {isSubmitting ? "Mengimpor..." : "Mulai Import Massal"}
+                  <button type="submit" disabled={isSubmitting || !csvFile} className="w-full py-3.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-black text-sm transition-all shadow-lg shadow-pink-500/30 disabled:opacity-50 active:scale-95">
+                    {isSubmitting ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Mengimpor...</> : "Mulai Import Massal"}
                   </button>
-                  <button type="button" onClick={downloadExcelTemplate} className="block w-full mt-4 text-[11px] font-bold text-slate-400 hover:text-emerald-600 underline bg-transparent border-none cursor-pointer text-center">
+                  <button type="button" onClick={downloadExcelTemplate} className="block w-full mt-4 text-[11px] font-bold text-slate-400 hover:text-emerald-500 underline bg-transparent border-none cursor-pointer text-center transition-colors">
                     Download Template Excel
                   </button>
                 </form>
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* FLOATING CREDENTIALS CARD */}
-      {newCredentials.length > 0 && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+      {/* ================================================================= */}
+      {/* FLOATING CREDENTIALS CARD (DIBUNGKUS PORTAL)                        */}
+      {/* ================================================================= */}
+      {newCredentials.length > 0 && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-[#0b1437]/80 backdrop-blur-sm p-4 animate-in fade-in m-0">
           <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh] animate-in zoom-in-95">
-            <div className="p-6 md:p-8 bg-emerald-500 border-b border-emerald-600 text-white flex justify-between items-center">
+            <div className="p-6 md:p-8 bg-emerald-500 border-b border-emerald-600 text-white flex justify-between items-center shrink-0">
               <div>
-                <h3 className="font-black text-2xl mb-1 flex items-center gap-2">
+                <h3 className="font-black text-2xl mb-1 flex items-center gap-2 tracking-tight">
                   <i className="fa-solid fa-circle-check" /> Akun Berhasil Dibuat
                 </h3>
                 <p className="text-sm font-medium text-emerald-100">Simpan kredensial ini segera. Password tidak akan ditampilkan lagi.</p>
@@ -785,38 +819,44 @@ const ManageAdmin = () => {
             <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-slate-50">
               <div className="space-y-4">
                 {newCredentials.map((c, i) => (
-                  <div key={i} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
+                  <div key={i} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="min-w-0 flex-1">
-                      <p className="font-black text-slate-800">{c.full_name}</p>
-                      <p className="text-xs font-medium text-slate-500">
-                        {c.email} • <span className="font-bold text-purple-600">@{c.username}</span> • <span className="uppercase text-slate-400">{c.role}</span>
+                      <p className="font-black text-slate-800 text-base">{c.full_name}</p>
+                      <p className="text-xs font-medium text-slate-500 mt-1">
+                        {c.email} • <span className="font-bold text-pink-600">@{c.username}</span> • <span className="uppercase text-slate-400">{c.role}</span>
                       </p>
                     </div>
-                    <div className="bg-slate-100 border border-slate-200 px-4 py-2 rounded-xl text-center shrink-0">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Password</p>
-                      <p className="font-mono text-sm font-bold text-slate-800">{c.password}</p>
+                    <div className="bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-center shrink-0 w-full sm:w-auto">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Password Sementara</p>
+                      <p className="font-mono text-sm font-black text-slate-800 tracking-wider">{c.password}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-200 bg-white flex flex-col sm:flex-row gap-3">
-              <button onClick={downloadCredentialsCsv} className="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors border border-slate-200">
-                <i className="fa-solid fa-download mr-1" /> Download CSV
+            <div className="p-6 border-t border-slate-200 bg-white flex flex-col sm:flex-row gap-3 shrink-0">
+              <button onClick={downloadCredentialsCsv} className="flex-1 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all border border-slate-200 flex items-center justify-center gap-2">
+                <i className="fa-solid fa-file-csv" /> Download CSV
               </button>
-              <button onClick={copyCredentials} className="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors border border-slate-200">
-                <i className="fa-solid fa-copy mr-1" /> Copy Text
+              <button onClick={copyCredentials} className="flex-1 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all border border-slate-200 flex items-center justify-center gap-2">
+                <i className="fa-solid fa-copy" /> Copy Text
               </button>
-              <button onClick={() => setNewCredentials([])} className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm transition-colors shadow-lg shadow-emerald-500/20">
+              <button onClick={() => setNewCredentials([])} className="flex-1 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm transition-all shadow-lg shadow-emerald-500/30 active:scale-95">
                 Tutup & Selesai
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      <ConfirmModal {...modalState} onClose={closeModal} isDark={isDeveloperTheme} />
+      {modalState.isOpen && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 m-0">
+          <ConfirmModal {...modalState} onClose={closeModal} isDark={false} />
+        </div>,
+        document.body
+      )}
     </>
   );
 };

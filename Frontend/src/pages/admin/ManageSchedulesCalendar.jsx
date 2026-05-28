@@ -1,23 +1,24 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-hot-toast';
+import { createPortal } from 'react-dom';
 
 // Shift config — single source of truth
 const SHIFT_CONFIG = {
   morning: {
-    bg: 'bg-green-500', light: 'bg-green-50', border: 'border-green-200',
+    bg: 'bg-emerald-500', light: 'bg-emerald-50', border: 'border-emerald-200',
     text: 'M', color: 'text-white', label: 'Morning', time: '08:00 - 15:00',
-    badgeClass: 'bg-green-500 text-white',
+    badgeClass: 'bg-emerald-500 text-white',
   },
   middle: {
-    bg: 'bg-yellow-500', light: 'bg-yellow-50', border: 'border-yellow-200',
+    bg: 'bg-amber-500', light: 'bg-amber-50', border: 'border-amber-200',
     text: 'MD', color: 'text-white', label: 'Middle', time: '10:00 - 17:00',
-    badgeClass: 'bg-yellow-500 text-white',
+    badgeClass: 'bg-amber-500 text-white',
   },
   afternoon: {
-    bg: 'bg-orange-500', light: 'bg-orange-50', border: 'border-orange-200',
+    bg: 'bg-rose-500', light: 'bg-rose-50', border: 'border-rose-200',
     text: 'A', color: 'text-white', label: 'Afternoon', time: '15:00 - 22:00',
-    badgeClass: 'bg-orange-500 text-white',
+    badgeClass: 'bg-rose-500 text-white',
   },
   full: {
     bg: 'bg-purple-500', light: 'bg-purple-50', border: 'border-purple-200',
@@ -26,7 +27,7 @@ const SHIFT_CONFIG = {
   },
 };
 
-const OFF_BADGE = { bg: 'bg-gray-100', text: 'OFF', color: 'text-gray-500', label: 'Day Off' };
+const OFF_BADGE = { bg: 'bg-slate-100', text: 'OFF', color: 'text-slate-400', label: 'Day Off' };
 
 const CYCLE = { morning: 'middle', middle: 'afternoon', afternoon: 'full', full: null };
 
@@ -82,8 +83,7 @@ export default function ManageSchedulesCalendar() {
       setSchedules(monthSchedules);
     } catch (error) {
       console.error('Error fetching schedules:', error);
-      const msg = error.response?.data?.message || error.message || 'Gagal memuat jadwal';
-      toast.error(msg);
+      toast.error(error.response?.data?.message || 'Gagal memuat jadwal');
     }
   };
 
@@ -95,8 +95,7 @@ export default function ManageSchedulesCalendar() {
       setInterns(internList);
     } catch (error) {
       console.error('Error fetching interns:', error);
-      const msg = error.response?.data?.message || error.message || 'Gagal memuat data intern';
-      toast.error(msg);
+      toast.error(error.response?.data?.message || 'Gagal memuat data intern');
     }
   };
 
@@ -198,9 +197,8 @@ export default function ManageSchedulesCalendar() {
     const tid = toast.loading('Menyimpan jadwal...');
     try {
       const { year, month } = getDaysInMonth(currentMonth);
-
-      // Build operations list
       const ops = [];
+      
       for (const [day, shiftType] of Object.entries(bulkSchedules)) {
         const dateStr = `${year}-${padDate(month + 1)}-${padDate(parseInt(day))}`;
         const existing = getScheduleForDate(selectedIntern, parseInt(day));
@@ -220,7 +218,6 @@ export default function ManageSchedulesCalendar() {
         return;
       }
 
-      // Execute sequentially to avoid race conditions / duplicate errors
       let successCount = 0;
       let errorCount = 0;
 
@@ -239,13 +236,11 @@ export default function ManageSchedulesCalendar() {
           }
           successCount++;
         } catch (err) {
-          // Skip duplicates (400) silently, log other errors
           const status = err.response?.status;
           const msg = err.response?.data?.message || '';
           if (status === 400 && msg.includes('sudah ada')) {
-            successCount++; // Already exists = effectively success
+            successCount++; 
           } else {
-            console.error('Bulk op error:', op, err.response?.data);
             errorCount++;
           }
         }
@@ -260,7 +255,6 @@ export default function ManageSchedulesCalendar() {
       setShowBulkModal(false);
       await fetchSchedules();
     } catch (error) {
-      console.error('Error saving bulk schedules:', error);
       toast.error('Gagal menyimpan jadwal', { id: tid });
     } finally {
       setSaving(false);
@@ -276,27 +270,24 @@ export default function ManageSchedulesCalendar() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Memuat data...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <i className="fa-solid fa-circle-notch fa-spin text-4xl text-blue-500 mb-4"></i>
+        <p className="text-slate-500 font-bold tracking-widest uppercase text-xs">Memuat Jadwal...</p>
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4">
           <i className="fa-solid fa-triangle-exclamation text-4xl text-amber-500"></i>
           <p className="text-slate-700 font-bold">Gagal memuat data jadwal</p>
-          <p className="text-slate-500 text-sm">Periksa koneksi atau coba lagi</p>
           <button
             onClick={() => setCurrentMonth(new Date(currentMonth))}
             className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
           >
-            <i className="fa-solid fa-arrows-rotate mr-2"></i>Coba Lagi
+            <i className="fa-solid fa-arrows-rotate mr-2"></i> Coba Lagi
           </button>
         </div>
       </div>
@@ -304,164 +295,198 @@ export default function ManageSchedulesCalendar() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
-      <div className="max-w-[1600px] mx-auto">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 sm:pt-8 px-4 sm:px-6 lg:px-8 max-w-[1600px] mx-auto">
 
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">📅 Schedule Calendar</h1>
-          <p className="text-slate-600">Kelola jadwal shift intern untuk 1 bulan penuh</p>
-        </div>
+      {/* ================================================================= */}
+      {/* HERO SECTION (DEEP BLUE NAVY)                                     */}
+      {/* ================================================================= */}
+      <div className="bg-gradient-to-b from-[#162447] to-[#1a3a6c] rounded-[2.5rem] p-6 sm:p-8 md:p-10 border border-blue-400/20 shadow-2xl relative overflow-hidden text-white mb-6">
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -left-32 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Controls */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            {/* Month Navigation */}
-            <div className="flex items-center gap-4">
-              <button onClick={previousMonth} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <i className="fa-solid fa-chevron-left text-slate-600"></i>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 text-white shrink-0 shadow-lg">
+                <i className="fa-solid fa-calendar-days text-xl"></i>
+              </div>
+              <span className="text-blue-200 text-[10px] font-black uppercase tracking-[0.2em]">
+                Schedule Management
+              </span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-3 text-white">
+              Calendar Center.
+            </h1>
+            <p className="text-blue-100/70 text-sm font-medium leading-relaxed max-w-lg">
+              Kelola jadwal shift intern untuk 1 bulan penuh. Klik langsung pada tanggal di kalender untuk mengubah shift.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 shrink-0 mt-6 md:mt-0 w-full sm:w-72">
+            
+            {/* Navigasi Bulan (Di Atas) */}
+            <div className="flex items-center gap-1.5 bg-white/5 backdrop-blur-md border border-white/10 p-1.5 rounded-2xl w-full shadow-sm">
+              <button onClick={previousMonth} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all shrink-0">
+                <i className="fa-solid fa-chevron-left text-sm"></i>
               </button>
-              <h2 className="text-xl font-bold text-slate-800 min-w-[200px] text-center">{monthName}</h2>
-              <button onClick={nextMonth} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <i className="fa-solid fa-chevron-right text-slate-600"></i>
+              
+              <h2 className="text-[12px] font-black text-white text-center uppercase tracking-widest flex-1 truncate px-1">
+                {monthName}
+              </h2>
+              
+              <button onClick={nextMonth} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all shrink-0">
+                <i className="fa-solid fa-chevron-right text-sm"></i>
               </button>
+
+              <div className="w-px h-6 bg-white/20 mx-1 shrink-0"></div>
+              
               <button
                 onClick={() => { fetchSchedules(); fetchInterns(); }}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-blue-600"
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all shrink-0"
                 title="Refresh data"
               >
                 <i className="fa-solid fa-arrows-rotate text-sm"></i>
               </button>
             </div>
 
-            {/* Bulk Schedule Button — always clickable, intern selection is inside modal */}
+            {/* Tombol Atur Jadwal (Di Bawah) */}
             <button
               onClick={openBulkModal}
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
+              className="w-full px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-3 active:scale-95 border border-blue-500"
             >
-              <i className="fa-solid fa-calendar-plus"></i>
+              <i className="fa-solid fa-calendar-plus text-lg"></i>
               Atur Jadwal Bulanan
             </button>
-          </div>
-        </div>
 
-        {/* Legend */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-6">
-          <div className="flex flex-wrap gap-4 items-center justify-center text-sm">
-            {Object.entries(SHIFT_CONFIG).map(([key, cfg]) => (
-              <div key={key} className="flex items-center gap-2">
-                <div className={`w-8 h-8 ${cfg.bg} rounded flex items-center justify-center text-white font-bold`}>{cfg.text}</div>
-                <span className="text-slate-700">{cfg.label} {cfg.time !== 'Hari Cuti' ? `(${cfg.time})` : ''}</span>
-              </div>
-            ))}
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-gray-500 font-bold text-xs">OFF</div>
-              <span className="text-slate-700">Day Off</span>
-            </div>
-            <span className="text-slate-400 italic text-xs">💡 Klik cell: M → A → C → OFF</span>
-          </div>
-        </div>
-
-        {/* Calendar Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="sticky left-0 z-10 bg-slate-50 px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase border-r border-slate-200 min-w-[200px]">
-                    Intern
-                  </th>
-                  {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
-                    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-                    const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
-                    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-                    return (
-                      <th key={day} className={`px-2 py-3 text-center text-xs font-bold uppercase border-r border-slate-200 min-w-[50px] ${isWeekend ? 'bg-red-50 text-red-600' : 'text-slate-600'}`}>
-                        <div>{day}</div>
-                        <div className="text-[10px] font-normal">{dayName}</div>
-                      </th>
-                    );
-                  })}
-                  <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase min-w-[100px]">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {interns.length === 0 ? (
-                  <tr>
-                    <td colSpan={daysInMonth + 2} className="text-center py-12 text-slate-400">
-                      <i className="fa-solid fa-users text-3xl mb-2 block"></i>
-                      Belum ada intern di divisi ini
-                    </td>
-                  </tr>
-                ) : interns.map((intern) => {
-                  let totalDays = 0;
-                  for (let day = 1; day <= daysInMonth; day++) {
-                    if (getScheduleForDate(intern.id, day)) totalDays++;
-                  }
-                  return (
-                    <tr key={intern.id} className="border-b border-slate-200 hover:bg-slate-50">
-                      <td className="sticky left-0 z-10 bg-white px-4 py-3 border-r border-slate-200">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                            {intern.full_name?.charAt(0) || 'I'}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-slate-800 text-sm">{intern.full_name}</div>
-                            <div className="text-xs text-slate-500">{intern.division?.name || 'No Division'}</div>
-                          </div>
-                        </div>
-                      </td>
-                      {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
-                        const schedule = getScheduleForDate(intern.id, day);
-                        const badge = getShiftBadge(schedule?.shift_type);
-                        const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-                        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-                        return (
-                          <td
-                            key={day}
-                            onClick={() => handleCellClick(intern.id, day)}
-                            className={`px-2 py-3 text-center border-r border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors ${isWeekend ? 'bg-red-50/30' : ''}`}
-                            title={`${intern.full_name} - ${day} ${monthName} | ${badge.label}\nKlik untuk ubah`}
-                          >
-                            <div className={`w-8 h-8 ${badge.bg} rounded flex items-center justify-center ${badge.color} font-bold text-xs mx-auto`}>
-                              {badge.text}
-                            </div>
-                          </td>
-                        );
-                      })}
-                      <td className="px-4 py-3 text-center font-bold text-slate-700">{totalDays}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
           </div>
         </div>
       </div>
 
-      {/* ── Bulk Schedule Modal ─────────────────────────────────────────────── */}
-      {showBulkModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+      {/* ================================================================= */}
+      {/* LEGEND WIDGET                                                       */}
+      {/* ================================================================= */}
+      <div className="bg-white rounded-[1.5rem] shadow-sm border border-slate-200 p-4 mb-6">
+        <div className="flex flex-wrap gap-4 sm:gap-6 items-center justify-center text-[11px] sm:text-xs font-black uppercase tracking-widest">
+          {Object.entries(SHIFT_CONFIG).map(([key, cfg]) => (
+            <div key={key} className="flex items-center gap-2">
+              <div className={`w-6 h-6 sm:w-8 sm:h-8 ${cfg.bg} rounded-md flex items-center justify-center text-white`}>{cfg.text}</div>
+              <span className="text-slate-600">{cfg.label}</span>
+            </div>
+          ))}
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-slate-100 border border-slate-200 rounded-md flex items-center justify-center text-slate-400">OFF</div>
+            <span className="text-slate-600">Day Off</span>
+          </div>
+          <span className="text-blue-500 italic lowercase tracking-normal ml-auto hidden md:block">
+            <i className="fa-solid fa-circle-info mr-1"></i> Klik kotak kalender: M → MD → A → C → OFF
+          </span>
+        </div>
+      </div>
+
+      {/* ================================================================= */}
+      {/* CALENDAR GRID                                                       */}
+      {/* ================================================================= */}
+      <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="sticky left-0 z-10 bg-slate-50 px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-200 min-w-[220px]">
+                  Intern Profile
+                </th>
+                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+                  const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                  const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
+                  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                  return (
+                    <th key={day} className={`px-2 py-3 text-center text-xs font-black uppercase border-r border-slate-200 min-w-[55px] ${isWeekend ? 'bg-rose-50 text-rose-500' : 'text-slate-500'}`}>
+                      <div>{day}</div>
+                      <div className="text-[9px] font-bold tracking-widest mt-0.5">{dayName}</div>
+                    </th>
+                  );
+                })}
+                <th className="px-4 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest min-w-[80px]">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {interns.length === 0 ? (
+                <tr>
+                  <td colSpan={daysInMonth + 2} className="text-center py-16">
+                    <i className="fa-solid fa-users text-4xl mb-3 text-slate-200 block"></i>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Belum ada intern di divisi ini</p>
+                  </td>
+                </tr>
+              ) : interns.map((intern) => {
+                let totalDays = 0;
+                for (let day = 1; day <= daysInMonth; day++) {
+                  if (getScheduleForDate(intern.id, day)) totalDays++;
+                }
+                return (
+                  <tr key={intern.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors group">
+                    <td className="sticky left-0 z-10 bg-white group-hover:bg-slate-50 transition-colors px-4 py-3 border-r border-slate-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 font-black text-sm shrink-0">
+                          {intern.full_name?.charAt(0) || 'I'}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-black text-slate-800 text-sm truncate">{intern.full_name}</div>
+                          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 truncate mt-0.5">{intern.division?.name || 'No Division'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+                      const schedule = getScheduleForDate(intern.id, day);
+                      const badge = getShiftBadge(schedule?.shift_type);
+                      const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                      return (
+                        <td
+                          key={day}
+                          onClick={() => handleCellClick(intern.id, day)}
+                          className={`px-1.5 py-2 text-center border-r border-slate-100 cursor-pointer hover:bg-blue-50 transition-colors ${isWeekend ? 'bg-rose-50/20' : ''}`}
+                          title={`${intern.full_name} - ${day} ${monthName} | ${badge.label}`}
+                        >
+                          <div className={`w-8 h-8 ${badge.bg} rounded-lg flex items-center justify-center ${badge.color} font-black text-[10px] mx-auto shadow-sm`}>
+                            {badge.text}
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3 text-center font-black text-slate-800 bg-slate-50/50">{totalDays}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ================================================================= */}
+      {/* BULK SCHEDULE MODAL                                                 */}
+      {/* ================================================================= */}
+      {showBulkModal && createPortal(
+        <div className="fixed inset-0 bg-[#0b1437]/80 backdrop-blur-sm flex items-center justify-center z-[999999] p-4">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-in zoom-in-95">
 
             {/* Modal Header */}
-            <div className="border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
+            <div className="border-b border-slate-100 px-8 py-6 flex items-center justify-between shrink-0 bg-slate-50/50 rounded-t-[2.5rem]">
               <div>
-                <h2 className="text-xl font-bold text-slate-800">📅 Atur Jadwal Bulanan</h2>
-                <p className="text-sm text-slate-500 mt-0.5">{monthName}</p>
+                <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                  <i className="fa-solid fa-calendar-plus text-blue-500"></i> Atur Jadwal Bulanan
+                </h2>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mt-1">{monthName}</p>
               </div>
-              <button onClick={() => setShowBulkModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
-                <i className="fa-solid fa-xmark text-xl"></i>
+              <button onClick={() => setShowBulkModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-rose-500 hover:text-white transition-colors">
+                <i className="fa-solid fa-xmark text-sm"></i>
               </button>
             </div>
 
             {/* Modal Body — scrollable */}
-            <div className="overflow-y-auto flex-1 p-6 space-y-5">
-
+            <div className="overflow-y-auto flex-1 p-8 space-y-6 custom-scrollbar">
               {/* Step 1: Select Intern */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  1. Pilih Intern <span className="text-red-500">*</span>
+                <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                  1. Pilih Intern <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={selectedIntern}
@@ -469,7 +494,7 @@ export default function ManageSchedulesCalendar() {
                     setSelectedIntern(e.target.value);
                     loadBulkForIntern(e.target.value);
                   }}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                  className="w-full px-5 py-4 border border-slate-200 rounded-xl font-bold text-slate-800 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer appearance-none"
                 >
                   <option value="">-- Pilih Intern --</option>
                   {interns.map((intern) => (
@@ -480,84 +505,83 @@ export default function ManageSchedulesCalendar() {
                 </select>
               </div>
 
-              {/* Step 2: Set schedules (only shown after intern selected) */}
+              {/* Step 2: Set schedules */}
               {selectedIntern ? (
-                <>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-700 mb-3">2. Atur Jadwal Per Hari</p>
+                <div className="animate-in fade-in slide-in-from-top-2">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-4">2. Atur Jadwal Per Hari</p>
 
-                    {/* Quick fill buttons */}
-                    <div className="flex gap-2 flex-wrap mb-4">
-                      {Object.entries(SHIFT_CONFIG).map(([key, cfg]) => (
-                        <button
-                          key={key}
-                          onClick={() => setAllBulk(key)}
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${cfg.light} ${cfg.text.replace('text-white', '')} border ${cfg.border} hover:opacity-80`}
-                          style={{ color: key === 'morning' ? '#15803d' : key === 'afternoon' ? '#c2410c' : '#7e22ce' }}
-                        >
-                          Semua {cfg.label}
-                        </button>
-                      ))}
+                  {/* Quick fill buttons */}
+                  <div className="flex gap-2 flex-wrap mb-5">
+                    {Object.entries(SHIFT_CONFIG).map(([key, cfg]) => (
                       <button
-                        onClick={() => setAllBulk(null)}
-                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-semibold border border-gray-200"
+                        key={key}
+                        onClick={() => setAllBulk(key)}
+                        className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border shadow-sm ${cfg.light} ${cfg.text.replace('text-white', '')} ${cfg.border} hover:opacity-80 flex items-center gap-1.5`}
+                        style={{ color: key === 'morning' ? '#10b981' : key === 'afternoon' ? '#f43f5e' : key === 'middle' ? '#f59e0b' : '#a855f7' }}
                       >
-                        Clear All
+                        <div className={`w-2 h-2 rounded-full ${cfg.bg}`}></div> Semua {cfg.label}
                       </button>
-                    </div>
-
-                    {/* Day grid */}
-                    <div className="grid grid-cols-7 gap-2">
-                      {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
-                        const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-                        const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
-                        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-                        const currentShift = bulkSchedules[day] ?? null;
-                        const badge = getShiftBadge(currentShift);
-                        return (
-                          <div
-                            key={day}
-                            onClick={() => cycleBulkDay(day)}
-                            className={`p-2 border-2 rounded-xl cursor-pointer hover:border-blue-400 transition-all select-none ${
-                              isWeekend ? 'bg-red-50 border-red-100' : 'bg-white border-slate-200'
-                            }`}
-                          >
-                            <div className="text-[10px] font-bold text-slate-500 mb-1 text-center">{day} {dayName}</div>
-                            <div className={`w-full h-9 ${badge.bg} rounded-lg flex items-center justify-center ${badge.color} font-bold text-sm`}>
-                              {badge.text}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    ))}
+                    <button
+                      onClick={() => setAllBulk(null)}
+                      className="px-4 py-2.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-colors text-[10px] font-black uppercase tracking-wider border border-slate-200 shadow-sm ml-auto"
+                    >
+                      <i className="fa-solid fa-eraser mr-1"></i> Kosongkan
+                    </button>
                   </div>
-                </>
+
+                  {/* Day grid */}
+                  <div className="grid grid-cols-5 sm:grid-cols-7 gap-2 sm:gap-3">
+                    {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+                      const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                      const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
+                      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                      const currentShift = bulkSchedules[day] ?? null;
+                      const badge = getShiftBadge(currentShift);
+                      return (
+                        <div
+                          key={day}
+                          onClick={() => cycleBulkDay(day)}
+                          className={`p-3 border-2 rounded-2xl cursor-pointer hover:border-blue-400 transition-all select-none flex flex-col items-center justify-center ${
+                            isWeekend ? 'bg-rose-50/50 border-rose-100' : 'bg-white border-slate-100'
+                          }`}
+                        >
+                          <div className={`text-[10px] font-black uppercase tracking-widest mb-2 ${isWeekend ? 'text-rose-400' : 'text-slate-400'}`}>{day} {dayName}</div>
+                          <div className={`w-full h-10 ${badge.bg} rounded-xl flex items-center justify-center ${badge.color} font-black text-sm shadow-sm`}>
+                            {badge.text}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                  <i className="fa-solid fa-arrow-up text-2xl mb-3 animate-bounce"></i>
-                  <p className="text-sm font-semibold">Pilih intern di atas untuk mulai mengatur jadwal</p>
+                <div className="flex flex-col items-center justify-center py-16 text-slate-300 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                  <i className="fa-solid fa-hand-pointer text-4xl mb-4 animate-bounce text-blue-300"></i>
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">Pilih intern untuk mulai mengatur jadwal</p>
                 </div>
               )}
             </div>
 
             {/* Modal Footer — sticky */}
-            <div className="border-t border-slate-200 px-6 py-4 flex gap-3 shrink-0">
+            <div className="border-t border-slate-100 px-8 py-6 flex gap-3 shrink-0 bg-white rounded-b-[2.5rem] shadow-[0_-10px_15px_rgba(0,0,0,0.02)]">
               <button
                 onClick={() => setShowBulkModal(false)}
-                className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+                className="flex-1 px-4 py-4 bg-slate-100 text-slate-500 font-black text-sm rounded-xl hover:bg-slate-200 transition-colors uppercase tracking-widest"
               >
                 Batal
               </button>
               <button
                 onClick={saveBulkSchedules}
                 disabled={!selectedIntern || saving}
-                className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-4 bg-[#162447] hover:bg-[#1a3a6c] text-white font-black text-sm rounded-xl shadow-lg shadow-[#162447]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 uppercase tracking-widest"
               >
                 {saving ? <><i className="fa-solid fa-spinner fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-floppy-disk"></i> Simpan Jadwal</>}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -219,100 +219,101 @@ const LeaveRequest = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-2 max-w-6xl mx-auto">
-      {/* HERO SECTION */}
-      <div className="bg-gradient-to-br from-sky-400 to-blue-600 shadow-sky-500/30 border-sky-400/50 rounded-3xl p-8 overflow-hidden relative">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 md:pt-8 px-4 md:px-6 max-w-7xl mx-auto">
+      
+      {/* ── HERO SECTION ── */}
+      <div className="bg-gradient-to-br from-sky-400 to-blue-600 shadow-lg shadow-sky-500/20 border border-sky-400/50 rounded-[2rem] p-6 md:p-8 overflow-hidden relative">
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-sky-500/20 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 md:gap-8">
+          
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-sky-400 to-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-sky-500/30 border border-sky-400/50">
-                <i className="fa-solid fa-envelope-open-text text-lg"></i>
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-white/10 backdrop-blur-sm text-white rounded-2xl flex items-center justify-center shadow-lg border border-white/20 shrink-0">
+                <i className="fa-solid fa-envelope-open-text text-base md:text-lg"></i>
               </div>
-              <span className="text-sky-300 text-[10px] font-black uppercase tracking-widest">
+              <span className="text-sky-50 text-[10px] md:text-[11px] font-black uppercase tracking-widest">
                 Request System
               </span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-3 text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-sky-200">
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2 md:mb-3 text-white">
               Leave & Exception
             </h1>
-            <p className="text-[14px] text-sky-100/80 font-medium max-w-xl leading-relaxed border-l-[3px] border-sky-500/50 pl-4">
+            <p className="text-xs md:text-[14px] text-sky-50/90 font-medium max-w-xl leading-relaxed border-l-[3px] border-white/30 pl-3 md:pl-4">
               Ajukan izin, tukar shift, atau permintaan buka akses (Unlock) jika
               Anda mendadak harus masuk di hari libur.
             </p>
           </div>
 
-          {/* TAMBAHAN WIDGET KANAN LEAVE REQUEST */}
-          <div className="hidden lg:flex items-center gap-4 shrink-0">
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-5 flex flex-col items-center justify-center text-center min-w-[130px] shadow-lg">
-              <div className="w-10 h-10 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center mb-3">
-                <i className="fa-regular fa-calendar-check"></i>
+          {/* WIDGET KANAN (Sekarang Tampil di HP & Bisa di-Swipe) */}
+          <div className="flex items-center gap-3 md:gap-4 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide shrink-0 w-full lg:w-auto">
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-4 md:p-5 flex flex-col items-center justify-center text-center min-w-[120px] md:min-w-[130px] shadow-lg flex-1 lg:flex-none">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-sky-50 text-sky-500 flex items-center justify-center mb-2 md:mb-3 shadow-inner">
+                <i className="fa-regular fa-calendar-check text-sm md:text-base"></i>
               </div>
               <div className="flex items-baseline gap-1 mb-1">
-                <span className="text-3xl font-black text-white leading-none">
+                <span className="text-2xl md:text-3xl font-black text-white leading-none">
                   3
                 </span>
-                <span className="text-xs font-bold text-slate-400">Hari</span>
+                <span className="text-[10px] md:text-xs font-bold text-sky-100">Hari</span>
               </div>
-              <span className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">
+              <span className="text-[8px] md:text-[9px] uppercase tracking-widest text-sky-200 font-bold">
                 Sisa Kuota Izin
               </span>
             </div>
 
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-5 flex flex-col items-center justify-center text-center min-w-[130px] shadow-lg">
-              <div className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mb-3">
-                <i className="fa-solid fa-clock-rotate-left"></i>
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-4 md:p-5 flex flex-col items-center justify-center text-center min-w-[120px] md:min-w-[130px] shadow-lg flex-1 lg:flex-none">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center mb-2 md:mb-3 shadow-inner">
+                <i className="fa-solid fa-clock-rotate-left text-sm md:text-base"></i>
               </div>
               <div className="flex items-baseline gap-1 mb-1">
-                <span className="text-3xl font-black text-white leading-none">
+                <span className="text-2xl md:text-3xl font-black text-white leading-none">
                   0
                 </span>
-                <span className="text-xs font-bold text-slate-400">Kali</span>
+                <span className="text-[10px] md:text-xs font-bold text-sky-100">Kali</span>
               </div>
-              <span className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">
+              <span className="text-[8px] md:text-[9px] uppercase tracking-widest text-sky-200 font-bold">
                 Pending Request
               </span>
             </div>
           </div>
+
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* KOLOM KIRI: FORM PENGAJUAN */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
+        
+        {/* ── KOLOM KIRI: FORM PENGAJUAN ── */}
         <div className="lg:col-span-5 flex flex-col gap-6">
-          <div className="bg-white rounded-[2rem] border border-slate-200 p-6 md:p-8 shadow-sm">
-            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-50 pb-4">
-              <i className="fa-solid fa-file-pen text-blue-500"></i> Form
-              Pengajuan
+          <div className="bg-white rounded-[2rem] border border-slate-200 p-5 md:p-8 shadow-sm">
+            <h3 className="text-base md:text-lg font-black text-slate-800 mb-5 md:mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
+              Form Pengajuan
             </h3>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* TIPE IZIN - Ini Core Alur Lu */}
+            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
+              {/* TIPE IZIN */}
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">
+                <label className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">
                   Kategori Request
                 </label>
                 <div className="relative">
                   <select
                     value={leaveType}
                     onChange={(e) => setLeaveType(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none cursor-pointer"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 md:py-3.5 text-xs md:text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none cursor-pointer"
                   >
-                    <option value="sakit">🏥 Sakit (Wajib Bukti)</option>
-                    <option value="izin">📝 Izin Biasa</option>
-                    <option value="swap_shift">
-                      🔄 Swap Shift (Tukar Hari)
-                    </option>
-                    <option value="tugas_luar">🏢 Tugas Luar (Dinas)</option>
+                    <option value="sakit">Sakit (Wajib Bukti)</option>
+                    <option value="izin">Izin Biasa</option>
+                    <option value="swap_shift">Swap Shift (Tukar Hari)</option>
+                    <option value="tugas_luar">Tugas Luar (Dinas)</option>
                   </select>
                   <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
                 </div>
               </div>
 
-              {/* TANGGAL PENGGANTI - Muncul cuma kalo Swap Shift */}
+              {/* TANGGAL PENGGANTI */}
               {leaveType === "swap_shift" && (
                 <div className="animate-in slide-in-from-top-2 duration-300">
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-rose-500 block mb-1.5 ml-1">
+                  <label className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-rose-500 block mb-1.5 ml-1">
                     <i className="fa-solid fa-calendar-day mr-1"></i> Tanggal
                     Pengganti
                   </label>
@@ -320,30 +321,32 @@ const LeaveRequest = () => {
                     type="date"
                     value={replacementDate}
                     onChange={(e) => setReplacementDate(e.target.value)}
-                    className="w-full bg-rose-50/30 border border-rose-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none"
+                    className="w-full bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 md:py-3.5 text-xs md:text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-rose-400"
                     required={leaveType === "swap_shift"}
                   />
-                  <p className="text-[10px] text-slate-400 mt-2 ml-1 italic">
+                  <p className="text-[9px] md:text-[10px] text-slate-400 mt-2 ml-1 italic font-medium">
                     *Jadwal lama akan otomatis terhapus jika di-ACC.
                   </p>
                 </div>
               )}
 
+              {/* TANGGAL IZIN */}
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">
+                <label className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">
                   Tanggal Izin / Sakit / Dinas
                 </label>
                 <input
                   type="date"
                   value={permissionDate}
                   onChange={(e) => setPermissionDate(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 md:py-3.5 text-xs md:text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
 
+              {/* ALASAN */}
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">
+                <label className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">
                   Alasan
                 </label>
                 <textarea
@@ -351,22 +354,22 @@ const LeaveRequest = () => {
                   onChange={(e) => setDescription(e.target.value)}
                   rows="3"
                   placeholder="Jelaskan secara singkat..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-medium text-slate-700 outline-none resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs md:text-sm font-medium text-slate-700 outline-none resize-none focus:ring-2 focus:ring-blue-500"
                   required
                 ></textarea>
               </div>
 
+              {/* FILE UPLOAD */}
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">
+                <label className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5 ml-1">
                   Bukti Foto / Surat{" "}
                   {leaveType === "sakit" && (
                     <span className="text-rose-500">*</span>
                   )}
                 </label>
 
-                {/* Drop zone */}
                 <label
-                  className={`w-full border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors group block ${
+                  className={`w-full border-2 border-dashed rounded-xl p-4 md:p-5 text-center cursor-pointer transition-colors group block ${
                     compressing
                       ? "border-blue-300 bg-blue-50/50"
                       : evidence
@@ -376,8 +379,8 @@ const LeaveRequest = () => {
                 >
                   {compressing ? (
                     <div className="flex flex-col items-center gap-2 py-2">
-                      <i className="fa-solid fa-circle-notch fa-spin text-2xl text-blue-500" />
-                      <p className="text-xs font-bold text-blue-600">
+                      <i className="fa-solid fa-circle-notch fa-spin text-xl md:text-2xl text-blue-500" />
+                      <p className="text-[10px] md:text-xs font-bold text-blue-600">
                         Mengompres gambar...
                       </p>
                     </div>
@@ -387,36 +390,34 @@ const LeaveRequest = () => {
                         <img
                           src={evidencePreview}
                           alt="preview"
-                          className="w-16 h-16 object-cover rounded-xl border border-slate-200 shrink-0"
+                          className="w-12 h-12 md:w-16 md:h-16 object-cover rounded-xl border border-slate-200 shrink-0"
                         />
                       ) : (
-                        <div className="w-16 h-16 bg-red-50 rounded-xl border border-red-200 flex items-center justify-center shrink-0">
-                          <i className="fa-solid fa-file-pdf text-2xl text-red-500" />
+                        <div className="w-12 h-12 md:w-16 md:h-16 bg-rose-50 rounded-xl border border-rose-200 flex items-center justify-center shrink-0">
+                          <i className="fa-solid fa-file-pdf text-xl md:text-2xl text-rose-500" />
                         </div>
                       )}
                       <div className="text-left flex-1 min-w-0">
-                        <p className="text-xs font-bold text-slate-700 truncate">
+                        <p className="text-[11px] md:text-xs font-bold text-slate-700 truncate">
                           {evidence.name}
                         </p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">
+                        <p className="text-[9px] md:text-[10px] text-slate-400 mt-0.5">
                           {formatSize(evidence.size)}
                         </p>
-                        <p className="text-[10px] text-emerald-600 font-bold mt-0.5">
+                        <p className="text-[9px] md:text-[10px] text-emerald-600 font-bold mt-0.5">
                           <i className="fa-solid fa-check mr-1" />
-                          {evidence.size <= 2 * 1024 * 1024
-                            ? "Ukuran OK (≤ 2MB)"
-                            : "File siap dikirim"}
+                          Siap dikirim
                         </p>
                       </div>
                     </div>
                   ) : (
                     <>
-                      <i className="fa-solid fa-cloud-arrow-up text-2xl text-slate-300 group-hover:text-blue-500 mb-2 block transition-colors" />
-                      <p className="text-[11px] font-bold text-slate-500">
-                        Klik untuk upload atau ambil foto
+                      <i className="fa-solid fa-cloud-arrow-up text-xl md:text-2xl text-slate-300 group-hover:text-blue-500 mb-2 block transition-colors" />
+                      <p className="text-[10px] md:text-[11px] font-bold text-slate-500">
+                        Klik untuk upload / kamera
                       </p>
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        JPG, PNG, WEBP, PDF — Foto dikompres otomatis ≤ 2MB
+                      <p className="text-[9px] md:text-[10px] text-slate-400 mt-1 px-2">
+                        JPG/PNG/PDF — Otomatis dikompres ≤ 2MB
                       </p>
                     </>
                   )}
@@ -426,24 +427,21 @@ const LeaveRequest = () => {
                     accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf"
                     capture="environment"
                     onChange={(e) => {
-                      if (e.target.files[0])
-                        handleFileChange(e.target.files[0]);
+                      if (e.target.files[0]) handleFileChange(e.target.files[0]);
                       e.target.value = "";
                     }}
                   />
                 </label>
 
-                {/* Tombol pilih dari galeri + hapus */}
-                <div className="mt-2 flex items-center gap-3">
-                  <label className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer">
-                    <i className="fa-solid fa-images" /> Pilih dari galeri
+                <div className="mt-3 flex items-center justify-between px-1">
+                  <label className="flex items-center gap-1.5 text-[10px] md:text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer">
+                    <i className="fa-solid fa-images" /> Galeri
                     <input
                       type="file"
                       className="hidden"
                       accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf"
                       onChange={(e) => {
-                        if (e.target.files[0])
-                          handleFileChange(e.target.files[0]);
+                        if (e.target.files[0]) handleFileChange(e.target.files[0]);
                         e.target.value = "";
                       }}
                     />
@@ -452,7 +450,7 @@ const LeaveRequest = () => {
                     <button
                       type="button"
                       onClick={removeEvidence}
-                      className="ml-auto text-[11px] font-bold text-rose-500 hover:text-rose-600 flex items-center gap-1"
+                      className="text-[10px] md:text-[11px] font-bold text-rose-500 hover:text-rose-600 flex items-center gap-1"
                     >
                       <i className="fa-solid fa-trash-can" /> Hapus
                     </button>
@@ -463,7 +461,7 @@ const LeaveRequest = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-4 bg-gradient-to-br from-blue-500 to-cyan-500 text-white rounded-xl text-sm font-black border border-blue-400 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2"
+                className="w-full mt-2 py-3.5 md:py-4 bg-gradient-to-br from-blue-500 to-cyan-500 text-white rounded-xl text-xs md:text-sm font-black border border-blue-400 shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <i className="fa-solid fa-circle-notch fa-spin"></i>
@@ -476,21 +474,20 @@ const LeaveRequest = () => {
           </div>
         </div>
 
-        {/* KOLOM KANAN: HISTORY */}
-        <div className="lg:col-span-7 bg-white rounded-[2rem] border border-slate-200 shadow-sm flex flex-col h-full min-h-[500px]">
-          <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-            <h3 className="font-black text-slate-800 flex items-center gap-2">
-              <i className="fa-solid fa-clock-rotate-left text-blue-500"></i> My
-              Exceptions
+        {/* ── KOLOM KANAN: HISTORY ── */}
+        <div className="lg:col-span-7 bg-white rounded-[2rem] border border-slate-200 shadow-sm flex flex-col h-full min-h-[400px] md:min-h-[500px]">
+          <div className="px-5 md:px-6 py-4 md:py-5 border-b border-slate-100 bg-slate-50/50 rounded-t-[2rem]">
+            <h3 className="font-black text-slate-800 flex items-center gap-2 text-base md:text-lg">
+            My Exceptions
             </h3>
           </div>
 
-          <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
-            <div className="space-y-4">
+          <div className="p-4 md:p-6 flex-1 overflow-y-auto custom-scrollbar">
+            <div className="space-y-3 md:space-y-4">
               {history.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center opacity-50">
+                <div className="flex flex-col items-center justify-center py-12 md:py-16 text-center opacity-50">
                   <i className="fa-solid fa-envelope-open text-4xl text-slate-300 mb-3" />
-                  <p className="text-slate-500 font-bold text-sm">
+                  <p className="text-slate-500 font-bold text-xs md:text-sm">
                     Belum ada riwayat pengajuan
                   </p>
                 </div>
@@ -504,32 +501,38 @@ const LeaveRequest = () => {
                   };
                   const statusStyle =
                     item.status === "approved"
-                      ? "bg-emerald-100 text-emerald-600 border-emerald-200"
+                      ? "bg-emerald-50 text-emerald-600 border-emerald-200"
                       : item.status === "rejected"
-                        ? "bg-rose-100 text-rose-600 border-rose-200"
-                        : "bg-amber-100 text-amber-600 border-amber-200";
+                        ? "bg-rose-50 text-rose-600 border-rose-200"
+                        : "bg-amber-50 text-amber-600 border-amber-200";
+
                   return (
                     <div
                       key={item.id}
-                      className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:border-blue-200 transition-colors"
+                      className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 shadow-sm hover:border-blue-200 transition-colors"
                     >
-                      <div className="flex justify-between items-start">
-                        <div className="flex gap-4 items-start">
+                      {/* Flex-col di HP biar badge gak nabrak teks, flex-row di Laptop */}
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
+                        
+                        <div className="flex gap-3 md:gap-4 items-start flex-1 min-w-0">
                           <div
-                            className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg shrink-0 ${item.status === "approved" ? "bg-emerald-50 text-emerald-500" : item.status === "rejected" ? "bg-rose-50 text-rose-500" : "bg-amber-50 text-amber-500"}`}
+                            className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-base md:text-lg shrink-0 ${
+                              item.status === "approved" ? "bg-emerald-50 text-emerald-500" : 
+                              item.status === "rejected" ? "bg-rose-50 text-rose-500" : 
+                              "bg-amber-50 text-amber-500"
+                            }`}
                           >
-                            <i
-                              className={`fa-solid ${iconMap[item.type] || "fa-envelope"}`}
-                            />
+                            <i className={`fa-solid ${iconMap[item.type] || "fa-envelope"}`} />
                           </div>
-                          <div>
-                            <h4 className="text-sm font-black text-slate-800">
+                          
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-xs md:text-sm font-black text-slate-800 truncate">
                               {item.type}
                             </h4>
-                            <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                            <p className="text-[10px] md:text-[11px] font-medium text-slate-400 mt-0.5">
                               {item.date}
                             </p>
-                            <p className="text-xs font-bold text-slate-600 mt-1.5 italic">
+                            <p className="text-[11px] md:text-xs font-medium text-slate-600 mt-1.5 italic bg-slate-50 p-2 rounded-lg border border-slate-100">
                               "{item.note}"
                             </p>
                             {item.proof && (
@@ -537,15 +540,17 @@ const LeaveRequest = () => {
                                 href={item.proof}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-[10px] font-bold text-blue-500 hover:text-blue-600 mt-1 flex items-center gap-1"
+                                className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-md bg-blue-50 text-[9px] md:text-[10px] font-bold text-blue-600 hover:bg-blue-100 transition-colors"
                               >
                                 <i className="fa-solid fa-image" /> Lihat Bukti
                               </a>
                             )}
                           </div>
                         </div>
+
+                        {/* Status Badge */}
                         <span
-                          className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shrink-0 ${statusStyle}`}
+                          className={`self-start sm:self-auto px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-widest border shrink-0 ${statusStyle}`}
                         >
                           {item.status === "approved"
                             ? "✓ Disetujui"
@@ -553,6 +558,7 @@ const LeaveRequest = () => {
                               ? "✗ Ditolak"
                               : "⏳ Pending"}
                         </span>
+
                       </div>
                     </div>
                   );

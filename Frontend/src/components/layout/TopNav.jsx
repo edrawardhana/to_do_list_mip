@@ -77,12 +77,17 @@ const TopNav = ({ onToggleSidebar }) => {
     }
   };
 
-  // ── Notifikasi dari API ───────────────────────────────────────────────────
+  // ── Notifikasi dari API (Hanya untuk Admin & Intern) ───────────
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(false);
 
+  // Normalisasi Role
+  const rawRole = user?.role?.toLowerCase().replace(/_|\s/g, "") || "";
+  const isSuperAdmin = rawRole === "superadmin";
+  const isAdmin = rawRole === "admin";
+
   const fetchNotifications = useCallback(async () => {
-    if (!user) return;
+    if (!user || isSuperAdmin) return; // Superadmin gak butuh notif
     setNotifLoading(true);
     try {
       const res = await api.get("/notifications");
@@ -92,7 +97,7 @@ const TopNav = ({ onToggleSidebar }) => {
     } finally {
       setNotifLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, isSuperAdmin]);
 
   useEffect(() => {
     fetchNotifications();
@@ -186,66 +191,84 @@ const TopNav = ({ onToggleSidebar }) => {
     minute: "2-digit",
   });
 
-  // Normalisasi Role
-  const rawRole = user?.role?.toLowerCase().replace(/_|\s/g, "") || "";
-  const isSuperAdmin = rawRole === "superadmin";
-  const isAdmin = rawRole === "admin";
-
   // ================= TEMA WARNA TOPNAV BERDASARKAN ROLE =================
-  let navTheme =
-    "bg-gradient-to-br from-blue-600 to-cyan-500 border-b border-white/20 shadow-lg";
+  
+  // 1. DEFAULT INTERN (Sky Blue)
+  let navTheme = "bg-gradient-to-br from-blue-600 to-cyan-500 border-b border-white/20 shadow-lg";
   let dividerColor = "border-white/20";
   let textColorMain = "text-white";
   let textColorMuted = "text-white/70";
   let textGradient = "from-white to-blue-100";
   let btnStyle = "text-white hover:bg-white/20 transition-all";
+  
   let dropdownBg = "bg-white";
   let dropdownBorder = "border-slate-200";
   let dropdownText = "text-slate-700";
   let dropdownHoverBg = "bg-blue-50";
-  let inputBg =
-    "bg-white/20 border-white/30 text-white placeholder:text-white/60";
-  let inputBorder = "border-white/30";
-  let avatarFallbackBg =
-    "bg-gradient-to-br from-indigo-400 to-purple-500 text-white";
+  
+  let inputBg = "bg-white";
+  let inputBorder = "border-slate-200 focus:border-blue-500 focus:ring-blue-500/50";
+  let iconColor = "text-slate-400";
+  
+  let avatarFallbackBg = "bg-gradient-to-br from-blue-400 to-cyan-500 text-white";
+  let modalTextMain = "text-slate-900";
+  let modalTextMuted = "text-slate-500";
+  let fileBtnStyle = "file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100";
+  let saveBtnStyle = "bg-blue-500 hover:bg-blue-400 text-white shadow-blue-500/20";
 
+  // 2. ADMIN (Dark Blue / Navy)
   if (isAdmin) {
-    navTheme =
-      "bg-gradient-to-r from-[#162447] to-[#1a3a6c] border-b border-blue-400/20 backdrop-blur-xl text-white shadow-xl shadow-blue-900/30";
+    navTheme = "bg-gradient-to-r from-[#162447] to-[#1a3a6c] border-b border-blue-400/20 backdrop-blur-xl text-white shadow-xl shadow-blue-900/30";
     dividerColor = "border-blue-400/20";
-
     textColorMain = "text-white";
     textColorMuted = "text-blue-200/60";
     textGradient = "from-white via-blue-50 to-blue-200";
-    btnStyle =
-      "text-blue-100 hover:text-white hover:bg-white/10 transition-all duration-200 rounded-lg";
+    btnStyle = "text-blue-100 hover:text-white hover:bg-white/10 transition-all duration-200 rounded-lg";
+    
     dropdownBg = "bg-[#162447]";
     dropdownBorder = "border-blue-400/20";
     dropdownText = "text-blue-100";
     dropdownHoverBg = "bg-blue-500/20";
-    inputBg = "bg-black/20";
-    inputBorder = "border-blue-400/20 focus:border-blue-400/50";
+    
+    inputBg = "bg-[#0b1437]/30 text-white placeholder:text-blue-200/50";
+    inputBorder = "border-blue-400/20 focus:border-blue-400 focus:ring-blue-400/50";
+    iconColor = "text-blue-300/50";
+    
     avatarFallbackBg = "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]";
-  } else if (isSuperAdmin) {
-    navTheme =
-      "bg-[#1e1544]/95 backdrop-blur-xl border-b border-purple-500/20 text-white shadow-xl shadow-purple-900/20";
-    dividerColor = "border-purple-800/50";
+    modalTextMain = "text-white";
+    modalTextMuted = "text-blue-200/60";
+    fileBtnStyle = "file:bg-white/10 file:text-blue-100 hover:file:bg-white/20";
+    saveBtnStyle = "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20";
+  } 
+  // 3. SUPERADMIN (Pink Pastel VVIP)
+  else if (isSuperAdmin) {
+    navTheme = "bg-gradient-to-r from-pink-400 to-rose-500 border-b border-pink-300/30 text-white shadow-xl shadow-pink-500/20";
+    dividerColor = "border-pink-300/40";
     textColorMain = "text-white";
-    textColorMuted = "text-slate-400";
-    textGradient = "from-white to-purple-200";
-    btnStyle = "text-slate-300 hover:text-white hover:bg-white/10";
-    dropdownBg = "bg-[#161224]";
-    dropdownBorder = "border-white/10";
-    dropdownText = "text-slate-300";
-    dropdownHoverBg = "bg-white/[0.03]";
-    inputBg = "bg-white/5";
-    inputBorder = "border-white/10";
-    avatarFallbackBg = "bg-purple-600";
+    textColorMuted = "text-pink-100";
+    textGradient = "from-white to-pink-100";
+    btnStyle = "text-pink-50 hover:text-white hover:bg-white/20 transition-all rounded-lg";
+    
+    dropdownBg = "bg-white"; 
+    dropdownBorder = "border-pink-200";
+    dropdownText = "text-slate-700";
+    dropdownHoverBg = "bg-pink-50";
+    
+    inputBg = "bg-white text-slate-900 placeholder:text-slate-400";
+    inputBorder = "border-pink-200 focus:border-pink-400 focus:ring-pink-400/50";
+    iconColor = "text-slate-400";
+    
+    avatarFallbackBg = "bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.5)]";
+    modalTextMain = "text-slate-900";
+    modalTextMuted = "text-slate-500";
+    fileBtnStyle = "file:bg-pink-50 file:text-pink-600 hover:file:bg-pink-100";
+    saveBtnStyle = "bg-pink-500 hover:bg-pink-600 text-white shadow-pink-500/30";
   }
 
   const titles = {
     "/": `Selamat ${getGreeting()}, ${user?.nickname || user?.full_name?.split(" ")[0] || "Brok"}! 👋`,
     "/dashboard": "Dashboard",
+    "/my-schedule": "My Schedule",
     "/tasks": isAdmin ? "Daily Activation" : "Daily Task",
     "/leave-request": "Leave Request",
     "/whitebook": "Whitebook",
@@ -253,6 +276,8 @@ const TopNav = ({ onToggleSidebar }) => {
     "/manage-admin": "Manajemen Akun",
     "/manage-intern": "Manajemen Intern",
     "/audit-log": "Audit Log",
+    "/division-analytics": "System Analytics",
+    "/broadcasts": "Broadcast Center",
   };
 
   const title = titles[location.pathname] || "MCC Internship";
@@ -297,9 +322,12 @@ const TopNav = ({ onToggleSidebar }) => {
               {statusText}
             </p>
           </div>
-          <p className={`text-[10px] font-medium ${textColorMuted} capitalize`}>
-            {shiftLabel}
-          </p>
+          {/* SEMBUNYIKAN NAMA DIVISI UNTUK SUPERADMIN */}
+          {!isSuperAdmin && (
+            <p className={`text-[10px] font-medium ${textColorMuted} capitalize mt-0.5`}>
+              {shiftLabel}
+            </p>
+          )}
         </div>
 
         <div className="hidden sm:flex flex-col items-end">
@@ -309,7 +337,8 @@ const TopNav = ({ onToggleSidebar }) => {
             >
               {timeStr}
             </p>
-            <p className="text-[10px] text-sky-500 font-bold uppercase tracking-wider">
+            {/* WIB MENGGUNAKAN WARNA TEKS UTAMA SESUAI TEMA BIAR SELALU PUTIH/TERANG */}
+            <p className={`text-[10px] font-bold uppercase tracking-wider opacity-80 ${textColorMain}`}>
               WIB
             </p>
           </div>
@@ -318,90 +347,88 @@ const TopNav = ({ onToggleSidebar }) => {
 
         <div className={`hidden sm:block h-8 w-px ${dividerColor} mx-1`}></div>
 
-        {/* NOTIFIKASI */}
-        <div className="relative group">
-          <button
-            className={`relative p-2.5 rounded-xl transition-all cursor-pointer ${btnStyle}`}
-          >
-            <i className="fa-solid fa-bell text-[1.1rem]"></i>
-            {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse"></span>
-            )}
-          </button>
-
-          <div
-            className={`absolute right-0 top-full mt-2 w-80 ${dropdownBg} border ${dropdownBorder} rounded-2xl shadow-2xl overflow-hidden z-50 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out`}
-          >
-            <div
-              className={`px-4 py-3 border-b ${dropdownBorder} flex justify-between items-center bg-black/[0.01] dark:bg-white/[0.02]`}
+        {/* NOTIFIKASI (DISEMBUNYIKAN UNTUK SUPERADMIN) */}
+        {!isSuperAdmin && (
+          <div className="relative group">
+            <button
+              className={`relative p-2.5 rounded-xl transition-all cursor-pointer ${btnStyle}`}
             >
-              <h3
-                className={`text-sm font-bold ${isAdmin || isSuperAdmin ? "text-white" : "text-slate-800"}`}
-              >
-                Notifikasi
-              </h3>
+              <i className="fa-solid fa-bell text-[1.1rem]"></i>
               {unreadCount > 0 && (
-                <button
-                  onClick={markAllAsRead}
-                  className="text-[10px] text-sky-500 font-semibold cursor-pointer hover:text-sky-600"
-                >
-                  Tandai semua dibaca
-                </button>
+                <span className="absolute top-1.5 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse shadow-sm"></span>
               )}
-            </div>
-            <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-              {notifLoading ? (
-                <div className="p-6 text-center">
-                  <i className="fa-solid fa-spinner fa-spin text-slate-400 text-lg"></i>
-                </div>
-              ) : notifications.length === 0 ? (
-                <div className="p-6 text-center text-slate-400 text-xs">
-                  Belum ada notifikasi.
-                </div>
-              ) : (
-                notifications.map((notif) => {
-                  const style = getNotifStyle(notif.type);
-                  return (
-                    <div
-                      key={notif.id}
-                      onClick={() => markAsRead(notif.id)}
-                      className={`p-4 border-b ${dropdownBorder} transition-colors cursor-pointer relative ${notif.is_read ? "opacity-60 bg-transparent" : `${dropdownHoverBg}`}`}
-                    >
-                      <div className="flex gap-3 pl-2">
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${style.color}`}
-                        >
-                          <i className={`fa-solid ${style.icon} text-xs`}></i>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className={`text-xs ${dropdownText} leading-relaxed`}
+            </button>
+
+            <div
+              className={`absolute right-0 top-full mt-2 w-80 ${dropdownBg} border ${dropdownBorder} rounded-2xl shadow-2xl overflow-hidden z-50 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out`}
+            >
+              <div
+                className={`px-4 py-3 border-b ${dropdownBorder} flex justify-between items-center bg-black/[0.02]`}
+              >
+                <h3 className={`text-sm font-bold ${modalTextMain}`}>
+                  Notifikasi
+                </h3>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllAsRead}
+                    className="text-[10px] text-sky-500 font-semibold cursor-pointer hover:text-sky-600"
+                  >
+                    Tandai semua dibaca
+                  </button>
+                )}
+              </div>
+              <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                {notifLoading ? (
+                  <div className="p-6 text-center">
+                    <i className="fa-solid fa-spinner fa-spin text-slate-400 text-lg"></i>
+                  </div>
+                ) : notifications.length === 0 ? (
+                  <div className={`p-6 text-center ${modalTextMuted} text-xs`}>
+                    Belum ada notifikasi.
+                  </div>
+                ) : (
+                  notifications.map((notif) => {
+                    const style = getNotifStyle(notif.type);
+                    return (
+                      <div
+                        key={notif.id}
+                        onClick={() => markAsRead(notif.id)}
+                        className={`p-4 border-b ${dropdownBorder} transition-colors cursor-pointer relative ${notif.is_read ? "opacity-60 bg-transparent" : `${dropdownHoverBg}`}`}
+                      >
+                        <div className="flex gap-3 pl-2">
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${style.color}`}
                           >
-                            <span
-                              className={`font-bold ${isAdmin || isSuperAdmin ? "text-white" : "text-slate-900"}`}
+                            <i className={`fa-solid ${style.icon} text-xs`}></i>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className={`text-xs ${dropdownText} leading-relaxed`}
                             >
-                              {notif.title}:
-                            </span>{" "}
-                            {notif.message}
-                          </p>
-                          <p className="text-[10px] text-slate-400 mt-1.5">
-                            {formatTime(notif.created_at)}
-                          </p>
+                              <span className={`font-bold ${modalTextMain}`}>
+                                {notif.title}:
+                              </span>{" "}
+                              {notif.message}
+                            </p>
+                            <p className={`text-[10px] ${modalTextMuted} mt-1.5`}>
+                              {formatTime(notif.created_at)}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* PROFILE */}
         <div className="relative" ref={profileRef}>
           <div
             onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className="flex items-center gap-3 cursor-pointer group p-1 pr-3 rounded-full transition-all select-none hover:bg-black/5 dark:hover:bg-white/5"
+            className="flex items-center gap-3 cursor-pointer group p-1 pr-3 rounded-full transition-all select-none hover:bg-black/10"
           >
             <div className="hidden sm:block text-right">
               <p className={`text-sm font-bold ${textColorMain} leading-tight`}>
@@ -413,7 +440,7 @@ const TopNav = ({ onToggleSidebar }) => {
                 {user?.role?.replace("_", " ")}
               </p>
             </div>
-            <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm ring-2 ring-white/5 shrink-0">
+            <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm ring-2 ring-white/20 shrink-0">
               {user?.avatar_url ? (
                 <img
                   src={user.avatar_url}
@@ -430,22 +457,18 @@ const TopNav = ({ onToggleSidebar }) => {
             </div>
           </div>
 
-          {/* EDIT PROFILE MODAL */}
+          {/* EDIT PROFILE MODAL (SCROLLABLE & COMPACT) */}
           {isProfileOpen && (
             <div
-              className={`absolute right-0 mt-3 w-[320px] ${dropdownBg} border ${dropdownBorder} rounded-3xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200`}
+              className={`absolute right-0 mt-3 w-[320px] max-w-[90vw] max-h-[85vh] flex flex-col ${dropdownBg} border ${dropdownBorder} rounded-3xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200`}
             >
+              {/* Header Modal */}
               <div
-                className={`p-6 pb-5 flex flex-col items-center border-b ${dropdownBorder} bg-gradient-to-b from-black/[0.01] to-transparent relative`}
+                className={`p-6 pb-5 flex flex-col items-center border-b ${dropdownBorder} shrink-0 relative`}
               >
-                <button
-                  onClick={() => setIsProfileOpen(false)}
-                  className="absolute top-4 right-4 w-7 h-7 rounded-full bg-black/5 text-slate-400 flex items-center justify-center"
-                >
-                  <i className="fa-solid fa-xmark text-sm"></i>
-                </button>
+                {/* TOMBOL X DIHAPUS (bisa klik area luar untuk menutup) */}
                 <div className="relative w-20 h-20 shrink-0">
-                  <div className="w-full h-full rounded-full overflow-hidden shadow-lg">
+                  <div className={`w-full h-full rounded-full overflow-hidden shadow-lg border-2 ${isAdmin ? "border-blue-500/50" : "border-white/50"}`}>
                     {user?.avatar_url ? (
                       <img
                         src={user.avatar_url}
@@ -460,7 +483,7 @@ const TopNav = ({ onToggleSidebar }) => {
                       </div>
                     )}
                   </div>
-                  <label className="absolute bottom-0 right-0 w-6 h-6 bg-slate-800 border-2 border-white rounded-full flex items-center justify-center text-[10px] cursor-pointer text-white">
+                  <label className="absolute bottom-0 right-0 w-6 h-6 bg-slate-800 border-2 border-white rounded-full flex items-center justify-center text-[10px] cursor-pointer text-white hover:bg-slate-700 transition-colors">
                     <i className="fa-solid fa-camera"></i>
                     <input
                       type="file"
@@ -470,74 +493,73 @@ const TopNav = ({ onToggleSidebar }) => {
                     />
                   </label>
                 </div>
-                <h3
-                  className={`font-black ${isAdmin || isSuperAdmin ? "text-white" : "text-slate-900"} text-lg mt-3`}
-                >
+                <h3 className={`font-black ${modalTextMain} text-lg mt-3`}>
                   {user?.full_name || "Guest User"}
                 </h3>
-                <p className="text-xs font-medium text-sky-500 mt-0.5">
+                <p className={`text-xs font-medium mt-0.5 ${isAdmin ? "text-blue-300" : "text-sky-500"}`}>
                   {user?.email}
                 </p>
               </div>
 
-              <div className="p-5 space-y-4">
+              {/* Scrollable Body Modal */}
+              <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 ml-1">
+                  <label className={`block text-[10px] font-bold uppercase mb-1.5 ml-1 ${modalTextMuted}`}>
                     Nama Lengkap
                   </label>
                   <div className="relative">
-                    <i className="fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <i className={`fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-xs ${iconColor}`}></i>
                     <input
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className={`w-full ${inputBg} border ${inputBorder} rounded-xl pl-9 pr-4 py-2.5 text-sm ${isAdmin || isSuperAdmin ? "text-white" : "text-slate-900"} font-medium focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none`}
+                      className={`w-full ${inputBg} border ${inputBorder} rounded-xl pl-9 pr-4 py-2.5 text-sm ${modalTextMain} font-medium focus:outline-none focus:ring-1 transition-all`}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 ml-1">
+                  <label className={`block text-[10px] font-bold uppercase mb-1.5 ml-1 ${modalTextMuted}`}>
                     Username
                   </label>
                   <div className="relative">
-                    <i className="fa-solid fa-user-gear absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <i className={`fa-solid fa-user-gear absolute left-3.5 top-1/2 -translate-y-1/2 text-xs ${iconColor}`}></i>
                     <input
                       type="text"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className={`w-full ${inputBg} border ${inputBorder} rounded-xl pl-9 pr-4 py-2.5 text-sm ${isAdmin || isSuperAdmin ? "text-white" : "text-slate-900"} font-medium focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none`}
+                      className={`w-full ${inputBg} border ${inputBorder} rounded-xl pl-9 pr-4 py-2.5 text-sm ${modalTextMain} font-medium focus:outline-none focus:ring-1 transition-all`}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 ml-1">
+                  <label className={`block text-[10px] font-bold uppercase mb-1.5 ml-1 ${modalTextMuted}`}>
                     Nama Panggilan
                   </label>
                   <div className="relative">
-                    <i className="fa-solid fa-at absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <i className={`fa-solid fa-at absolute left-3.5 top-1/2 -translate-y-1/2 text-xs ${iconColor}`}></i>
                     <input
                       type="text"
                       value={nickname}
                       onChange={(e) => setNickname(e.target.value)}
-                      className={`w-full ${inputBg} border ${inputBorder} rounded-xl pl-9 pr-4 py-2.5 text-sm ${isAdmin || isSuperAdmin ? "text-white" : "text-slate-900"} font-medium focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none`}
+                      className={`w-full ${inputBg} border ${inputBorder} rounded-xl pl-9 pr-4 py-2.5 text-sm ${modalTextMain} font-medium focus:outline-none focus:ring-1 transition-all`}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1.5 ml-1">
+                  <label className={`block text-[10px] font-bold uppercase mb-1.5 ml-1 ${modalTextMuted}`}>
                     Upload Foto Profil
                   </label>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={handleAvatarChange}
-                    className={`w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 ${isAdmin || isSuperAdmin ? "file:bg-white/10 file:text-white" : "file:bg-slate-200 file:text-slate-800"} file:font-semibold rounded-xl border ${inputBorder} ${inputBg}`}
+                    className={`w-full text-xs opacity-90 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 ${fileBtnStyle} file:font-semibold rounded-xl border ${inputBorder} ${inputBg} transition-all`}
                   />
                 </div>
                 <button
                   onClick={handleSaveProfile}
                   disabled={isSaving}
-                  className="w-full py-3 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-500/50 text-white rounded-xl text-sm font-bold shadow-md shadow-sky-500/20 transition-all"
+                  className={`w-full mt-2 py-3 rounded-xl text-sm font-bold transition-all ${saveBtnStyle} disabled:opacity-50`}
                 >
                   {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
                 </button>
@@ -552,6 +574,7 @@ const TopNav = ({ onToggleSidebar }) => {
 
 export default TopNav;
 
+// Helper function
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 4) return "Malam";

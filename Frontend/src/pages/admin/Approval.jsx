@@ -300,68 +300,81 @@ const Approval = () => {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-2 max-w-7xl mx-auto">
       {/* ── HEADER ───────────────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-b from-[#162447] to-[#1a3a6c] rounded-[2rem] p-6 sm:p-8 border-r border-blue-400/20 shadow-2xl relative overflow-hidden">
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-300">
-              Approval Center
-            </span>
-            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tighter mt-1">
-              Validasi &amp; ACC
+      <div className="rounded-[2.5rem] border shadow-2xl relative overflow-hidden flex flex-col text-white mb-6 transition-all duration-500 bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20">
+        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full blur-[100px] pointer-events-none bg-blue-500/20" />
+        <div className="absolute -bottom-32 -left-32 w-72 h-72 rounded-full blur-[100px] pointer-events-none bg-sky-500/10" />
+          {/* Content Top */}
+        <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-white/10">
+          <div className="lg:max-w-xl">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner shrink-0 border backdrop-blur-sm bg-white/10 border-white/20 text-white">
+                <i className="fa-solid fa-clipboard-check text-xl" />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-[0.25em] px-3 py-1.5 rounded-lg border text-blue-200 bg-white/10 border-white/10">
+                Approval Center
+              </span>
+            </div>
+            
+            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight">
+              Validasi & ACC.
             </h1>
-            <p className="text-blue-100/70 text-sm font-medium mt-1">
-              Kelola antrean tugas dan pengajuan izin anak divisi.
+            <p className="text-sm font-medium leading-relaxed text-blue-100/70">
+              Kelola antrean tugas dan pengajuan izin anak divisi dengan cepat.
             </p>
           </div>
+
           <button
             onClick={fetchApprovals}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-xs font-bold hover:bg-white/20 transition-all shrink-0"
+            className="flex items-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all shadow-lg active:scale-95 shrink-0 mt-4 sm:mt-0 bg-white/10 hover:bg-white/20 border-white/20 text-white"
           >
-            <i className="fa-solid fa-arrows-rotate" /> Refresh
+            <i className="fa-solid fa-arrows-rotate" /> Refresh Data
           </button>
         </div>
-      </div>
 
-      {/* ── TABS + SEARCH ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
-        <div className="flex items-center gap-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-5 py-3 rounded-2xl text-[13px] font-bold transition-all flex items-center gap-2 ${
-                activeTab === tab.id
-                  ? "bg-[#162447] text-white shadow-xl shadow-[#162447]/20 scale-105 border border-[#1a3a6c]"
-                  : "bg-white text-slate-500 hover:bg-slate-50 border border-slate-200"
-              }`}
-            >
-              <i className={`fa-solid ${tab.icon}`} /> {tab.label}
-              {tab.count > 0 && (
-                <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full border border-rose-600">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        <div className="p-6 sm:p-8 relative z-10 bg-black/10">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
 
-        {/* Search */}
-        <div className="relative w-full sm:w-64">
-          <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none" />
-          <input
-            type="text"
-            placeholder={
-              activeTab === "tasks" ? "Cari intern atau tugas…" : "Cari intern…"
-            }
-            value={activeTab === "tasks" ? searchTask : searchLeave}
-            onChange={(e) =>
-              activeTab === "tasks"
-                ? setSearchTask(e.target.value)
-                : setSearchLeave(e.target.value)
-            }
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-          />
+            {/* Tabs */}
+            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto custom-scrollbar pb-2 md:pb-0">
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-5 py-3 rounded-2xl text-[13px] font-bold transition-all flex items-center gap-2 shrink-0 border ${
+                      isActive
+                        ? "bg-white text-[#162447] border-white shadow-lg"
+                        : "bg-white/5 text-white/70 hover:bg-white/10 border-white/10"
+                    }`}
+                  >
+                    <i className={`fa-solid ${tab.icon}`} /> {tab.label}
+                    {tab.count > 0 && (
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ml-1 ${
+                        isActive
+                          ? "bg-blue-100 text-[#162447]"
+                          : "bg-rose-500 text-white"
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-full md:w-72 shrink-0 group">
+              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm transition-colors text-blue-300/50 group-focus-within:text-white" />
+              <input
+                type="text"
+                placeholder={activeTab === "tasks" ? "Cari intern atau tugas…" : "Cari intern…"}
+                value={activeTab === "tasks" ? searchTask : searchLeave}
+                onChange={(e) => activeTab === "tasks" ? setSearchTask(e.target.value) : setSearchLeave(e.target.value)}
+                className="w-full rounded-xl pl-11 pr-4 py-3 text-sm font-bold outline-none border transition-all backdrop-blur-sm text-white focus:ring-2 bg-white/5 border-white/10 placeholder:text-blue-300/50 focus:border-white/30 focus:ring-blue-400/50"
+              />
+            </div>
+          </div>
         </div>
       </div>
 

@@ -117,22 +117,18 @@ const AdminDashboard = () => {
         <div className="flex-1 p-8 md:p-12 relative z-10 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-blue-400/20">
           <div>
             <div className="flex items-center gap-3 mb-6">
-              <div className="relative w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/10 text-emerald-400 shadow-lg shrink-0">
+              <div className="relative w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/10 text-white shadow-lg shrink-0">
                 <i className="fa-solid fa-server text-lg" />
-                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-blue-950 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5" />
               </div>
-              <span className="text-emerald-400 text-[11px] font-black uppercase tracking-[0.2em] leading-none">
+              <span className="text-blue-200 text-[11px] font-black uppercase tracking-[0.2em] leading-none">
                 System Online • {myDivision}
               </span>
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter mb-4 text-white drop-shadow-sm">
-              Admin Workspace.
+              Adm<span className="text-blue-400">in Work</span>space.
             </h1>
-            <div className="max-w-xl border-l-[3px] border-blue-400/50 pl-5 mb-8">
-              <p className="text-[14px] md:text-[15px] text-blue-100/80 font-medium leading-relaxed">
-                Akses kendali penuh. Pantau lalu lintas tugas, validasi laporan,
-                dan kelola aktivitas operasional anak magang secara real-time.
-              </p>
+            <div className="max-w-xl border-l-[3px] border-blue-400/50 pl-5 mb-">
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -270,7 +266,7 @@ const AdminDashboard = () => {
         ))}
 
         {/* Card 4: Broadcast */}
-        <div className="bg-gradient-to-br from-blue-600 to-blue-500 rounded-[2rem] p-7 text-white shadow-xl shadow-blue-600/30 border border-blue-400/30 relative overflow-hidden group flex flex-col h-full hover:shadow-2xl hover:shadow-blue-600/40 hover:-translate-y-1.5 transition-all duration-300">
+        <div className="bg-gradient-to-br from-blue-900 to-blue-500 rounded-[2rem] p-7 text-white shadow-xl shadow-blue-600/30 border border-blue-400/30 relative overflow-hidden group flex flex-col h-full hover:shadow-2xl hover:shadow-blue-600/40 hover:-translate-y-1.5 transition-all duration-300">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-700 pointer-events-none">
             <i className="fa-solid fa-tower-broadcast text-8xl" />
@@ -308,77 +304,35 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Actions */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm flex flex-col h-full">
-            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-100 pb-4 mb-5">
+          <div className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm">
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-100 pb-4 mb-4">
               <i className="fa-solid fa-bolt text-blue-500 mr-2" />
               Aksi Cepat
             </h3>
-            <div className="space-y-3 flex-1">
+            <div className="space-y-2">
               {[
-                {
-                  to: "/approval",
-                  icon: "fa-check-to-slot",
-                  color: "text-blue-600",
-                  hover: "hover:border-blue-200 hover:bg-blue-50/50",
-                  title: "Approval Center",
-                  sub: "Validasi tugas & izin",
-                },
-                {
-                  to: "/manage-intern",
-                  icon: "fa-users-gear",
-                  color: "text-emerald-600",
-                  hover: "hover:border-emerald-200 hover:bg-emerald-50/50",
-                  title: "Manage Interns",
-                  sub: "Manajemen akun magang",
-                },
-                {
-                  to: "/tasks",
-                  icon: "fa-list-check",
-                  color: "text-purple-600",
-                  hover: "hover:border-purple-200 hover:bg-purple-50/50",
-                  title: "Manage Tasks",
-                  sub: "Buat & edit tugas harian",
-                },
-                {
-                  to: "/broadcasts",
-                  icon: "fa-bullhorn",
-                  color: "text-sky-600",
-                  hover: "hover:border-sky-200 hover:bg-sky-50/50",
-                  title: "Broadcast",
-                  sub: "Kirim instruksi ke divisi",
-                },
-                {
-                  to: "/whitebook",
-                  icon: "fa-book-bookmark",
-                  color: "text-amber-600",
-                  hover: "hover:border-amber-200 hover:bg-amber-50/50",
-                  title: "Update Whitebook",
-                  sub: "Edit SOP & panduan divisi",
-                },
-                {
-                  to: "/reports",
-                  icon: "fa-file-invoice",
-                  color: "text-rose-600",
-                  hover: "hover:border-rose-200 hover:bg-rose-50/50",
-                  title: "Reports",
-                  sub: "Laporan kinerja divisi",
-                },
+                { to: "/approval", icon: "fa-check-to-slot", color: "text-blue-600", hover: "hover:border-blue-200 hover:bg-blue-50/50", title: "Approval Center", sub: "Validasi tugas & izin" },
+                { to: "/manage-intern", icon: "fa-users-gear", color: "text-emerald-600", hover: "hover:border-emerald-200 hover:bg-emerald-50/50", title: "Manage Interns", sub: "Manajemen akun magang" },
+                { to: "/tasks", icon: "fa-list-check", color: "text-purple-600", hover: "hover:border-purple-200 hover:bg-purple-50/50", title: "Manage Tasks", sub: "Buat & edit tugas harian" },
+                { to: "/broadcasts", icon: "fa-bullhorn", color: "text-sky-600", hover: "hover:border-sky-200 hover:bg-sky-50/50", title: "Broadcast", sub: "Kirim instruksi ke divisi" },
+                { to: "/whitebook", icon: "fa-book-bookmark", color: "text-amber-600", hover: "hover:border-amber-200 hover:bg-amber-50/50", title: "Update Whitebook", sub: "Edit SOP & panduan divisi" },
+                { to: "/reports", icon: "fa-file-invoice", color: "text-rose-600", hover: "hover:border-rose-200 hover:bg-rose-50/50", title: "Reports", sub: "Laporan kinerja divisi" },
               ].map((item) => (
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center gap-4 hover:translate-x-1 transition-all group ${item.hover}`}
+                  className={`bg-slate-50 border border-slate-100 p-3 rounded-2xl flex items-center gap-4 hover:translate-x-1 transition-all group ${item.hover}`}
                 >
                   <div
-                    className={`w-10 h-10 bg-white rounded-xl flex items-center justify-center text-lg shadow-sm group-hover:scale-110 transition-transform shrink-0 ${item.color}`}
+                    className={`w-9 h-9 bg-white rounded-xl flex items-center justify-center text-sm shadow-sm group-hover:scale-110 transition-transform shrink-0 ${item.color}`}
                   >
                     <i className={`fa-solid ${item.icon}`} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-800 text-sm mb-0.5">
+                    <h4 className="font-bold text-slate-800 text-xs mb-0.5">
                       {item.title}
                     </h4>
-                    <p className="text-[11px] font-medium text-slate-500">
+                    <p className="text-[10px] font-medium text-slate-500">
                       {item.sub}
                     </p>
                   </div>
@@ -387,10 +341,11 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
-
         {/* Activity Log */}
-        <div className="lg:col-span-2 bg-gradient-to-b from-[#162447] to-[#1a3a6c] rounded-[2.5rem] border border-blue-400/20 shadow-2xl shadow-blue-900/30 overflow-hidden flex flex-col min-h-[500px]">
-          <div className="px-8 py-5 border-b border-blue-400/20 bg-white/5 flex justify-between items-center shrink-0">
+        <div className="lg:col-span-2 bg-gradient-to-b from-[#162447] to-[#1a3a6c] rounded-[2.5rem] border border-blue-400/20 shadow-2xl shadow-blue-900/30 overflow-hidden flex flex-col h-full">
+          
+          {/* Header */}
+          <div className="px-6 sm:px-8 py-5 border-b border-blue-400/20 bg-white/5 flex justify-between items-center shrink-0">
             <h3 className="text-xs font-bold text-blue-200 uppercase tracking-widest font-mono flex items-center gap-2">
               <i className="fa-solid fa-terminal text-emerald-400" /> System Log
               ({myDivision})
@@ -398,29 +353,31 @@ const AdminDashboard = () => {
             <button
               onClick={() => fetchDashboardData(true)}
               disabled={refreshing}
-              className="w-7 h-7 rounded-lg bg-white/10 border border-blue-400/20 text-blue-300 hover:bg-blue-500/20 hover:text-white transition-all flex items-center justify-center disabled:opacity-50"
+              title="Refresh log"
+              className="w-8 h-8 rounded-xl bg-white/10 border border-blue-400/20 text-blue-300 hover:bg-blue-500/50 hover:text-white transition-all flex items-center justify-center disabled:opacity-50"
             >
               <i
-                className={`fa-solid fa-arrows-rotate text-[10px] ${refreshing ? "animate-spin" : ""}`}
+                className={`fa-solid fa-arrows-rotate text-[11px] ${refreshing ? "animate-spin" : ""}`}
               />
             </button>
           </div>
 
-          <div className="p-6 flex-1 overflow-y-auto custom-scrollbar bg-gradient-to-b from-[#162447]/80 to-[#1a3a6c] font-mono text-sm">
+          {/* Body */}
+          <div className="p-4 sm:p-6 flex-1 overflow-y-auto custom-scrollbar bg-gradient-to-b from-[#162447]/80 to-[#1a3a6c] font-mono text-sm">
             {loading ? (
               <div className="space-y-4">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div
                     key={i}
-                    className="flex gap-3 pb-4 border-b border-white/5 animate-pulse"
+                    className="flex items-start gap-4 border-b border-white/5 pb-4 pt-2 animate-pulse"
                   >
-                    <div className="w-24 h-3 rounded bg-white/10 shrink-0 mt-1" />
+                    <div className="w-20 h-5 rounded bg-white/10 shrink-0" />
                     <div className="flex-1 space-y-2">
                       <div className="flex gap-2">
-                        <div className="h-4 w-14 rounded bg-blue-700/30" />
-                        <div className="h-4 w-20 rounded bg-white/10" />
+                        <div className="h-4 w-16 rounded bg-blue-700/50" />
+                        <div className="h-4 w-24 rounded bg-white/10" />
                       </div>
-                      <div className="h-3 w-full rounded bg-white/5" />
+                      <div className="h-3 w-3/4 rounded bg-white/5" />
                     </div>
                   </div>
                 ))}
@@ -433,40 +390,69 @@ const AdminDashboard = () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {activityLogs.map((log, i) => (
-                  <div
-                    key={log.id || i}
-                    className="flex flex-col sm:flex-row sm:items-start gap-2 border-b border-white/5 pb-4 hover:bg-white/[0.03] transition-colors p-2 rounded-lg"
-                  >
-                    <div className="text-blue-300/60 text-[11px] shrink-0 pt-0.5 w-[75px]">
-                      [{formatRelativeTime(log.created_at)}]
-                    </div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                            log.actor_role === "super_admin"
-                              ? "bg-purple-400 text-blue-950"
-                              : log.actor_role === "admin"
-                                ? "bg-emerald-400 text-blue-950"
-                                : "bg-blue-400 text-blue-950"
-                          }`}
-                        >
-                          {log.actor_role || "activity"}
+              <div className="space-y-2">
+                {/* BATASI 5 ITEM BIAR SEJAJAR DENGAN AKSI CEPAT */}
+                {activityLogs.slice(0, 5).map((log, i) => {
+                  const logDate = new Date(log.created_at);
+                  const dateStr = logDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+                  const timeStr = logDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+                  return (
+                    <div
+                      key={log.id || i}
+                      className="flex items-start gap-4 border-b border-white/5 pb-4 pt-3 last:border-0 hover:bg-white/[0.04] transition-colors px-2 rounded-xl"
+                    >
+                      {/* Tanggal & Jam */}
+                      <div className="shrink-0 w-[85px] flex flex-col items-start pt-0.5">
+                        <span className="text-blue-300/60 text-[11px] font-bold">
+                          [{dateStr}]
                         </span>
-                        <span className="text-blue-300 font-bold text-xs">
-                          {log.actor?.full_name || "System"}
+                        <span className="text-blue-400 text-[10px] font-black mt-0.5 tracking-widest">
+                          {timeStr} WIB
                         </span>
                       </div>
-                      <p className="text-blue-100/70 text-xs">{log.action}</p>
+                      
+                      {/* Info & Aksi */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                          <span
+                            className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider shadow-sm ${
+                              log.actor_role === "super_admin"
+                                ? "bg-purple-500 text-white"
+                                : log.actor_role === "admin"
+                                  ? "bg-emerald-500 text-white"
+                                  : "bg-blue-500 text-white"
+                            }`}
+                          >
+                            {log.actor_role?.replace("_", " ") || "ACTIVITY"}
+                          </span>
+                          <span className="text-blue-200 font-bold text-[13px]">
+                            {log.actor?.full_name || "System"}
+                          </span>
+                        </div>
+                        <p className="text-blue-100/70 text-[12px] leading-relaxed">
+                          {log.action}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
-        </div>
+
+          {/* Footer Link */}
+          {!loading && activityLogs.length > 0 && (
+            <div className="px-6 sm:px-8 py-4 border-t border-blue-400/20 bg-white/5 shrink-0">
+              <Link
+                to="/audit-log"
+                className="text-[11px] font-black text-blue-400 hover:text-blue-300 uppercase tracking-widest flex items-center gap-2 transition-colors w-max"
+              >
+                Lihat Semua Log <i className="fa-solid fa-arrow-right" />
+              </Link>
+            </div>
+          )}
+        </div>        
       </div>
     </div>
   );

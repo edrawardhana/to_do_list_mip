@@ -12,7 +12,7 @@ import ShiftStatusBanner from "../ui/ShiftStatusBanner";
 import toast from "react-hot-toast";
 
 const MainLayout = () => {
-  const { user, isAdmin, isSuperAdmin, isDeveloper } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Initialize Firebase + request permission + listen for foreground messages
@@ -88,35 +88,35 @@ const MainLayout = () => {
   }, [user?.id]);
 
   // ================= TEMA BACKGROUND UTAMA UNTUK BACKGROUND NYATU =================
-  // Default Intern: Pake gradasi smooth dari sky blue tipis ke slate cerah biar ga terlalu "susu" + ada aura seger
   let bgClass =
     "bg-gradient-to-tr from-sky-100/40 via-slate-50 to-indigo-50/30 text-slate-900";
 
-  if (isAdmin) {
+  if (isSuperAdmin) {
+    bgClass =
+      "bg-gradient-to-tr from-pink-50 via-white to-rose-50 text-slate-900";
+  } else if (isAdmin) {
     bgClass =
       "bg-gradient-to-tr from-blue-100/30 via-slate-50 to-slate-100 text-slate-900";
-  } else if (isSuperAdmin) {
-    bgClass =
-      "bg-gradient-to-tr from-purple-100/30 via-slate-50 to-slate-100 text-slate-900";
-  } else if (isDeveloper) {
-    bgClass = "bg-[#09090b] text-slate-200";
   }
 
   return (
+    /* Mengunci viewport utama secara penuh tanpa transisi warna yang bikin lag */
     <div
-      className={`h-screen w-full flex font-sans overflow-hidden transition-colors duration-700 ease-in-out ${bgClass}`}
+      className={`fixed inset-0 w-full h-full flex font-sans overflow-hidden select-none ${bgClass}`}
     >
-      {/* Efek Ambient Glow Halus di Background Khusus Intern/Admin agar tidak monoton */}
-      {!isDeveloper && (
-        <div className="absolute top-[-10%] left-[-10%] w-[50rem] h-[50rem] rounded-full bg-sky-400/10 blur-[120px] pointer-events-none z-0"></div>
-      )}
+      {/* Efek Ambient Glow Halus di Background */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50rem] h-[50rem] rounded-full bg-sky-400/10 blur-[120px] pointer-events-none z-0"></div>
 
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-      <div className="flex-1 flex flex-col min-w-0 h-screen relative z-10">
+      
+      {/* Kontainer tengah dijamin rigid mengikuti sisa viewport */}
+      <div className="flex-1 flex flex-col min-w-0 h-full relative z-10 overflow-hidden">
         <TopNav onToggleSidebar={() => setMobileOpen(true)} />
         <ShiftStatusBanner />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
-          <div className="max-w-7xl mx-auto">
+        
+        {/* main adalah satu-satunya area yang boleh scroll secara mandiri di dashboard */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
+          <div className="max-w-7xl mx-auto h-full">
             <Outlet />
           </div>
         </main>

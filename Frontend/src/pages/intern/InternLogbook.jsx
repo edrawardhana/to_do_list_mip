@@ -305,43 +305,48 @@ const InternLogbook = () => {
       </div>
 
       {/* ── TABS + SEARCH ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
-        {/* Scrollable tabs on mobile */}
-        <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide flex-wrap">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-[12px] font-bold transition-all whitespace-nowrap border ${
-                activeTab === tab.id
-                  ? "bg-blue-950 text-white border-blue-900 shadow-md shadow-blue-900/20 scale-105"
-                  : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <span
-                  className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                    activeTab === tab.id ? "bg-white/20 text-white" : tab.badge
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Search */}
-        <div className="relative w-full sm:w-56 shrink-0">
-          <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none" />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6 bg-white p-4 rounded-[1.5rem] border border-slate-200 shadow-sm">
+        <div className="relative flex-1">
+          <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
           <input
             type="text"
-            placeholder="Cari tugas…"
+            placeholder="Cari logbook atau lokasi..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-xs sm:text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all"
           />
+        </div>
+        
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="w-full sm:w-auto bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm font-bold text-slate-600 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+        >
+          <option value="all">Semua Status</option>
+          <option value="pending">Menunggu ACC</option>
+          <option value="approved">Di-ACC</option>
+          <option value="rejected">Perlu Revisi</option>
+        </select>
+      </div>
+
+      {/* ── TABEL DATA RIWAYAT (BISA DI-SWIPE DI HP) ── */}
+      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+        {/* Pembungkus overflow ini yang bikin tabel aman di HP */}
+        <div className="overflow-x-auto scrollbar-thin">
+          {/* min-w-[700px] memaksa tabel gak gepeng walaupun di layar HP */}
+          <table className="w-full text-left border-collapse min-w-[700px]">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <th className="py-4 px-5">Tugas & Lokasi</th>
+                <th className="py-4 px-4 text-center">Status</th>
+                <th className="py-4 px-4">Tanggal</th>
+                <th className="py-4 px-5 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-slate-700 text-sm font-medium">
+              {/* ISI MAP DATA TABEL LU DI SINI SEPERTI BIASA */}
+            </tbody>
+          </table>
         </div>
       </div>
 

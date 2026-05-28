@@ -6,29 +6,22 @@ import toast from "react-hot-toast";
 const Whitebook = () => {
   const { user, isAdmin, isSuperAdmin } = useAuth();
 
-  // HANYA Admin Divisi yang bisa Edit (Superadmin cuma mantau)
+  // ── LOGIC ROLE & PERMISSIONS ─────────────────────────────────────────────
   const canEdit = isAdmin && !isSuperAdmin;
   const canViewAll = isSuperAdmin;
-  const myDivision =
-    user?.division?.name || user?.division_name || "IT Support";
+  const myDivision = user?.division?.name || user?.division_name || "IT Support";
 
-  // ==========================================
-  // LOGIC WARNA TEMA DINAMIS
-  // ==========================================
-  const isPurpleTheme = isSuperAdmin; // Tema Ungu VVIP (Superadmin)
-  const isBlueTheme = isAdmin && !isSuperAdmin; // Tema Biru Admin
-  // Intern / User biasa akan otomatis menggunakan fallback tema Default (Sky/Blue)
+  // ── TEMA WARNA DINAMIS ───────────────────────────────────────────────────
+  const isPinkTheme = isSuperAdmin;           // VVIP Monitoring (Pink Pastel)
+  const isDarkBlueTheme = isAdmin && !isSuperAdmin; // Admin Divisi (Biru Tua)
+  // Intern otomatis pakai fallback default (Sky/Biru Muda)
 
-  // ==========================================
-  // DUMMY DATA
-  // ==========================================
+  // ── STATE ────────────────────────────────────────────────────────────────
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // State UI
-  const [selectedDiv, setSelectedDiv] = useState(
-    canViewAll ? "IT Support" : myDivision,
-  );
+  const [selectedDiv, setSelectedDiv] = useState(canViewAll ? "IT Support" : myDivision);
   const [activeDocId, setActiveDocId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -39,7 +32,20 @@ const Whitebook = () => {
     file_url: "",
   });
 
-  // FETCH DATA SOP DARI BACKEND
+  // ── KUNCI SCROLL BACKGROUND SAAT MODAL TERBUKA ───────────────────────────
+  useEffect(() => {
+    if (isFormOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    // Cleanup saat komponen unmount
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isFormOpen]);
+
+  // ── FETCH DATA ───────────────────────────────────────────────────────────
   const fetchWhitebooks = async () => {
     setIsLoading(true);
     try {
@@ -56,7 +62,7 @@ const Whitebook = () => {
     fetchWhitebooks();
   }, []);
 
-  // Logic Filter
+  // ── FILTER LOGIC ─────────────────────────────────────────────────────────
   const sideMenuItems = useMemo(() => {
     return documents.filter((doc) => {
       const isCorrectCategory = canViewAll
@@ -74,7 +80,7 @@ const Whitebook = () => {
     return sideMenuItems.find((d) => d.id === activeDocId) || sideMenuItems[0];
   }, [activeDocId, sideMenuItems]);
 
-  // --- FUNGSI CRUD ---
+  // ── CRUD HANDLERS (ADMIN ONLY) ───────────────────────────────────────────
   const handleSave = async (e) => {
     e.preventDefault();
     try {
@@ -82,22 +88,14 @@ const Whitebook = () => {
         await api.put(`/whiteboards/${formData.id}`, formData);
         toast.success("SOP berhasil diperbarui!");
       } else {
-        const iconMap = {
-          pdf: "fa-file-pdf",
-          image: "fa-image",
-          link: "fa-link",
-        };
-        const payload = {
-          ...formData,
-          icon: iconMap[formData.type] || "fa-book",
-        };
+        const iconMap = { pdf: "fa-file-pdf", image: "fa-image", link: "fa-link" };
+        const payload = { ...formData, icon: iconMap[formData.type] || "fa-book" };
         await api.post("/whiteboards", payload);
         toast.success("SOP baru berhasil ditambahkan!");
       }
       fetchWhitebooks();
       setIsFormOpen(false);
     } catch (error) {
-      console.error(error);
       toast.error("Gagal menyimpan SOP.");
     }
   };
@@ -126,200 +124,101 @@ const Whitebook = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-2 max-w-7xl mx-auto">
-      {/* ================================================================= */}
-      {/* HERO SECTION - TEMA DINAMIS SESUAI ROLE                           */}
-      {/* ================================================================= */}
-      <div
-        className={`rounded-[2.5rem] text-white shadow-xl relative overflow-hidden flex flex-col border ${
-          isPurpleTheme
-            ? "bg-[#1d1633] border-[#342459]"
-            : isBlueTheme
-              ? "bg-[#242b4d] border-[#303861]"
-              : "bg-gradient-to-br from-sky-400 to-blue-500 border-white/20 shadow-sky-200/50"
-        }`}
+    <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 md:pt-8 px-4 md:px-6 max-w-7xl mx-auto">
+      
+      {/* ══════════════════════════════════════════════════════════════════
+          HERO SECTION (TEMA DINAMIS)
+      ══════════════════════════════════════════════════════════════════ */}
+      <div className={`rounded-[2rem] text-white shadow-xl relative overflow-hidden flex flex-col border transition-colors duration-500
+        ${isPinkTheme ? "bg-gradient-to-br from-pink-300 to-rose-400 border-pink-300 shadow-pink-200/50" : 
+          isDarkBlueTheme ? "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20 shadow-2xl" : 
+          "bg-gradient-to-br from-sky-400 to-blue-500 border-sky-300 shadow-sky-300/50"}`}
       >
-        <div
-          className={`absolute -top-20 -right-20 w-64 h-64 rounded-full blur-3xl pointer-events-none ${
-            isPurpleTheme
-              ? "bg-purple-500/10"
-              : isBlueTheme
-                ? "bg-blue-500/10"
-                : "bg-sky-500/20"
-          }`}
-        ></div>
+        <div className={`absolute -top-20 -right-20 w-64 h-64 rounded-full blur-3xl pointer-events-none 
+          ${isPinkTheme ? "bg-white/40" : isDarkBlueTheme ? "bg-blue-500/20" : "bg-sky-200/30"}`}>
+        </div>
 
-        {/* Bagian Info Hero Atas */}
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 p-8 md:p-10">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 md:p-10">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-4">
-              <div
-                className={`w-12 h-12 text-white rounded-2xl flex items-center justify-center shadow-lg border ${
-                  isPurpleTheme
-                    ? "bg-gradient-to-br from-purple-400 to-purple-600 shadow-purple-500/30 border-purple-400/50"
-                    : isBlueTheme
-                      ? "bg-gradient-to-br from-blue-400 to-blue-600 shadow-blue-500/30 border-blue-400/50"
-                      : "bg-gradient-to-br from-sky-400 to-blue-600 shadow-sky-500/30 border-sky-400/50"
-                }`}
+              <div className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center shadow-lg border backdrop-blur-sm
+                ${isPinkTheme ? "bg-white/20 border-white/40 text-white" : 
+                  isDarkBlueTheme ? "bg-white/10 border-white/20 text-white" : 
+                  "bg-white/20 border-white/30 text-white"}`}
               >
-                <i className="fa-solid fa-book-bookmark text-lg"></i>
+                <i className="fa-solid fa-book-bookmark text-base md:text-lg"></i>
               </div>
-              <span
-                className={`text-[10px] font-black uppercase tracking-widest ${
-                  isPurpleTheme
-                    ? "text-purple-400"
-                    : isBlueTheme
-                      ? "text-blue-400"
-                      : "text-sky-300"
+              <span 
+                className={`text-[10px] font-black uppercase tracking-[0.25em] ${
+                  isPinkTheme 
+                    ? "px-3 py-1.5 rounded-lg border text-pink-50 bg-white/20 border-pink-200" 
+                    : isDarkBlueTheme 
+                      ? "px-3 py-1.5 rounded-lg border text-blue-200 bg-white/10 border-white/10" 
+                      : "text-white drop-shadow-sm" // Khusus Intern: Murni teks doang tanpa border/bg
                 }`}
               >
                 Whitebook System
               </span>
             </div>
 
-            <h1
-              className={`text-3xl md:text-4xl font-black tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-white via-white ${
-                isPurpleTheme
-                  ? "to-purple-200"
-                  : isBlueTheme
-                    ? "to-blue-200"
-                    : "to-sky-200"
-              }`}
-            >
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2 md:mb-3 text-white">
               Knowledge & Guide
             </h1>
+            <p className={`font-medium mb-4 transition-all duration-300
+              ${isPinkTheme 
+                ? "text-xs md:text-sm max-w-lg text-pink-50" 
+                : isDarkBlueTheme 
+                  ? "text-xs md:text-sm max-w-lg text-slate-300" 
+                  : "text-xs md:text-[14px] text-sky-50/90 max-w-xl leading-relaxed border-l-[3px] border-white/30 pl-3 md:pl-4"
+              }`}
+            >
+              {isPinkTheme 
+                ? "Pusat pantauan SOP seluruh divisi." 
+                : isDarkBlueTheme 
+                  ? "Kelola panduan dan aturan divisi Anda." 
+                  : "Baca panduan operasional dan SOP harian Anda di sini."}
+            </p>
 
-            {/* WIDGET ANIMASI */}
-            <div className="flex flex-wrap items-center gap-4 mt-2">
-              <div className="relative w-10 h-10 flex items-center justify-center">
-                <svg
-                  className="w-full h-full transform -rotate-90"
-                  viewBox="0 0 36 36"
-                >
-                  <path
-                    strokeDasharray="100, 100"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="rgba(255,255,255,0.1)"
-                    strokeWidth="3"
-                  />
-                  <path
-                    strokeDasharray="75, 100"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    className={`animate-[spin_3s_linear_infinite] ${isPurpleTheme ? "text-purple-400" : isBlueTheme ? "text-blue-400" : "text-sky-400"}`}
-                  />
-                </svg>
-                <i
-                  className={`fa-solid fa-arrows-rotate absolute animate-pulse text-[10px] ${isPurpleTheme ? "text-purple-400" : isBlueTheme ? "text-blue-400" : "text-sky-400"}`}
-                ></i>
+            {/* WIDGET STATUS KECIL */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className={`px-3 py-1.5 rounded-lg border backdrop-blur-md flex items-center gap-2 shadow-sm
+                ${isPinkTheme ? "bg-white/20 border-white/30" : isDarkBlueTheme ? "bg-blue-900/50 border-blue-700" : "bg-white/20 border-white/30"}`}>
+                <i className="fa-solid fa-database text-[10px]"></i>
+                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest">SOP Synced</span>
               </div>
-
-              <div className="h-6 w-px bg-white/20 rounded-full"></div>
-
-              <div className="flex gap-2">
-                <div
-                  className={`px-3 py-1.5 rounded-lg border backdrop-blur-md flex items-center gap-2 shadow-sm animate-pulse ${
-                    isPurpleTheme
-                      ? "bg-purple-500/20 border-purple-400/30 text-purple-200"
-                      : isBlueTheme
-                        ? "bg-blue-500/20 border-blue-400/30 text-blue-200"
-                        : "bg-sky-500/20 border-sky-400/30 text-sky-200"
-                  }`}
-                >
-                  <i className="fa-solid fa-database text-[10px]"></i>
-                  <span className="text-[9px] font-black uppercase tracking-widest">
-                    SOP Synced
-                  </span>
-                </div>
-                <div
-                  className={`px-3 py-1.5 rounded-lg border backdrop-blur-md flex items-center gap-2 shadow-sm animate-pulse ${
-                    isPurpleTheme
-                      ? "bg-fuchsia-500/20 border-fuchsia-400/30 text-fuchsia-200"
-                      : isBlueTheme
-                        ? "bg-indigo-500/20 border-indigo-400/30 text-indigo-200"
-                        : "bg-emerald-500/20 border-emerald-400/30 text-emerald-200"
-                  }`}
-                  style={{ animationDelay: "500ms" }}
-                >
-                  <i className="fa-solid fa-shield-halved text-[10px]"></i>
-                  <span className="text-[9px] font-black uppercase tracking-widest">
-                    {isPurpleTheme ? "Superadmin Mode" : "Secured"}
-                  </span>
-                </div>
+              <div className={`px-3 py-1.5 rounded-lg border backdrop-blur-md flex items-center gap-2 shadow-sm
+                ${isPinkTheme ? "bg-rose-500/30 border-rose-400/40" : isDarkBlueTheme ? "bg-emerald-500/20 border-emerald-500/30" : "bg-blue-600/30 border-blue-500/40"}`}>
+                <i className={`fa-solid ${isPinkTheme ? "fa-eye" : isDarkBlueTheme ? "fa-shield-halved" : "fa-lock"} text-[10px]`}></i>
+                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest">
+                  {isPinkTheme ? "Superadmin Mode" : isDarkBlueTheme ? "Admin Access" : "Read Only"}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* WIDGET KANAN WHITEBOOK */}
-          <div className="hidden lg:flex items-center gap-4 shrink-0">
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-5 flex flex-col items-center justify-center text-center min-w-[130px] shadow-lg">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 ${
-                  isPurpleTheme
-                    ? "bg-purple-500/20 text-purple-400"
-                    : isBlueTheme
-                      ? "bg-blue-500/20 text-blue-400"
-                      : "bg-sky-500/20 text-sky-400"
-                }`}
-              >
-                <i className="fa-solid fa-file-lines"></i>
+          {/* TOTAL DOKUMEN STATS */}
+          <div className="hidden sm:flex items-center gap-4 shrink-0">
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-4 md:p-5 flex flex-col items-center justify-center text-center min-w-[120px] shadow-lg">
+              <div className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center mb-2 md:mb-3">
+                <i className="fa-solid fa-file-lines text-lg"></i>
               </div>
-              <span className="text-2xl font-black leading-none mb-1 text-white">
+              <span className="text-2xl md:text-3xl font-black leading-none mb-1 text-white">
                 {documents?.length || 0}
               </span>
-              <span className="text-[9px] uppercase tracking-widest font-bold text-slate-400">
+              <span className="text-[9px] md:text-[10px] uppercase tracking-widest font-bold text-white/80">
                 Total SOP
-              </span>
-            </div>
-
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-5 flex flex-col items-center justify-center text-center min-w-[130px] shadow-lg">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 ${
-                  isPurpleTheme
-                    ? "bg-fuchsia-500/20 text-fuchsia-400"
-                    : "bg-emerald-500/20 text-emerald-400"
-                }`}
-              >
-                <i
-                  className={`fa-solid ${isPurpleTheme ? "fa-eye" : "fa-shield-check"}`}
-                ></i>
-              </div>
-              <span className="text-sm font-black leading-none mb-1 mt-1 text-white">
-                {isPurpleTheme ? "Read-Only" : "Up to date"}
-              </span>
-              <span className="text-[9px] uppercase tracking-widest font-bold mt-1 text-slate-400">
-                {isPurpleTheme ? "Akses Terkunci" : "Status Sistem"}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Bagian Bawah Hero: Switcher Divisi Khusus VVIP */}
+        {/* DROPDOWN KHUSUS SUPERADMIN */}
         {canViewAll && (
-          <div
-            className={`relative z-10 border-t px-8 py-5 flex flex-col sm:flex-row justify-between items-center gap-4 backdrop-blur-xl ${
-              isPurpleTheme
-                ? "bg-[#18112a] border-[#342459]"
-                : isBlueTheme
-                  ? "bg-[#1e2442] border-[#303861]"
-                  : "bg-white/5 border-white/10"
-            }`}
-          >
-            <label
-              className={`text-[11px] font-black uppercase tracking-widest flex items-center gap-2 ${
-                isPurpleTheme ? "text-purple-300" : "text-blue-300"
-              }`}
-            >
-              <i
-                className={`fa-solid fa-layer-group ${isPurpleTheme ? "text-purple-400" : "text-blue-400"}`}
-              ></i>{" "}
-              Pantau SOP Divisi:
+          <div className="relative z-10 border-t border-white/20 px-6 py-4 md:px-8 md:py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 backdrop-blur-xl bg-black/10">
+            <label className="text-[10px] md:text-[11px] font-black uppercase tracking-widest flex items-center gap-2 text-white">
+              <i className="fa-solid fa-layer-group text-white/80"></i> Pantau Divisi:
             </label>
-            <div className="relative w-full sm:w-72">
+            <div className="relative w-full sm:w-64">
               <select
                 value={selectedDiv}
                 onChange={(e) => {
@@ -327,241 +226,195 @@ const Whitebook = () => {
                   setActiveDocId(null);
                   setSearchQuery("");
                 }}
-                className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 appearance-none cursor-pointer shadow-inner transition-all border ${
-                  isPurpleTheme
-                    ? "bg-[#1d1633] border-[#342459] text-white focus:ring-purple-400"
-                    : isBlueTheme
-                      ? "bg-[#242b4d] border-[#303861] text-white focus:ring-blue-400"
-                      : "bg-blue-900/50 border-white/10 text-white focus:ring-blue-400"
-                }`}
+                className="w-full rounded-xl px-4 py-2.5 text-xs md:text-sm font-bold outline-none appearance-none cursor-pointer shadow-inner transition-all bg-white/20 border border-white/30 text-white focus:ring-2 focus:ring-white/50"
               >
-                <option className="text-slate-800" value="IT Support">
-                  IT Support
-                </option>
-                <option className="text-slate-800" value="Multimedia">
-                  Multimedia
-                </option>
-                <option className="text-slate-800" value="Public Relation">
-                  Public Relation
-                </option>
+                <option className="text-slate-800" value="IT Support">IT Support</option>
+                <option className="text-slate-800" value="Multimedia">Multimedia</option>
+                <option className="text-slate-800" value="Public Relation">Public Relation</option>
               </select>
-              <i
-                className={`fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs pointer-events-none ${
-                  isPurpleTheme ? "text-purple-300" : "text-blue-300"
-                }`}
-              ></i>
+              <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-white pointer-events-none"></i>
             </div>
           </div>
         )}
       </div>
 
-      {/* ================================================================= */}
-      {/* MAIN LAYOUT                                                       */}
-      {/* ================================================================= */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* SIDEBAR DAFTAR ISI */}
-        <aside className="w-full lg:w-[320px] flex flex-col gap-4">
-          <div className="rounded-[2.5rem] border shadow-sm overflow-hidden flex flex-col h-full lg:max-h-[750px] bg-white border-slate-200">
-            <div className="p-6 border-b flex justify-between items-center shrink-0 bg-slate-50/50 border-slate-100">
-              <h3 className="font-black text-xs tracking-widest uppercase font-sans text-slate-800">
+      {/* ══════════════════════════════════════════════════════════════════
+          MAIN LAYOUT
+      ══════════════════════════════════════════════════════════════════ */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        
+        {/* ── KIRI: SIDEBAR DAFTAR ISI ── */}
+        <aside className="w-full lg:w-[320px] flex flex-col gap-4 shrink-0">
+          <div className="rounded-[2rem] border shadow-sm overflow-hidden flex flex-col bg-white border-slate-200 lg:max-h-[750px]">
+            <div className="p-5 md:p-6 border-b flex justify-between items-center shrink-0 bg-slate-50/50 border-slate-100">
+              <h3 className="font-black text-xs md:text-sm tracking-widest uppercase text-slate-800">
                 Daftar Isi
               </h3>
               {canEdit && (
                 <button
                   onClick={openCreateForm}
-                  className={`w-8 h-8 rounded-xl text-white flex items-center justify-center shadow-md transition-all ${
-                    isPurpleTheme
-                      ? "bg-purple-600 hover:bg-purple-700"
-                      : "bg-blue-600 hover:bg-blue-700"
-                  }`}
+                  className="w-8 h-8 md:w-9 md:h-9 rounded-xl text-white flex items-center justify-center shadow-md transition-all bg-blue-600 hover:bg-blue-700 active:scale-95"
+                  title="Tambah SOP Baru"
                 >
-                  <i className="fa-solid fa-plus text-[10px]"></i>
+                  <i className="fa-solid fa-plus text-xs"></i>
                 </button>
               )}
             </div>
 
-            <div className="px-5 pt-5 shrink-0">
+            <div className="px-4 md:px-5 pt-4 md:pt-5 shrink-0">
               <div className="relative group">
-                <i
-                  className={`fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-xs transition-colors ${
-                    isPurpleTheme
-                      ? "text-slate-400 group-focus-within:text-purple-500"
-                      : "text-slate-400 group-focus-within:text-blue-500"
-                  }`}
-                ></i>
+                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari panduan..."
-                  className="w-full border rounded-xl pl-10 pr-4 py-3 text-xs font-bold outline-none focus:ring-2 bg-slate-50 border-slate-200 text-slate-700 placeholder:text-slate-400 focus:ring-purple-500/20"
+                  className="w-full border rounded-xl pl-10 pr-4 py-2.5 md:py-3 text-xs md:text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50 border-slate-200 text-slate-700 placeholder:text-slate-400 transition-all"
                 />
               </div>
             </div>
 
-            <div className="p-3 mt-2 space-y-1.5 overflow-y-auto flex-1 custom-scrollbar min-h-[300px]">
+            <div className="p-3 mt-2 space-y-1.5 overflow-y-auto custom-scrollbar max-h-[250px] sm:max-h-[350px] lg:max-h-none lg:flex-1">
               {sideMenuItems.length === 0 ? (
-                <div className="text-center py-10">
-                  <i className="fa-solid fa-folder-open text-3xl mb-2 text-slate-200"></i>
-                  <p className="text-xs font-bold text-slate-400">
-                    Belum ada SOP.
-                  </p>
+                <div className="text-center py-8 md:py-12">
+                  <i className="fa-solid fa-folder-open text-3xl md:text-4xl mb-3 text-slate-200"></i>
+                  <p className="text-xs font-bold text-slate-400">Belum ada dokumen.</p>
                 </div>
               ) : (
-                sideMenuItems.map((doc) => (
-                  <button
-                    key={doc.id}
-                    onClick={() => setActiveDocId(doc.id)}
-                    className={`w-full text-left p-4 rounded-2xl transition-all border ${
-                      activeDoc?.id === doc.id
-                        ? isPurpleTheme
-                          ? "bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-600/20 translate-x-1"
-                          : "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20 translate-x-1"
-                        : "bg-white border-transparent text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <i
-                        className={`fa-solid ${doc.icon} text-sm ${
-                          activeDoc?.id === doc.id
-                            ? "text-white"
-                            : isPurpleTheme
-                              ? "text-purple-500"
-                              : "text-blue-500"
-                        }`}
-                      ></i>
-                      <div>
-                        <p
-                          className={`text-[12px] font-black leading-tight line-clamp-1 ${activeDoc?.id === doc.id ? "text-white" : "text-slate-700"}`}
-                        >
-                          {doc.title}
-                        </p>
-                        <p
-                          className={`text-[9px] mt-1 font-black uppercase tracking-widest ${
-                            activeDoc?.id === doc.id
-                              ? isPurpleTheme
-                                ? "text-purple-200"
-                                : "text-blue-200"
-                              : "text-slate-400"
-                          }`}
-                        >
-                          {doc.category}
-                        </p>
+                sideMenuItems.map((doc) => {
+                  const isActive = activeDoc?.id === doc.id;
+                  const activeClass = isPinkTheme 
+                    ? "bg-pink-500 border-pink-500 text-white shadow-md shadow-pink-500/20 translate-x-1" 
+                    : isDarkBlueTheme
+                    ? "bg-blue-800 border-blue-800 text-white shadow-md shadow-blue-800/20 translate-x-1"
+                    : "bg-blue-500 border-blue-500 text-white shadow-md shadow-blue-500/20 translate-x-1";
+                  
+                  return (
+                    <button
+                      key={doc.id}
+                      onClick={() => setActiveDocId(doc.id)}
+                      className={`w-full text-left p-3 md:p-4 rounded-2xl transition-all duration-300 border ${
+                        isActive ? activeClass : "bg-white border-transparent text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <i className={`fa-solid ${doc.icon} text-sm md:text-base ${
+                          isActive ? "text-white" : isPinkTheme ? "text-pink-400" : isDarkBlueTheme ? "text-blue-800" : "text-blue-500"
+                        }`}></i>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-xs md:text-[13px] font-black leading-tight truncate ${isActive ? "text-white" : "text-slate-800"}`}>
+                            {doc.title}
+                          </p>
+                          <p className={`text-[9px] md:text-[10px] mt-1 font-black uppercase tracking-widest ${
+                            isActive ? "text-white/80" : "text-slate-400"
+                          }`}>
+                            {doc.category}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                ))
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>
         </aside>
 
-        {/* DETAIL CONTENT */}
-        <main className="flex-1 rounded-[3rem] border shadow-sm flex flex-col overflow-hidden min-h-[600px] lg:max-h-[750px] bg-white border-slate-200">
+        {/* ── KANAN: KONTEN DETAIL SOP ── */}
+        <main className="flex-1 w-full rounded-[2rem] border shadow-sm flex flex-col overflow-hidden bg-white border-slate-200 min-h-[500px] lg:h-[750px]">
           {activeDoc ? (
             <>
-              {/* HEADER BAGIAN DETAIL SOP */}
-              <div className="p-8 md:p-12 pb-5 border-b shrink-0 bg-slate-50/30 border-slate-100">
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
-                  <div className="flex items-center gap-5">
-                    <div
-                      className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-xl shrink-0 ${
-                        isPurpleTheme
-                          ? "bg-purple-600 text-white shadow-purple-600/20"
-                          : "bg-blue-600 text-white shadow-blue-600/20"
-                      }`}
-                    >
-                      <i className={`fa-solid ${activeDoc.icon}`}></i>
-                    </div>
-                    <div>
-                      <h2 className="text-3xl font-black tracking-tighter leading-none mb-2 text-slate-800">
-                        {activeDoc.title}
-                      </h2>
-                      <span
-                        className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-widest border ${
-                          isPurpleTheme
-                            ? "bg-purple-100 text-purple-600 border-purple-200"
-                            : "bg-blue-100 text-blue-600 border-blue-200"
-                        }`}
-                      >
+              {/* Header Konten */}
+              <div className="p-5 md:p-8 border-b shrink-0 bg-slate-50/50 border-slate-100 flex flex-col md:flex-row md:items-start justify-between gap-4">
+                <div className="flex items-start md:items-center gap-4">
+                  <div className={`w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center text-2xl md:text-3xl shadow-lg shrink-0 ${
+                    isPinkTheme ? "bg-pink-500 text-white shadow-pink-500/20" : 
+                    isDarkBlueTheme ? "bg-blue-800 text-white shadow-blue-800/20" : 
+                    "bg-blue-500 text-white shadow-blue-500/20"
+                  }`}>
+                    <i className={`fa-solid ${activeDoc.icon}`}></i>
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-xl md:text-3xl font-black tracking-tight leading-tight mb-2 text-slate-800 pr-2">
+                      {activeDoc.title}
+                    </h2>
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                      <span className={`text-[9px] md:text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-widest border ${
+                        isPinkTheme ? "bg-pink-50 text-pink-600 border-pink-200" : 
+                        isDarkBlueTheme ? "bg-blue-50 text-blue-800 border-blue-200" : 
+                        "bg-blue-50 text-blue-600 border-blue-200"
+                      }`}>
                         Verified SOP
                       </span>
+                      <p className="text-[10px] md:text-[11px] font-bold text-slate-500 flex items-center gap-1.5 border-l border-slate-300 pl-2 md:pl-3">
+                        <i className="fa-regular fa-calendar-alt"></i> {activeDoc.date || new Date().toLocaleDateString("id-ID")}
+                      </p>
                     </div>
                   </div>
-
-                  {canEdit && (
-                    <div className="flex items-center gap-2 shrink-0 mt-2 md:mt-0">
-                      <button
-                        onClick={() => openEditForm(activeDoc)}
-                        className="px-4 py-2.5 border rounded-xl text-[11px] font-black transition-colors shadow-sm flex items-center gap-2 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
-                      >
-                        <i className="fa-solid fa-pen-to-square"></i> EDIT
-                      </button>
-                      <button
-                        onClick={() => handleDelete(activeDoc.id)}
-                        className="px-4 py-2.5 border rounded-xl text-[11px] font-black transition-colors shadow-sm flex items-center gap-2 bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100"
-                      >
-                        <i className="fa-solid fa-trash"></i> HAPUS
-                      </button>
-                    </div>
-                  )}
                 </div>
 
-                <div className="flex items-center gap-4 text-slate-400">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-[10px] bg-slate-800 text-white">
-                      {activeDoc.author.charAt(0)}
-                    </div>
-                    <p className="text-[11px] font-bold text-slate-600">
-                      {activeDoc.author}
-                    </p>
+                {/* Tombol Aksi (Hanya tampil jika canEdit = True) */}
+                {canEdit && (
+                  <div className="flex items-center gap-2 shrink-0 self-end md:self-auto w-full md:w-auto mt-2 md:mt-0">
+                    <button
+                      onClick={() => openEditForm(activeDoc)}
+                      className="flex-1 md:flex-none justify-center px-4 py-2 border rounded-xl text-[10px] md:text-[11px] font-black transition-colors shadow-sm flex items-center gap-1.5 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
+                    >
+                      <i className="fa-solid fa-pen-to-square"></i> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(activeDoc.id)}
+                      className="flex-1 md:flex-none justify-center px-4 py-2 border rounded-xl text-[10px] md:text-[11px] font-black transition-colors shadow-sm flex items-center gap-1.5 bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100"
+                    >
+                      <i className="fa-solid fa-trash"></i> Hapus
+                    </button>
                   </div>
-                  <div className="h-4 w-[1px] bg-slate-200"></div>
-                  <p className="text-[11px] font-bold uppercase tracking-widest">
-                    <i className="fa-regular fa-calendar-alt mr-1"></i>{" "}
-                    {activeDoc.date}
-                  </p>
-                </div>
+                )}
               </div>
 
-              {/* ISI KONTEN */}
-              <div className="px-8 py-5 md:px-12 md:py-8 flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+              {/* Area Tampil Dokumen */}
+              <div className="p-4 md:p-8 flex-1 overflow-y-auto custom-scrollbar bg-slate-50/20">
                 {activeDoc.type === "image" && (
                   <img
                     src={activeDoc.file_url}
                     alt={activeDoc.title}
-                    className="max-w-full rounded-xl border border-slate-200 shadow-sm mx-auto"
+                    className="max-w-full h-auto rounded-xl border border-slate-200 shadow-sm mx-auto"
                   />
                 )}
                 {activeDoc.type === "pdf" && (
                   <iframe
                     src={activeDoc.file_url}
-                    className="w-full h-[600px] rounded-xl border border-slate-200 shadow-sm"
+                    className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-xl border border-slate-200 shadow-sm bg-white"
                   ></iframe>
                 )}
                 {(!activeDoc.type || activeDoc.type === "link") && (
-                  <div className="text-center py-12 m-auto">
-                    <i className="fa-solid fa-link text-5xl mb-4 text-slate-200"></i>
-                    <p className="mb-6 text-sm font-medium text-slate-500">
-                      Dokumen ini berupa tautan eksternal (Google Drive / Web).
+                  <div className="text-center py-12 md:py-20 max-w-sm mx-auto">
+                    <div className="w-20 h-20 md:w-24 md:h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-5">
+                      <i className="fa-solid fa-arrow-up-right-from-square text-3xl md:text-4xl text-slate-300"></i>
+                    </div>
+                    <h3 className="text-base md:text-lg font-black text-slate-800 mb-2">Tautan Eksternal</h3>
+                    <p className="mb-6 text-xs md:text-sm font-medium text-slate-500 leading-relaxed">
+                      Dokumen SOP ini dialihkan ke layanan eksternal (Google Drive / Notion / Web).
                     </p>
                     <a
                       href={activeDoc.file_url}
                       target="_blank"
                       rel="noreferrer"
-                      className={`px-6 py-3 text-white rounded-xl font-bold shadow-md transition-colors ${isPurpleTheme ? "bg-purple-600 hover:bg-purple-700" : "bg-blue-600 hover:bg-blue-700"}`}
+                      className={`inline-flex items-center justify-center px-6 py-3 md:py-3.5 text-white rounded-xl text-xs md:text-sm font-black tracking-wide shadow-md hover:-translate-y-0.5 transition-all w-full sm:w-auto
+                        ${isPinkTheme ? "bg-pink-500 hover:bg-pink-600 shadow-pink-500/30" : 
+                          isDarkBlueTheme ? "bg-blue-800 hover:bg-blue-900 shadow-blue-800/30" : 
+                          "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30"}`}
                     >
-                      Buka Tautan{" "}
-                      <i className="fa-solid fa-arrow-up-right-from-square ml-2"></i>
+                      Buka Dokumen Sekarang
                     </a>
                   </div>
                 )}
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
-              <i className="fa-solid fa-book-open text-6xl mb-4 text-slate-100"></i>
-              <h3 className="font-bold uppercase tracking-widest text-xs text-slate-400">
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 md:p-12 opacity-50">
+              <i className="fa-solid fa-book-open text-5xl md:text-6xl mb-4 text-slate-300"></i>
+              <h3 className="font-bold uppercase tracking-widest text-xs md:text-sm text-slate-400">
                 Pilih dokumen untuk dibaca
               </h3>
             </div>
@@ -569,76 +422,74 @@ const Whitebook = () => {
         </main>
       </div>
 
-      {/* MODAL FORM */}
+      {/* ══════════════════════════════════════════════════════════════════
+          MODAL FORM (CRUD ADMIN) DENGAN Z-INDEX MAKSIMAL
+      ══════════════════════════════════════════════════════════════════ */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 bg-white">
-            <h2 className="text-xl font-black mb-6 text-slate-800">
-              {formData.id ? "Edit SOP" : "Tambah SOP Baru"}
+        <div 
+          className="fixed top-0 left-0 w-[100vw] h-[100vh] z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-hidden"
+          style={{ margin: 0, padding: 0 }} // Reset margin bawaan parent
+        >
+          <div className="w-full max-w-lg rounded-[2rem] p-6 md:p-8 shadow-2xl animate-in zoom-in-95 bg-white border border-slate-100">
+            <h2 className="text-lg md:text-xl font-black mb-6 text-slate-800 flex items-center gap-2">
+              <i className="fa-solid fa-pen-nib text-blue-500"></i> {formData.id ? "Edit SOP" : "Tambah SOP Baru"}
             </h2>
 
-            <form onSubmit={handleSave} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-4 md:space-y-5">
               <div>
-                <label className="text-xs font-bold uppercase tracking-widest mb-1 block text-slate-500">
+                <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest mb-1.5 block text-slate-500">
                   Judul SOP
                 </label>
                 <input
                   type="text"
                   required
                   value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  className="w-full p-3 rounded-xl border outline-none text-sm bg-slate-50 border-slate-200"
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="Contoh: Prosedur Absensi"
+                  className="w-full p-3 md:p-3.5 rounded-xl border outline-none text-sm font-medium focus:ring-2 focus:ring-blue-500/20 bg-slate-50 border-slate-200"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase tracking-widest mb-1 block text-slate-500">
+                <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest mb-1.5 block text-slate-500">
                   Tipe Format
                 </label>
                 <select
                   value={formData.type}
-                  onChange={(e) =>
-                    setFormData({ ...formData, type: e.target.value })
-                  }
-                  className="w-full p-3 rounded-xl border outline-none text-sm cursor-pointer bg-slate-50 border-slate-200"
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  className="w-full p-3 md:p-3.5 rounded-xl border outline-none text-sm font-medium focus:ring-2 focus:ring-blue-500/20 bg-slate-50 border-slate-200 cursor-pointer"
                 >
-                  <option value="link">
-                    Link Eksternal (Google Drive / Notion)
-                  </option>
-                  <option value="pdf">PDF Dokumen</option>
-                  <option value="image">Gambar (JPEG/PNG)</option>
+                  <option value="link">Tautan Web (G-Drive, Notion, dll)</option>
+                  <option value="pdf">Dokumen PDF (.pdf)</option>
+                  <option value="image">Gambar (.jpg / .png)</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase tracking-widest mb-1 block text-slate-500">
-                  URL File / Tautan
+                <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest mb-1.5 block text-slate-500">
+                  URL / Tautan File
                 </label>
                 <input
                   type="url"
                   required
                   value={formData.file_url}
-                  onChange={(e) =>
-                    setFormData({ ...formData, file_url: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, file_url: e.target.value })}
                   placeholder="https://..."
-                  className="w-full p-3 rounded-xl border outline-none text-sm bg-slate-50 border-slate-200"
+                  className="w-full p-3 md:p-3.5 rounded-xl border outline-none text-sm font-medium focus:ring-2 focus:ring-blue-500/20 bg-slate-50 border-slate-200"
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="flex-1 py-3 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  className="flex-1 py-3 md:py-3.5 rounded-xl text-xs md:text-sm font-black uppercase tracking-wide transition-all bg-slate-100 text-slate-500 hover:bg-slate-200"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className={`flex-1 py-3 text-white rounded-xl font-bold shadow-md transition-all ${isPurpleTheme ? "bg-purple-600 hover:bg-purple-500" : "bg-blue-600 hover:bg-blue-500"}`}
+                  className={`flex-1 py-3 md:py-3.5 rounded-xl text-xs md:text-sm font-black uppercase tracking-wide text-white shadow-md transition-all ${isPinkTheme ? "bg-pink-500 hover:bg-pink-600" : isDarkBlueTheme ? "bg-blue-800 hover:bg-blue-900" : "bg-blue-600 hover:bg-blue-700"}`}
                 >
                   Simpan
                 </button>
