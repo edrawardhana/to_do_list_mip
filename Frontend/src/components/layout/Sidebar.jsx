@@ -57,7 +57,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         path: "/approval",
         label: "Approval Center",
         icon: "fa-check-to-slot",
-        roles: ["admin"],
+        roles: ["admin", "superadmin"],
       },
       {
         path: "/manage-intern",

@@ -26,6 +26,8 @@ class User extends Authenticatable implements JWTSubject
         'is_verified',
         'is_locked',
         'avatar_url',
+        'signature_url',
+        'stamp_url',
         'phone_number',
         'fcm_token',
         'internship_batch', // Batch/angkatan magang
@@ -125,5 +127,49 @@ class User extends Authenticatable implements JWTSubject
     public function auditLogsAsTarget()
     {
         return $this->hasMany(AuditLog::class, 'target_user_id');
+    }
+
+    // ==========================================
+    // Accessors for Private Storage Pre-signing
+    // ==========================================
+
+    private function getSignedUrl($url)
+    {
+        if (!$url) return null;
+
+        $baseUrl = config('filesystems.disks.supabase_avatars.url');
+        if (!$baseUrl || !str_contains($url, $baseUrl)) {
+            return $url;
+        }
+
+        $bucket = config('filesystems.disks.supabase_avatars.bucket', 'avatars');
+        $bucketSegment = '/' . $bucket . '/';
+        $pos = strpos($url, $bucketSegment);
+        
+        if ($pos !== false) {
+            $storagePath = substr($url, $pos + strlen($bucketSegment));
+            try {
+                return \Illuminate\Support\Facades\Storage::disk('supabase_avatars')->temporaryUrl($storagePath, now()->addMinutes(120));
+            } catch (\Exception $e) {
+                return $url;
+            }
+        }
+
+        return $url;
+    }
+
+    public function getAvatarUrlAttribute($value)
+    {
+        return $this->getSignedUrl($value);
+    }
+
+    public function getSignatureUrlAttribute($value)
+    {
+        return $this->getSignedUrl($value);
+    }
+
+    public function getStampUrlAttribute($value)
+    {
+        return $this->getSignedUrl($value);
     }
 }

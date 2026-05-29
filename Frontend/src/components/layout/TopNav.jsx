@@ -5,7 +5,7 @@ import api from "../../api/axios";
 import toast from "react-hot-toast";
 
 const TopNav = ({ onToggleSidebar }) => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, setUser } = useAuth();
   const location = useLocation();
 
   const [now, setNow] = useState(new Date());
@@ -27,9 +27,92 @@ const TopNav = ({ onToggleSidebar }) => {
     }
   }, [user, isProfileOpen]);
 
+  useEffect(() => {
+    const pendingToast = sessionStorage.getItem("pending_toast");
+    if (pendingToast) {
+      toast.success(pendingToast);
+      sessionStorage.removeItem("pending_toast");
+    }
+  }, []);
+
   const handleAvatarChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setAvatarFile(e.target.files[0]);
+    }
+  };
+
+  const [signatureLoading, setSignatureLoading] = useState(false);
+  const [stampLoading, setStampLoading] = useState(false);
+
+  const handleSignatureChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "image/png") {
+      return toast.error("Format file harus PNG!");
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      return toast.error("Ukuran file maksimal 2 MB brok!");
+    }
+
+    const formData = new FormData();
+    formData.append("signature", file);
+
+    setSignatureLoading(true);
+    const toastId = toast.loading("Mengunggah tanda tangan...");
+
+    try {
+      const res = await api.post("/profiles/signature", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (res.data?.signature_url) {
+        const updatedUser = { ...user, signature_url: res.data.signature_url };
+        localStorage.setItem("user_data", JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        toast.success("Tanda tangan berhasil diupdate! ✍️", { id: toastId });
+      }
+    } catch (err) {
+      toast.error("Gagal mengunggah tanda tangan.", { id: toastId });
+    } finally {
+      setSignatureLoading(false);
+    }
+  };
+
+  const handleStampChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "image/png") {
+      return toast.error("Format file harus PNG!");
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      return toast.error("Ukuran file maksimal 2 MB brok!");
+    }
+
+    const formData = new FormData();
+    formData.append("stamp", file);
+
+    setStampLoading(true);
+    const toastId = toast.loading("Mengunggah stempel...");
+
+    try {
+      const res = await api.post("/profiles/stamp", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (res.data?.stamp_url) {
+        const updatedUser = { ...user, stamp_url: res.data.stamp_url };
+        localStorage.setItem("user_data", JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        toast.success("Stempel berhasil diupdate! 🏵️", { id: toastId });
+      }
+    } catch (err) {
+      toast.error("Gagal mengunggah stempel.", { id: toastId });
+    } finally {
+      setStampLoading(false);
     }
   };
 
@@ -556,6 +639,58 @@ const TopNav = ({ onToggleSidebar }) => {
                     className={`w-full text-xs opacity-90 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 ${fileBtnStyle} file:font-semibold rounded-xl border ${inputBorder} ${inputBg} transition-all`}
                   />
                 </div>
+                 {/* SIGNATURE (TTD) UPLOAD */}
+                <div>
+                  <label className={`block text-[10px] font-bold uppercase mb-1.5 ml-1 ${modalTextMuted}`}>
+                    Tanda Tangan Digital (TTD)
+                  </label>
+                  <div className={`flex items-center gap-3 p-3 rounded-2xl border ${isSuperAdmin ? 'bg-pink-50/20 border-pink-200' : (isAdmin ? 'bg-blue-950/20 border-blue-900/40' : 'bg-slate-50 border-slate-200')}`}>
+                    <div className={`w-16 h-10 bg-white border ${isSuperAdmin ? 'border-pink-200' : (isAdmin ? 'border-blue-900/30' : 'border-slate-200')} rounded-lg overflow-hidden flex items-center justify-center shrink-0 shadow-sm`}>
+                      {user?.signature_url ? (
+                        <img src={user.signature_url} alt="TTD" className="max-h-full max-w-full object-contain" />
+                      ) : (
+                        <span className="text-[8px] text-slate-300 font-bold uppercase italic">Kosong</span>
+                      )}
+                    </div>
+                    <label className={`flex-1 flex justify-center py-2 px-3 border rounded-xl text-xs font-bold transition-all cursor-pointer text-center select-none active:scale-95 ${isSuperAdmin ? 'border-pink-200 text-pink-600 bg-white hover:bg-pink-50' : (isAdmin ? 'border-blue-800/30 text-blue-100 bg-blue-900/20 hover:bg-blue-900/40' : 'border-slate-200 text-slate-700 bg-white hover:bg-slate-50')}`}>
+                      {signatureLoading ? "Mengunggah..." : "Pilih TTD"}
+                      <input
+                        type="file"
+                        accept="image/png"
+                        onChange={handleSignatureChange}
+                        disabled={signatureLoading}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+                {/* STAMP (STEMPEL) UPLOAD (SUPERADMIN ONLY) */}
+                {isSuperAdmin && (
+                  <div>
+                    <label className={`block text-[10px] font-bold uppercase mb-1.5 ml-1 ${modalTextMuted}`}>
+                      Stempel SPV (Superadmin)
+                    </label>
+                    <div className={`flex items-center gap-3 p-3 rounded-2xl border ${isSuperAdmin ? 'bg-pink-50/20 border-pink-200' : (isAdmin ? 'bg-blue-950/20 border-blue-900/40' : 'bg-slate-50 border-slate-200')}`}>
+                      <div className={`w-16 h-10 bg-white border ${isSuperAdmin ? 'border-pink-200' : (isAdmin ? 'border-blue-900/30' : 'border-slate-200')} rounded-lg overflow-hidden flex items-center justify-center shrink-0 shadow-sm`}>
+                        {user?.stamp_url ? (
+                          <img src={user.stamp_url} alt="Stempel" className="max-h-full max-w-full object-contain" />
+                        ) : (
+                          <span className="text-[8px] text-slate-300 font-bold uppercase italic">Kosong</span>
+                        )}
+                      </div>
+                      <label className={`flex-1 flex justify-center py-2 px-3 border rounded-xl text-xs font-bold transition-all cursor-pointer text-center select-none active:scale-95 ${isSuperAdmin ? 'border-pink-200 text-pink-600 bg-white hover:bg-pink-50' : (isAdmin ? 'border-blue-800/30 text-blue-100 bg-blue-900/20 hover:bg-blue-900/40' : 'border-slate-200 text-slate-700 bg-white hover:bg-slate-50')}`}>
+                        {stampLoading ? "Mengunggah..." : "Pilih Stempel"}
+                        <input
+                          type="file"
+                          accept="image/png"
+                          onChange={handleStampChange}
+                          disabled={stampLoading}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
                 <button
                   onClick={handleSaveProfile}
                   disabled={isSaving}

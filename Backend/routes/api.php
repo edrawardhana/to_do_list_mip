@@ -37,6 +37,7 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:api')->group(function () {
 
     // Exception Routes (Sakit, Izin, Tugas Luar, Swap Shift)
+    Route::post('/exceptions/{id}/resend-email', [ExceptionController::class, 'resendEmail']);
     Route::apiResource('exceptions', ExceptionController::class)->except(['show']);
 
     // Daily Task (Logbook) Routes
@@ -58,6 +59,8 @@ Route::middleware('auth:api')->group(function () {
 
     // Employee/Profile Management
     Route::post('/profiles/avatar', [ProfileController::class, 'uploadAvatar']);
+    Route::post('/profiles/signature', [ProfileController::class, 'uploadSignature']);
+    Route::post('/profiles/stamp', [ProfileController::class, 'uploadStamp']);
     Route::post('/profiles/fcm-token', [ProfileController::class, 'updateFcmToken']);
     Route::get('/profiles/template-csv', [ProfileController::class, 'downloadTemplateCsv']); // ← Download template CSV
     Route::post('/profiles/download-user-detail', [ProfileController::class, 'downloadUserDetail']); // ← Download detail user baru

@@ -7,6 +7,8 @@ const Settings = () => {
   const { user, updateProfile } = useAuth();
   const [nickname, setNickname] = useState(user?.nickname || "");
   const [avatarLoading, setAvatarLoading] = useState(false);
+  const [signatureLoading, setSignatureLoading] = useState(false);
+  const [stampLoading, setStampLoading] = useState(false);
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
@@ -28,13 +30,79 @@ const Settings = () => {
       });
 
       if (res.data?.avatar_url) {
-        toast.success("Avatar berhasil diupdate! 🔥", { id: toastId });
+        const updatedUser = { ...user, avatar_url: res.data.avatar_url };
+        localStorage.setItem("user_data", JSON.stringify(updatedUser));
+        sessionStorage.setItem("pending_toast", "Avatar berhasil diupdate! 🔥");
         window.location.reload();
       }
     } catch (err) {
       toast.error("Gagal mengunggah avatar, coba lagi.", { id: toastId });
     } finally {
       setAvatarLoading(false);
+    }
+  };
+
+  const handleSignatureChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      return toast.error("Ukuran file maksimal 2 MB brok!");
+    }
+
+    const formData = new FormData();
+    formData.append("signature", file);
+
+    setSignatureLoading(true);
+    const toastId = toast.loading("Mengunggah tanda tangan...");
+
+    try {
+      const res = await api.post("/profiles/signature", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (res.data?.signature_url) {
+        const updatedUser = { ...user, signature_url: res.data.signature_url };
+        localStorage.setItem("user_data", JSON.stringify(updatedUser));
+        sessionStorage.setItem("pending_toast", "Tanda tangan berhasil diupdate! ✍️");
+        window.location.reload();
+      }
+    } catch (err) {
+      toast.error("Gagal mengunggah tanda tangan.", { id: toastId });
+    } finally {
+      setSignatureLoading(false);
+    }
+  };
+
+  const handleStampChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      return toast.error("Ukuran file maksimal 2 MB brok!");
+    }
+
+    const formData = new FormData();
+    formData.append("stamp", file);
+
+    setStampLoading(true);
+    const toastId = toast.loading("Mengunggah stempel...");
+
+    try {
+      const res = await api.post("/profiles/stamp", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (res.data?.stamp_url) {
+        const updatedUser = { ...user, stamp_url: res.data.stamp_url };
+        localStorage.setItem("user_data", JSON.stringify(updatedUser));
+        sessionStorage.setItem("pending_toast", "Stempel berhasil diupdate! 🏵️");
+        window.location.reload();
+      }
+    } catch (err) {
+      toast.error("Gagal mengunggah stempel.", { id: toastId });
+    } finally {
+      setStampLoading(false);
     }
   };
 
@@ -110,6 +178,58 @@ const Settings = () => {
               placeholder="Masukin nama panggilan lu..."
             />
           </div>
+
+          {/* SIGNATURE UPLOAD */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-end px-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tanda Tangan Digital</label>
+              <span className="text-[9px] font-bold text-sky-500 uppercase">Digunakan untuk dokumen resmi</span>
+            </div>
+            <div className="flex flex-col md:flex-row items-center gap-6 p-6 bg-slate-50 border border-slate-100 rounded-3xl">
+              <div className="w-40 h-24 bg-white border border-slate-200 rounded-xl overflow-hidden flex items-center justify-center shadow-inner">
+                {user?.signature_url ? (
+                  <img src={user.signature_url} alt="Signature" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-slate-300 font-bold text-xs uppercase italic">Belum diunggah</span>
+                )}
+              </div>
+              <div className="flex-1 w-full">
+                <label className="inline-flex items-center justify-center px-6 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-black text-[#1b254b] hover:bg-slate-100 transition-all cursor-pointer shadow-sm active:scale-[0.98]">
+                  <i className="fa-solid fa-signature mr-2"></i>
+                  {signatureLoading ? "Mengunggah..." : "Pilih Gambar TTD"}
+                  <input type="file" accept="image/*" className="hidden" disabled={signatureLoading} onChange={handleSignatureChange} />
+                </label>
+                <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-wider">Format PNG/JPG/WEBP, Max 2MB. Disarankan background transparan.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* STAMP UPLOAD (SUPERADMIN / SPV ONLY) */}
+          {user?.role === "super_admin" && (
+            <div className="space-y-3">
+              <div className="flex justify-between items-end px-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Stempel SPV</label>
+                <span className="text-[9px] font-bold text-sky-500 uppercase">Khusus Superadmin</span>
+              </div>
+              <div className="flex flex-col md:flex-row items-center gap-6 p-6 bg-slate-50 border border-slate-100 rounded-3xl">
+                <div className="w-40 h-24 bg-white border border-slate-200 rounded-xl overflow-hidden flex items-center justify-center shadow-inner">
+                  {user?.stamp_url ? (
+                    <img src={user.stamp_url} alt="Stamp" className="max-h-full max-w-full object-contain" />
+                  ) : (
+                    <span className="text-slate-300 font-bold text-xs uppercase italic">Belum diunggah</span>
+                  )}
+                </div>
+                <div className="flex-1 w-full">
+                  <label className="inline-flex items-center justify-center px-6 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-black text-[#1b254b] hover:bg-slate-100 transition-all cursor-pointer shadow-sm active:scale-[0.98]">
+                    <i className="fa-solid fa-stamp mr-2"></i>
+                    {stampLoading ? "Mengunggah..." : "Pilih Gambar Stempel"}
+                    <input type="file" accept="image/*" className="hidden" disabled={stampLoading} onChange={handleStampChange} />
+                  </label>
+                  <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-wider">Format PNG/JPG/WEBP, Max 2MB. Disarankan background transparan.</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* EMAIL (LOCKED) */}
           <div className="space-y-3 opacity-50">

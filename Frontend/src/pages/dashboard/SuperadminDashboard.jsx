@@ -146,6 +146,7 @@ const SuperadminDashboard = () => {
       hover: "hover:border-amber-300 hover:shadow-amber-100",
       footer: "Butuh validasi Admin",
       footerIcon: "fa-clock",
+      to: "/approval",
     },
   ];
 
@@ -342,48 +343,68 @@ const SuperadminDashboard = () => {
 
       {/* ── STATS CARDS ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((card) => (
-          <div
-            key={card.label}
-            className={`bg-white rounded-[2rem] p-6 sm:p-7 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col h-full cursor-default ${card.hover}`}
-          >
-            <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.06] group-hover:rotate-12 transition-all duration-500 pointer-events-none">
-              <i className={`fa-solid ${card.icon} text-8xl`} />
-            </div>
-            <div className="flex justify-between items-start mb-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mt-1">
-                {card.label}
-              </p>
-              <div
-                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-lg sm:text-xl shadow-inner shrink-0 group-hover:scale-110 transition-transform ${card.iconBg}`}
-              >
-                <i className={`fa-solid ${card.icon}`} />
+        {statCards.map((card) => {
+          const CardContent = (
+            <>
+              <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.06] group-hover:rotate-12 transition-all duration-500 pointer-events-none">
+                <i className={`fa-solid ${card.icon} text-8xl`} />
               </div>
+              <div className="flex justify-between items-start mb-5">
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mt-1">
+                  {card.label}
+                </p>
+                <div
+                  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-lg sm:text-xl shadow-inner shrink-0 group-hover:scale-110 transition-transform ${card.iconBg}`}
+                >
+                  <i className={`fa-solid ${card.icon}`} />
+                </div>
+              </div>
+              <div className="flex items-center gap-3 mb-6 relative z-10 flex-1">
+                {loading ? (
+                  <div className="h-12 w-24 bg-slate-100 rounded-xl animate-pulse" />
+                ) : (
+                  <>
+                    <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">
+                      {card.value}
+                    </h3>
+                    <span
+                      className={`text-[9px] sm:text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border shadow-sm ${card.badgeCls}`}
+                    >
+                      {card.badge}
+                    </span>
+                  </>
+                )}
+              </div>
+              <div className="relative z-10 pt-5 border-t border-slate-100 mt-auto">
+                <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 flex items-center gap-2">
+                  <i className={`fa-solid ${card.footerIcon} text-slate-300`} />{" "}
+                  {card.footer}
+                </p>
+              </div>
+            </>
+          );
+
+          if (card.to) {
+            return (
+              <Link
+                key={card.label}
+                to={card.to}
+                className={`bg-white rounded-[2rem] p-6 sm:p-7 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col h-full ${card.hover}`}
+              >
+                {CardContent}
+              </Link>
+            );
+          }
+
+          return (
+            <div
+              key={card.label}
+              className={`bg-white rounded-[2rem] p-6 sm:p-7 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col h-full cursor-default ${card.hover}`}
+            >
+              {CardContent}
             </div>
-            <div className="flex items-center gap-3 mb-6 relative z-10 flex-1">
-              {loading ? (
-                <div className="h-12 w-24 bg-slate-100 rounded-xl animate-pulse" />
-              ) : (
-                <>
-                  <h3 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter leading-none">
-                    {card.value}
-                  </h3>
-                  <span
-                    className={`text-[9px] sm:text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border shadow-sm ${card.badgeCls}`}
-                  >
-                    {card.badge}
-                  </span>
-                </>
-              )}
-            </div>
-            <div className="relative z-10 pt-5 border-t border-slate-100 mt-auto">
-              <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 flex items-center gap-2">
-                <i className={`fa-solid ${card.footerIcon} text-slate-300`} />{" "}
-                {card.footer}
-              </p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Card 4: System Health (Pink Pastel) */}
         <div className="bg-gradient-to-br from-pink-400 to-rose-500 rounded-[2rem] p-6 sm:p-7 text-white shadow-lg shadow-pink-500/20 relative overflow-hidden group hover:shadow-xl hover:shadow-pink-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col h-full">
@@ -426,6 +447,14 @@ const SuperadminDashboard = () => {
             </h3>
             <div className="space-y-2">
               {[
+                {
+                  to: "/approval",
+                  icon: "fa-check-to-slot",
+                  color: "text-pink-600",
+                  hover: "hover:border-pink-200 hover:bg-pink-50/50",
+                  title: "Approval Center",
+                  sub: "Verifikasi tugas & izin",
+                },
                 {
                   to: "/manage-admin",
                   icon: "fa-user-shield",

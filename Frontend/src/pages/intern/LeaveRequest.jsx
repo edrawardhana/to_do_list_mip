@@ -78,7 +78,7 @@ const LeaveRequest = () => {
       }
     : { id: "1", name: "Kiel", division: "IT Support" };
 
-  const [leaveType, setLeaveType] = useState("sakit");
+  const [leaveType, setLeaveType] = useState("terlambat");
   const [permissionDate, setPermissionDate] = useState("");
   const [replacementDate, setReplacementDate] = useState("");
   const [description, setDescription] = useState("");
@@ -104,12 +104,16 @@ const LeaveRequest = () => {
           id: item.id,
           type:
             item.type === "swap_shift"
-              ? "Swap Shift"
+              ? "Ganti Shift"
               : item.type === "tugas_luar"
                 ? "Tugas Luar"
                 : item.type === "izin"
-                  ? "Izin Biasa"
-                  : "Sakit",
+                  ? "Sebab Lain (Izin)"
+                  : item.type === "terlambat"
+                    ? "Terlambat Masuk Kerja"
+                    : item.type === "pulang_awal"
+                      ? "Pulang Lebih Awal"
+                      : "Sakit",
           rawType: item.type,
           status: item.status,
           date: new Date(item.permission_date).toLocaleDateString("id-ID", {
@@ -301,9 +305,11 @@ const LeaveRequest = () => {
                     onChange={(e) => setLeaveType(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 md:py-3.5 text-xs md:text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none cursor-pointer"
                   >
+                    <option value="terlambat">Terlambat Masuk Kerja</option>
                     <option value="sakit">Sakit (Wajib Bukti)</option>
-                    <option value="izin">Izin Biasa</option>
-                    <option value="swap_shift">Swap Shift (Tukar Hari)</option>
+                    <option value="pulang_awal">Pulang Lebih Awal</option>
+                    <option value="swap_shift">Ganti Shift (Tukar Hari)</option>
+                    <option value="izin">Sebab Lain (Izin)</option>
                     <option value="tugas_luar">Tugas Luar (Dinas)</option>
                   </select>
                   <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>

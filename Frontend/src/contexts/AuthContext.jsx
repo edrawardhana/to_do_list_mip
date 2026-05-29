@@ -127,6 +127,7 @@ export const AuthProvider = ({ children }) => {
 
     return {
       user,
+      setUser,
       loading,
       shiftLoading,
       todayShift,

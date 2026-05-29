@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\Encoders\JpegEncoder;
+use Intervention\Image\Encoders\PngEncoder;
 
 class ProfileController extends Controller
 {
@@ -701,7 +702,7 @@ class ProfileController extends Controller
 
         // 1. Compress & Resize Image to premium 300x300 square
         $manager      = new ImageManager(new Driver());
-        $image        = $manager->decode($file);
+        $image        = $manager->read($file);
         $image->cover(300, 300);
 
         $encodedImage = $image->encode(new JpegEncoder(quality: 80));
@@ -743,4 +744,127 @@ class ProfileController extends Controller
             'avatar_url' => $avatarUrl,
         ]);
     }
+
+    /**
+     * POST /api/profiles/signature
+     * Upload and update user digital signature.
+     */
+    public function uploadSignature(Request $request)
+    {
+        $request->validate([
+            'signature' => 'required|image|mimes:png|max:2048',
+        ]);
+
+        $user = Auth::user();
+        $file = $request->file('signature');
+
+        // Compress / decode image
+        $manager      = new ImageManager(new Driver());
+        $image        = $manager->read($file);
+        
+        // Scale down, say, max width/height 600px
+        if ($image->width() > 600 || $image->height() > 400) {
+            $image->scaleDown(width: 600, height: 400);
+        }
+
+        $encodedImage = $image->encode(new PngEncoder());
+        $filename     = 'signature_' . $user->id . '_' . time() . '.png';
+        $storagePath  = 'signatures/' . $filename;
+
+        // Delete old signature
+        if ($user->signature_url) {
+            if (str_contains($user->signature_url, '/storage/')) {
+                $oldPath = str_replace('/storage/', '', parse_url($user->signature_url, PHP_URL_PATH));
+                Storage::disk('public')->delete($oldPath);
+            } else {
+                $baseUrl = env('SUPABASE_STORAGE_URL');
+                if ($baseUrl) {
+                    $bucket = env('SUPABASE_AVATARS_BUCKET', 'avatars');
+                    $oldPath = str_replace($baseUrl . '/' . $bucket . '/', '', $user->signature_url);
+                    Storage::disk('supabase_avatars')->delete($oldPath);
+                }
+            }
+        }
+
+        // Upload and Get URL dynamically
+        if (env('SUPABASE_STORAGE_KEY')) {
+            Storage::disk('supabase_avatars')->put($storagePath, (string) $encodedImage);
+            $signatureUrl = env('SUPABASE_STORAGE_URL') . '/' . env('SUPABASE_AVATARS_BUCKET', 'avatars') . '/' . $storagePath;
+        } else {
+            Storage::disk('public')->put($storagePath, (string) $encodedImage);
+            $signatureUrl = config('app.url') . Storage::url($storagePath);
+        }
+
+        $user->update(['signature_url' => $signatureUrl]);
+
+        return response()->json([
+            'status'        => 'success',
+            'message'       => 'Tanda tangan digital berhasil diperbarui!',
+            'signature_url' => $user->signature_url,
+        ]);
+    }
+
+    /**
+     * POST /api/profiles/stamp
+     * Upload and update user stamp (Superadmin only).
+     */
+    public function uploadStamp(Request $request)
+    {
+        $user = Auth::user();
+        if ($user->role !== 'super_admin') {
+            return response()->json(['status' => 'error', 'message' => 'Hanya Superadmin yang dapat mengunggah stempel.'], 403);
+        }
+
+        $request->validate([
+            'stamp' => 'required|image|mimes:png|max:2048',
+        ]);
+
+        $file = $request->file('stamp');
+
+        // Compress / decode image
+        $manager      = new ImageManager(new Driver());
+        $image        = $manager->read($file);
+        
+        // Scale down, say, max 400x400
+        if ($image->width() > 400 || $image->height() > 400) {
+            $image->scaleDown(width: 400, height: 400);
+        }
+
+        $encodedImage = $image->encode(new PngEncoder());
+        $filename     = 'stamp_' . $user->id . '_' . time() . '.png';
+        $storagePath  = 'stamps/' . $filename;
+
+        // Delete old stamp
+        if ($user->stamp_url) {
+            if (str_contains($user->stamp_url, '/storage/')) {
+                $oldPath = str_replace('/storage/', '', parse_url($user->stamp_url, PHP_URL_PATH));
+                Storage::disk('public')->delete($oldPath);
+            } else {
+                $baseUrl = env('SUPABASE_STORAGE_URL');
+                if ($baseUrl) {
+                    $bucket = env('SUPABASE_AVATARS_BUCKET', 'avatars');
+                    $oldPath = str_replace($baseUrl . '/' . $bucket . '/', '', $user->stamp_url);
+                    Storage::disk('supabase_avatars')->delete($oldPath);
+                }
+            }
+        }
+
+        // Upload and Get URL dynamically
+        if (env('SUPABASE_STORAGE_KEY')) {
+            Storage::disk('supabase_avatars')->put($storagePath, (string) $encodedImage);
+            $stampUrl = env('SUPABASE_STORAGE_URL') . '/' . env('SUPABASE_AVATARS_BUCKET', 'avatars') . '/' . $storagePath;
+        } else {
+            Storage::disk('public')->put($storagePath, (string) $encodedImage);
+            $stampUrl = config('app.url') . Storage::url($storagePath);
+        }
+
+        $user->update(['stamp_url' => $stampUrl]);
+
+        return response()->json([
+            'status'    => 'success',
+            'message'   => 'Stempel berhasil diperbarui!',
+            'stamp_url' => $user->stamp_url,
+        ]);
+    }
 }
+

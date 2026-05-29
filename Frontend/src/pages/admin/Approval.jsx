@@ -6,13 +6,18 @@ import toast from "react-hot-toast";
 const PAGE_SIZE = 6;
 
 const Pagination = ({ page, totalPages, onChange }) => {
+  const { isSuperAdmin } = useAuth();
   if (totalPages <= 1) return null;
   return (
-    <div className="flex items-center justify-center gap-2 pt-2">
+    <div className="flex items-center justify-center gap-1.5 mt-8">
       <button
         onClick={() => onChange(page - 1)}
         disabled={page === 1}
-        className="w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-500 flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
+        className={`w-9 h-9 rounded-xl border flex items-center justify-center disabled:opacity-30 transition-all shadow-sm ${
+          isSuperAdmin
+            ? "border-pink-200 bg-pink-500/5 text-pink-600 hover:bg-pink-500/10"
+            : "border-blue-900/20 bg-[#162447]/5 text-blue-900 hover:bg-[#162447]/10"
+        }`}
       >
         <i className="fa-solid fa-chevron-left text-xs" />
       </button>
@@ -35,7 +40,9 @@ const Pagination = ({ page, totalPages, onChange }) => {
             onClick={() => onChange(p)}
             className={`w-9 h-9 rounded-xl text-sm font-bold border transition-all shadow-sm ${
               p === page
-                ? "bg-[#162447] text-white border-[#162447] shadow-[#162447]/20 scale-105"
+                ? isSuperAdmin
+                  ? "bg-pink-500 text-white border-pink-500 shadow-pink-500/20 scale-105"
+                  : "bg-[#162447] text-white border-[#162447] shadow-[#162447]/20 scale-105"
                 : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
             }`}
           >
@@ -47,7 +54,11 @@ const Pagination = ({ page, totalPages, onChange }) => {
       <button
         onClick={() => onChange(page + 1)}
         disabled={page === totalPages}
-        className="w-9 h-9 rounded-xl border border-blue-900/20 bg-[#162447]/5 text-blue-900 flex items-center justify-center hover:bg-[#162447]/10 disabled:opacity-30 transition-all shadow-sm"
+        className={`w-9 h-9 rounded-xl border flex items-center justify-center disabled:opacity-30 transition-all shadow-sm ${
+          isSuperAdmin
+            ? "border-pink-200 bg-pink-500/5 text-pink-600 hover:bg-pink-500/10"
+            : "border-blue-900/20 bg-[#162447]/5 text-blue-900 hover:bg-[#162447]/10"
+        }`}
       >
         <i className="fa-solid fa-chevron-right text-xs" />
       </button>
@@ -56,17 +67,24 @@ const Pagination = ({ page, totalPages, onChange }) => {
 };
 
 const Approval = () => {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("tasks");
+  const { user, isSuperAdmin } = useAuth();
+  const [activeTab, setActiveTab] = useState(isSuperAdmin ? "leaves" : "tasks");
   const [loading, setLoading] = useState(true);
   const [pendingTasks, setPendingTasks] = useState([]);
   const [pendingLeaves, setPendingLeaves] = useState([]);
+  const [approvedLeaves, setApprovedLeaves] = useState([]);
   const [rejectState, setRejectState] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [taskPage, setTaskPage] = useState(1);
   const [leavePage, setLeavePage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
   const [searchTask, setSearchTask] = useState("");
   const [searchLeave, setSearchLeave] = useState("");
+  const [searchHistory, setSearchHistory] = useState("");
+  const [confirmAccLeave, setConfirmAccLeave] = useState(null);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [resendingId, setResendingId] = useState(null);
 
   const fetchApprovals = useCallback(async () => {
     setLoading(true);
@@ -106,6 +124,18 @@ const Approval = () => {
       setPendingLeaves(
         lData
           .filter((l) => l.status === "pending")
+          .map((l) => ({
+            ...l,
+            internName: l.user?.full_name || "Intern",
+            division: l.user?.division?.name || "—",
+            reason: l.description,
+            dateReq: l.permission_date,
+            proof: l.evidence_url,
+          })),
+      );
+      setApprovedLeaves(
+        lData
+          .filter((l) => l.status === "approved")
           .map((l) => ({
             ...l,
             internName: l.user?.full_name || "Intern",
@@ -163,6 +193,20 @@ const Approval = () => {
     (leavePage - 1) * PAGE_SIZE,
     leavePage * PAGE_SIZE,
   );
+  const filteredHistory = approvedLeaves.filter(
+    (l) =>
+      !searchHistory ||
+      l.internName.toLowerCase().includes(searchHistory.toLowerCase()) ||
+      l.type?.includes(searchHistory.toLowerCase()),
+  );
+  const historyTotalPages = Math.max(
+    1,
+    Math.ceil(filteredHistory.length / PAGE_SIZE),
+  );
+  const pagedHistory = filteredHistory.slice(
+    (historyPage - 1) * PAGE_SIZE,
+    historyPage * PAGE_SIZE,
+  );
 
   // ── handlers ──────────────────────────────────────────────────────────
   const handleActionTask = async (id, action) => {
@@ -180,18 +224,35 @@ const Approval = () => {
     }
   };
 
-  const handleActionLeave = async (id, action) => {
+  const handleActionLeave = async (leave, action) => {
     if (action === "reject") {
-      setRejectState({ id, type: "leave" });
+      setRejectState({ id: leave.id, type: "leave" });
       setRejectReason("");
       return;
     }
+    setConfirmAccLeave(leave);
+    setConfirmPassword("");
+  };
+
+  const handleConfirmAccLeave = async () => {
+    if (!confirmPassword) {
+      toast.error("Masukkan password Anda untuk konfirmasi");
+      return;
+    }
+    setConfirmLoading(true);
     try {
-      await api.put(`/exceptions/${id}`, { status: "approved" });
-      toast.success("✅ Izin berhasil di-ACC");
+      const res = await api.put(`/exceptions/${confirmAccLeave.id}`, {
+        status: "approved",
+        password: confirmPassword,
+      });
+      toast.success(res.data?.message || "✅ Izin berhasil diproses!");
+      setConfirmAccLeave(null);
+      setConfirmPassword("");
       fetchApprovals();
-    } catch {
-      toast.error("Gagal memproses izin");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Gagal memproses izin");
+    } finally {
+      setConfirmLoading(false);
     }
   };
 
@@ -216,6 +277,24 @@ const Approval = () => {
       fetchApprovals();
     } catch {
       toast.error("Gagal memproses penolakan");
+    }
+  };
+
+  const handleResendEmail = async (leaveId) => {
+    setResendingId(leaveId);
+    const toastId = toast.loading("Mengirim ulang email...");
+    try {
+      const res = await api.post(`/exceptions/${leaveId}/resend-email`);
+      if (res.data?.status === "success") {
+        toast.success("✅ Email Surat Izin berhasil dikirim ulang!", { id: toastId });
+      } else {
+        toast.error(res.data?.message || "Gagal mengirim ulang email.", { id: toastId });
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Gagal mengirim ulang email.", { id: toastId });
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -251,7 +330,7 @@ const Approval = () => {
         color: "text-blue-500",
         bg: "bg-blue-50",
         bar: "bg-blue-500",
-        label: "Swap Shift",
+        label: "Ganti Shift",
       },
       sakit: {
         icon: "fa-house-medical",
@@ -265,7 +344,7 @@ const Approval = () => {
         color: "text-amber-500",
         bg: "bg-amber-50",
         bar: "bg-amber-500",
-        label: "Izin",
+        label: "Sebab Lain (Izin)",
       },
       tugas_luar: {
         icon: "fa-briefcase",
@@ -273,6 +352,20 @@ const Approval = () => {
         bg: "bg-emerald-50",
         bar: "bg-emerald-500",
         label: "Tugas Luar",
+      },
+      terlambat: {
+        icon: "fa-clock",
+        color: "text-indigo-500",
+        bg: "bg-indigo-50",
+        bar: "bg-indigo-500",
+        label: "Terlambat Masuk",
+      },
+      pulang_awal: {
+        icon: "fa-person-walking-arrow-right",
+        color: "text-purple-500",
+        bg: "bg-purple-50",
+        bar: "bg-purple-500",
+        label: "Pulang Awal",
       },
     })[type] || {
       icon: "fa-envelope",
@@ -283,26 +376,36 @@ const Approval = () => {
     };
 
   const tabs = [
-    {
+    ...(!isSuperAdmin ? [{
       id: "tasks",
       label: "Laporan Tugas",
       icon: "fa-list-check",
       count: filteredTasks.length,
-    },
+    }] : []),
     {
       id: "leaves",
       label: "Pengajuan Izin",
       icon: "fa-envelope-open-text",
       count: filteredLeaves.length,
     },
+    {
+      id: "history",
+      label: "Riwayat Izin",
+      icon: "fa-clock-rotate-left",
+      count: approvedLeaves.length,
+    },
   ];
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-2 max-w-7xl mx-auto">
       {/* ── HEADER ───────────────────────────────────────────────────────── */}
-      <div className="rounded-[2.5rem] border shadow-2xl relative overflow-hidden flex flex-col text-white mb-6 transition-all duration-500 bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20">
-        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full blur-[100px] pointer-events-none bg-blue-500/20" />
-        <div className="absolute -bottom-32 -left-32 w-72 h-72 rounded-full blur-[100px] pointer-events-none bg-sky-500/10" />
+      <div className={`rounded-[2.5rem] border shadow-2xl relative overflow-hidden flex flex-col text-white mb-6 transition-all duration-500 ${
+        isSuperAdmin
+          ? "bg-gradient-to-br from-pink-400 to-rose-500 border-pink-300/30 shadow-pink-500/20"
+          : "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20"
+      }`}>
+        <div className={`absolute -top-32 -right-32 w-96 h-96 rounded-full blur-[100px] pointer-events-none ${isSuperAdmin ? "bg-white/30" : "bg-blue-500/20"}`} />
+        <div className={`absolute -bottom-32 -left-32 w-72 h-72 rounded-full blur-[100px] pointer-events-none ${isSuperAdmin ? "bg-rose-200/20" : "bg-sky-500/10"}`} />
           {/* Content Top */}
         <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-white/10">
           <div className="lg:max-w-xl">
@@ -310,7 +413,9 @@ const Approval = () => {
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner shrink-0 border backdrop-blur-sm bg-white/10 border-white/20 text-white">
                 <i className="fa-solid fa-clipboard-check text-xl" />
               </div>
-              <span className="text-[10px] font-black uppercase tracking-[0.25em] px-3 py-1.5 rounded-lg border text-blue-200 bg-white/10 border-white/10">
+              <span className={`text-[10px] font-black uppercase tracking-[0.25em] px-3 py-1.5 rounded-lg border ${
+                isSuperAdmin ? "text-pink-100 bg-white/10 border-white/10" : "text-blue-200 bg-white/10 border-white/10"
+              }`}>
                 Approval Center
               </span>
             </div>
@@ -318,7 +423,7 @@ const Approval = () => {
             <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight">
               Validasi & ACC.
             </h1>
-            <p className="text-sm font-medium leading-relaxed text-blue-100/70">
+            <p className={`text-sm font-medium leading-relaxed ${isSuperAdmin ? "text-pink-50/80" : "text-blue-100/70"}`}>
               Kelola antrean tugas dan pengajuan izin anak divisi dengan cepat.
             </p>
           </div>
@@ -344,7 +449,9 @@ const Approval = () => {
                     onClick={() => setActiveTab(tab.id)}
                     className={`px-5 py-3 rounded-2xl text-[13px] font-bold transition-all flex items-center gap-2 shrink-0 border ${
                       isActive
-                        ? "bg-white text-[#162447] border-white shadow-lg"
+                        ? isSuperAdmin
+                          ? "bg-white text-pink-600 border-white shadow-lg"
+                          : "bg-white text-[#162447] border-white shadow-lg"
                         : "bg-white/5 text-white/70 hover:bg-white/10 border-white/10"
                     }`}
                   >
@@ -352,7 +459,9 @@ const Approval = () => {
                     {tab.count > 0 && (
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ml-1 ${
                         isActive
-                          ? "bg-blue-100 text-[#162447]"
+                          ? isSuperAdmin
+                            ? "bg-pink-100 text-pink-600"
+                            : "bg-blue-100 text-[#162447]"
                           : "bg-rose-500 text-white"
                       }`}>
                         {tab.count}
@@ -365,13 +474,23 @@ const Approval = () => {
 
             {/* Search Input */}
             <div className="relative w-full md:w-72 shrink-0 group">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm transition-colors text-blue-300/50 group-focus-within:text-white" />
+              <i className={`fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm transition-colors ${
+                isSuperAdmin ? "text-pink-100/50 group-focus-within:text-white" : "text-blue-300/50 group-focus-within:text-white"
+              }`} />
               <input
                 type="text"
-                placeholder={activeTab === "tasks" ? "Cari intern atau tugas…" : "Cari intern…"}
-                value={activeTab === "tasks" ? searchTask : searchLeave}
-                onChange={(e) => activeTab === "tasks" ? setSearchTask(e.target.value) : setSearchLeave(e.target.value)}
-                className="w-full rounded-xl pl-11 pr-4 py-3 text-sm font-bold outline-none border transition-all backdrop-blur-sm text-white focus:ring-2 bg-white/5 border-white/10 placeholder:text-blue-300/50 focus:border-white/30 focus:ring-blue-400/50"
+                placeholder={activeTab === "tasks" ? "Cari intern atau tugas…" : (activeTab === "leaves" ? "Cari intern…" : "Cari riwayat izin…")}
+                value={activeTab === "tasks" ? searchTask : (activeTab === "leaves" ? searchLeave : searchHistory)}
+                onChange={(e) => {
+                  if (activeTab === "tasks") setSearchTask(e.target.value);
+                  else if (activeTab === "leaves") setSearchLeave(e.target.value);
+                  else setSearchHistory(e.target.value);
+                }}
+                className={`w-full rounded-xl pl-11 pr-4 py-3 text-sm font-bold outline-none border transition-all backdrop-blur-sm text-white focus:ring-2 bg-white/5 border-white/10 focus:border-white/30 ${
+                  isSuperAdmin
+                    ? "placeholder:text-pink-100/50 focus:ring-pink-300/50"
+                    : "placeholder:text-blue-300/50 focus:ring-blue-400/50"
+                }`}
               />
             </div>
           </div>
@@ -386,7 +505,9 @@ const Approval = () => {
             <span className="text-slate-700">
               {activeTab === "tasks"
                 ? `${Math.min((taskPage - 1) * PAGE_SIZE + 1, filteredTasks.length)}–${Math.min(taskPage * PAGE_SIZE, filteredTasks.length)} dari ${filteredTasks.length}`
-                : `${Math.min((leavePage - 1) * PAGE_SIZE + 1, filteredLeaves.length)}–${Math.min(leavePage * PAGE_SIZE, filteredLeaves.length)} dari ${filteredLeaves.length}`}
+                : (activeTab === "leaves"
+                  ? `${Math.min((leavePage - 1) * PAGE_SIZE + 1, filteredLeaves.length)}–${Math.min(leavePage * PAGE_SIZE, filteredLeaves.length)} dari ${filteredLeaves.length}`
+                  : `${Math.min((historyPage - 1) * PAGE_SIZE + 1, filteredHistory.length)}–${Math.min(historyPage * PAGE_SIZE, filteredHistory.length)} dari ${filteredHistory.length}`)}
             </span>{" "}
             data
           </p>
@@ -688,6 +809,26 @@ const Approval = () => {
                             {fmt(leave.dateReq)}
                           </p>
                         </div>
+
+                        {/* DOUBLE APPROVAL BADGES */}
+                        <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
+                            <span>Manager (Admin Divisi)</span>
+                            {leave.manager_approved_by ? (
+                              <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">APPROVED</span>
+                            ) : (
+                              <span className="text-[9px] font-black text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">PENDING</span>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
+                            <span>SPV (Superadmin)</span>
+                            {leave.spv_approved_by ? (
+                              <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">APPROVED</span>
+                            ) : (
+                              <span className="text-[9px] font-black text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">PENDING</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
                       <div className="w-full sm:w-44 bg-slate-50/50 p-5 flex flex-col shrink-0 justify-between">
@@ -718,20 +859,35 @@ const Approval = () => {
                           )}
                         </div>
                         <div className="flex flex-col gap-2">
-                          <button
-                            onClick={() => handleActionLeave(leave.id, "acc")}
-                            className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all hover:-translate-y-0.5"
-                          >
-                            <i className="fa-solid fa-check mr-1" /> ACC
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleActionLeave(leave.id, "reject")
-                            }
-                            className="w-full py-2.5 rounded-xl bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold transition-all"
-                          >
-                            Tolak
-                          </button>
+                          {(() => {
+                            const hasApproved = user?.role === "admin" ? !!leave.manager_approved_by : (user?.role === "super_admin" ? !!leave.spv_approved_by : false);
+                            return (
+                              <>
+                                <button
+                                  onClick={() => handleActionLeave(leave, "acc")}
+                                  disabled={hasApproved}
+                                  className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all ${
+                                    hasApproved
+                                      ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                                      : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20 hover:-translate-y-0.5"
+                                  }`}
+                                >
+                                  <i className="fa-solid fa-check mr-1" /> {hasApproved ? "Sudah ACC" : "ACC"}
+                                </button>
+                                <button
+                                  onClick={() => handleActionLeave(leave, "reject")}
+                                  disabled={hasApproved}
+                                  className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all ${
+                                    hasApproved
+                                      ? "bg-slate-50 text-slate-300 border border-slate-100 cursor-not-allowed"
+                                      : "bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 hover:-translate-y-0.5"
+                                  }`}
+                                >
+                                  Tolak
+                                </button>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -746,6 +902,225 @@ const Approval = () => {
               />
             </>
           )}
+        </div>
+      )}
+
+      {activeTab === "history" && (
+        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-6 sm:p-8">
+          <h3 className="text-[#1b254b] font-black text-lg mb-6 flex items-center gap-2">
+            <i className={`fa-solid fa-clock-rotate-left ${isSuperAdmin ? "text-pink-500" : "text-[#162447]"}`} />
+            Riwayat Surat Izin (Disetujui)
+          </h3>
+
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <i className={`fa-solid fa-spinner fa-spin text-3xl ${isSuperAdmin ? "text-pink-500" : "text-[#162447]"}`} />
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Memuat riwayat...</p>
+            </div>
+          ) : pagedHistory.length === 0 ? (
+            <div className="text-center py-16">
+              <i className="fa-solid fa-folder-open text-4xl text-slate-200 mb-3 block" />
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Tidak ada riwayat pengajuan</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {pagedHistory.map((leave) => {
+                  const details = exStyle(leave.type);
+                  return (
+                    <div
+                      key={leave.id}
+                      className="border border-slate-100 rounded-3xl overflow-hidden bg-slate-50/30 flex flex-col sm:flex-row hover:shadow-md transition-all duration-300"
+                    >
+                      <div className={`w-3.5 sm:w-4 ${details.bar} shrink-0`} />
+                      
+                      <div className="flex-1 p-6 flex flex-col justify-between gap-4">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <span className="text-slate-800 font-black text-base">{leave.internName}</span>
+                            <span className="text-slate-300 text-xs">•</span>
+                            <span className="text-slate-500 font-bold text-xs">{leave.division}</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border ${details.bg} ${details.color} border-current/20`}>
+                              <i className={`fa-solid ${details.icon} mr-1`} />
+                              {details.label}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">
+                              {fmt(leave.dateReq)}
+                            </span>
+                          </div>
+
+                          <p className="text-slate-600 text-sm leading-relaxed font-medium">
+                            {leave.reason || <span className="italic text-slate-400">Tidak ada keterangan tambahan.</span>}
+                          </p>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-100 space-y-2">
+                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
+                            <span>Manager (Admin Divisi)</span>
+                            <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">APPROVED</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
+                            <span>SPV (Superadmin)</span>
+                            <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">APPROVED</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="w-full sm:w-44 bg-slate-50/50 p-5 flex flex-col shrink-0 justify-between">
+                        <div className="flex-1 flex flex-col items-center justify-center mb-4">
+                          {leave.proof ? (
+                            <a
+                              href={leave.proof}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="w-full h-24 rounded-xl border border-slate-200 overflow-hidden block relative group/img shadow-inner"
+                            >
+                              <img
+                                src={leave.proof}
+                                alt="Bukti"
+                                className="w-full h-full object-cover opacity-80 group-hover/img:opacity-100 transition-opacity"
+                              />
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
+                                <i className="fa-solid fa-magnifying-glass-plus text-white text-xl" />
+                              </div>
+                            </a>
+                          ) : (
+                            <div className="text-center text-slate-300">
+                              <i className="fa-solid fa-file-circle-xmark text-3xl mb-1 block" />
+                              <p className="text-[10px] font-bold uppercase">Tanpa Bukti</p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => handleResendEmail(leave.id)}
+                            disabled={resendingId === leave.id}
+                            className={`w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border flex items-center justify-center gap-2 ${
+                              resendingId === leave.id
+                                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                                : isSuperAdmin
+                                  ? "bg-pink-500 hover:bg-pink-600 text-white shadow-md shadow-pink-500/20 border-pink-500 active:scale-95"
+                                  : "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 border-blue-600 active:scale-95"
+                            }`}
+                          >
+                            {resendingId === leave.id ? (
+                              <>
+                                <i className="fa-solid fa-spinner fa-spin animate-spin" />
+                                Mengirim...
+                              </>
+                            ) : (
+                              <>
+                                <i className="fa-solid fa-paper-plane" />
+                                Kirim Ulang
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Pagination
+                page={historyPage}
+                totalPages={historyTotalPages}
+                onChange={setHistoryPage}
+              />
+            </>
+          )}
+        </div>
+      )}
+      {/* ── LEAVE ACC CONFIRMATION MODAL ───────────────────────────────────── */}
+      {confirmAccLeave && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in p-4">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 w-full max-w-lg p-8 animate-in zoom-in-95 space-y-6">
+            <div>
+              <h3 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+                <i className="fa-solid fa-signature text-emerald-500" />
+                Konfirmasi ACC Izin
+              </h3>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mt-1">
+                Verifikasi password & Tinjau Data Pengaju
+              </p>
+            </div>
+
+            {/* Warning Alert */}
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3 text-amber-800 text-xs leading-relaxed">
+              <i className="fa-solid fa-triangle-exclamation text-base shrink-0 mt-0.5" />
+              <div>
+                <strong className="font-black uppercase tracking-wider block mb-1">Peringatan Keamanan!</strong>
+                Menyetujui izin ini akan meneruskan untuk tanda tangan digital pada dokumen Surat Izin MCC. Jika disetujui penuh oleh kedua pihak (Manager & SPV), dokumen PDF otomatis akan dikirim ke email intern bersangkutan.
+              </div>
+            </div>
+
+            {/* Review Data */}
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 space-y-3 text-xs">
+              <div className="flex justify-between border-b border-slate-200/60 pb-2">
+                <span className="text-slate-400 font-bold uppercase">Nama Karyawan</span>
+                <span className="text-slate-800 font-black">{confirmAccLeave.internName}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-200/60 pb-2">
+                <span className="text-slate-400 font-bold uppercase">Divisi</span>
+                <span className="text-slate-800 font-black">{confirmAccLeave.division}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-200/60 pb-2">
+                <span className="text-slate-400 font-bold uppercase">Jenis Izin</span>
+                <span className="text-slate-800 font-black uppercase">{confirmAccLeave.type?.replace('_', ' ')}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-200/60 pb-2">
+                <span className="text-slate-400 font-bold uppercase">Tanggal Pengajuan</span>
+                <span className="text-slate-800 font-black">{fmt(confirmAccLeave.dateReq)}</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-slate-400 font-bold uppercase">Alasan</span>
+                <p className="text-slate-700 font-medium bg-white p-3 rounded-xl border border-slate-200/60 shadow-sm italic">
+                  "{confirmAccLeave.reason || 'Tidak ada keterangan.'}"
+                </p>
+              </div>
+            </div>
+
+            {/* Password Input */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Password Anda untuk ACC</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Masukkan password akun Anda..."
+                className="w-full p-4 border border-slate-200 rounded-xl text-sm text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 bg-slate-50 transition-all font-bold"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setConfirmAccLeave(null)}
+                disabled={confirmLoading}
+                className="flex-1 py-4 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleConfirmAccLeave}
+                disabled={confirmLoading}
+                className="flex-1 py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {confirmLoading ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin" /> Memproses...
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-check" /> Konfirmasi & ACC
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

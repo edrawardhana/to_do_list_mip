@@ -6,6 +6,11 @@ use App\Models\Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Mail\SuratIzinMail;
+use App\Mail\SuratIzinRejectedMail;
 use App\Models\AuditLog;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
@@ -21,7 +26,7 @@ class ExceptionController extends Controller
     {
         $user = Auth::user();
 
-        $query = Exception::with(['user', 'evaluator']);
+        $query = Exception::with(['user.division', 'evaluator', 'managerApproval', 'spvApproval']);
 
         if ($user->role === 'intern') {
             $query->where('user_id', $user->id);
@@ -52,7 +57,7 @@ class ExceptionController extends Controller
         $user = Auth::user();
 
         $request->validate([
-            'type'             => 'required|in:sakit,izin,tugas_luar,swap_shift',
+            'type'             => 'required|in:sakit,izin,tugas_luar,swap_shift,terlambat,pulang_awal',
             'permission_date'  => 'required|date',
             'replacement_date' => 'nullable|date',
             'description'      => 'required|string|max:1000',
@@ -80,7 +85,7 @@ class ExceptionController extends Controller
             } else {
                 // Image: compress dengan Intervention Image v4
                 $manager = new ImageManager(new Driver());
-                $image   = $manager->decode(file_get_contents($file->getRealPath()));
+                $image   = $manager->read(file_get_contents($file->getRealPath()));
 
                 // Resize jika lebar > 1920px
                 if ($image->width() > 1920) {
@@ -136,7 +141,20 @@ class ExceptionController extends Controller
         $old_values = $exception->toArray();
 
         if ($user->role === 'intern') {
-            return response()->json(['status' => 'error', 'message' => 'Hanya Admin yang berhak memproses pengajuan.'], 403);
+            return response()->json(['status' => 'error', 'message' => 'Hanya Admin/Superadmin yang berhak memproses pengajuan.'], 403);
+        }
+
+        // Mencegah perubahan jika pengajuan sudah selesai atau sudah di-ACC oleh user yang bersangkutan
+        if ($exception->status === 'approved' || $exception->status === 'rejected') {
+            return response()->json(['status' => 'error', 'message' => 'Pengajuan ini sudah selesai diproses.'], 422);
+        }
+
+        if ($user->role === 'admin' && $exception->manager_approved_by) {
+            return response()->json(['status' => 'error', 'message' => 'Anda sudah menyetujui pengajuan ini.'], 422);
+        }
+
+        if ($user->role === 'super_admin' && $exception->spv_approved_by) {
+            return response()->json(['status' => 'error', 'message' => 'Anda sudah menyetujui pengajuan ini.'], 422);
         }
 
         if ($user->role === 'admin') {
@@ -147,14 +165,67 @@ class ExceptionController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|in:approved,rejected',
+            'status'   => 'required|in:approved,rejected',
+            'password' => $request->status === 'approved' ? 'required|string' : 'nullable|string',
         ]);
 
-        $exception->update([
-            'status'       => $request->status,
-            'evaluated_by' => $user->id,
-            'processed_at' => now(),
-        ]);
+        // Verifikasi password jika menyetujui (ACC)
+        if ($request->status === 'approved') {
+            if (!Hash::check($request->password, $user->password_hash)) {
+                return response()->json(['status' => 'error', 'message' => 'Konfirmasi password salah.'], 422);
+            }
+        }
+
+        $updateData = [];
+
+        if ($request->status === 'rejected') {
+            $updateData['status']       = 'rejected';
+            $updateData['evaluated_by'] = $user->id;
+            $updateData['processed_at'] = now();
+        } else {
+            // Status is approved (ACC)
+            if ($user->role === 'admin') {
+                $updateData['manager_approved_by'] = $user->id;
+                $updateData['manager_approved_at'] = now();
+            } elseif ($user->role === 'super_admin') {
+                $updateData['spv_approved_by'] = $user->id;
+                $updateData['spv_approved_at'] = now();
+            }
+
+            // Reload existing/updated values to check double approval
+            $managerApproved = isset($updateData['manager_approved_by']) ? $updateData['manager_approved_by'] : $exception->manager_approved_by;
+            $spvApproved     = isset($updateData['spv_approved_by']) ? $updateData['spv_approved_by'] : $exception->spv_approved_by;
+
+            if ($managerApproved && $spvApproved) {
+                $updateData['status']       = 'approved';
+                $updateData['evaluated_by'] = $user->id;
+                $updateData['processed_at'] = now();
+            } else {
+                $updateData['status'] = 'pending'; // keep pending until both approved
+            }
+        }
+
+        $exception->update($updateData);
+        $exception->refresh();
+
+        // Jika disetujui sepenuhnya → generate PDF dan kirim email approve
+        if ($exception->status === 'approved') {
+            try {
+                $this->generatePdfAndSendEmail($exception);
+            } catch (\Exception $e) {
+                \Log::error('Gagal mengirim email PDF Surat Izin: ' . $e->getMessage());
+            }
+        }
+
+        // Jika ditolak oleh SPV (super_admin) → kirim email penolakan
+        if ($request->status === 'rejected' && $user->role === 'super_admin') {
+            try {
+                $intern = $exception->user;
+                Mail::to($intern->email)->send(new SuratIzinRejectedMail($exception, $intern, $user));
+            } catch (\Exception $e) {
+                \Log::error('Gagal mengirim email penolakan Surat Izin: ' . $e->getMessage());
+            }
+        }
 
         AuditLog::record(
             $user->id,
@@ -165,11 +236,119 @@ class ExceptionController extends Controller
             $exception->user_id
         );
 
+        $message = "Pengajuan berhasil diproses.";
+        if ($exception->status === 'approved') {
+            $message = "Pengajuan berhasil disetujui sepenuhnya dan PDF dikirim ke email intern.";
+        } elseif ($request->status === 'approved') {
+            if ($user->role === 'admin') {
+                $message = "Persetujuan Manager berhasil disimpan. Menunggu persetujuan SPV.";
+            } else {
+                $message = "Persetujuan SPV berhasil disimpan. Menunggu persetujuan Manager.";
+            }
+        } else {
+            $message = "Pengajuan telah ditolak.";
+        }
+
         return response()->json([
             'status'  => 'success',
-            'message' => "Pengajuan berhasil di-{$request->status}.",
-            'data'    => $exception
+            'message' => $message,
+            'data'    => $exception->fresh(['user.division', 'evaluator', 'managerApproval', 'spvApproval'])
         ]);
+    }
+
+    /**
+     * Helper to get secure pre-signed URL if URL points to Supabase.
+     */
+    private function getSignedUrlIfRemote($url)
+    {
+        if (!$url) return null;
+
+        $baseUrl = config('filesystems.disks.supabase_avatars.url');
+        if (!$baseUrl || !str_contains($url, $baseUrl)) {
+            return $url;
+        }
+
+        $bucket = config('filesystems.disks.supabase_avatars.bucket', 'avatars');
+        $bucketSegment = '/' . $bucket . '/';
+        $pos = strpos($url, $bucketSegment);
+        
+        if ($pos !== false) {
+            $storagePath = substr($url, $pos + strlen($bucketSegment));
+            try {
+                // Generate secure temporary S3 pre-signed URL valid for 10 minutes
+                return Storage::disk('supabase_avatars')->temporaryUrl($storagePath, now()->addMinutes(10));
+            } catch (\Exception $e) {
+                return $url;
+            }
+        }
+
+        return $url;
+    }
+
+    /**
+     * Generate PDF template and send via email
+     */
+    private function generatePdfAndSendEmail(Exception $exception)
+    {
+        $user = $exception->user;
+        $manager = $exception->managerApproval;
+        $spv = $exception->spvApproval;
+
+        // Generate signed URLs if bucket is private
+        $userSignature    = $this->getSignedUrlIfRemote($user->signature_url);
+        $managerSignature = $manager ? $this->getSignedUrlIfRemote($manager->signature_url) : null;
+        $spvSignature     = $spv ? $this->getSignedUrlIfRemote($spv->signature_url) : null;
+        $spvStamp         = $spv ? $this->getSignedUrlIfRemote($spv->stamp_url) : null;
+
+        // Render PDF menggunakan dompdf facade
+        $pdf = Pdf::loadView('pdf.surat_izin', [
+            'exception'        => $exception,
+            'user'             => $user,
+            'manager'          => $manager,
+            'spv'              => $spv,
+            'userSignature'    => $userSignature,
+            'managerSignature' => $managerSignature,
+            'spvSignature'     => $spvSignature,
+            'spvStamp'         => $spvStamp,
+        ]);
+        $pdf->setOption('isRemoteEnabled', true);
+
+        $pdfContent = $pdf->output();
+
+        // Kirim email
+        Mail::to($user->email)->send(new SuratIzinMail($exception, $user, $pdfContent));
+    }
+
+    /**
+     * POST /api/exceptions/{id}/resend-email
+     * Resend the approved leave PDF email.
+     */
+    public function resendEmail($id)
+    {
+        $user = Auth::user();
+        if ($user->role === 'intern') {
+            return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
+        }
+
+        $exception = Exception::findOrFail($id);
+
+        if ($exception->status !== 'approved') {
+            return response()->json(['status' => 'error', 'message' => 'Hanya pengajuan yang sudah disetujui yang dapat dikirim ulang.'], 422);
+        }
+
+        try {
+            $this->generatePdfAndSendEmail($exception);
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Email Surat Izin berhasil dikirim ulang!'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Gagal mengirim ulang email PDF Surat Izin: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gagal mengirim ulang email: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

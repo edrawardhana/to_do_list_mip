@@ -20,6 +20,10 @@ class Exception extends Model
         'evidence_url',
         'description',
         'status', // pending, approved, rejected
+        'manager_approved_by',
+        'manager_approved_at',
+        'spv_approved_by',
+        'spv_approved_at',
         'created_at',
         'processed_at'
     ];
@@ -27,6 +31,8 @@ class Exception extends Model
     protected $casts = [
         'permission_date' => 'date',
         'replacement_date' => 'date',
+        'manager_approved_at' => 'datetime',
+        'spv_approved_at' => 'datetime',
         'created_at' => 'datetime',
         'processed_at' => 'datetime',
     ];
@@ -39,5 +45,15 @@ class Exception extends Model
     public function evaluator()
     {
         return $this->belongsTo(User::class, 'evaluated_by');
+    }
+
+    public function managerApproval()
+    {
+        return $this->belongsTo(User::class, 'manager_approved_by');
+    }
+
+    public function spvApproval()
+    {
+        return $this->belongsTo(User::class, 'spv_approved_by');
     }
 }

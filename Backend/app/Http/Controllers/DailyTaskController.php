@@ -721,7 +721,7 @@ class DailyTaskController extends Controller
     private function uploadFile($file, string $storagePath): string
     {
         $manager      = new ImageManager(new Driver());
-        $image        = $manager->decode($file);
+        $image        = $manager->read($file);
 
         if ($image->width() > 1920) {
             $image->scale(width: 1920);
