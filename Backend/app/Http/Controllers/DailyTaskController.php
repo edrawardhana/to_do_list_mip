@@ -67,33 +67,48 @@ class DailyTaskController extends Controller
                 }
             }
 
+            // ── AUTO GENERATE TASKS FOR INTERN (OPTIMIZED BULK INSERT) ──
             $templates = TaskTemplate::where('division_id', $user->division_id)
                 ->where('is_active', true)
                 ->get();
 
+            // 1. Ambil semua ID template yang sudah dikerjakan hari ini (1x Query aja)
+            $existingTaskTemplateIds = DailyTask::where('uploader_id', $user->id)
+                ->whereDate('task_date', $today)
+                ->whereNotNull('template_id')
+                ->pluck('template_id')
+                ->toArray();
+
+            $tasksToInsert = [];
+
             foreach ($templates as $template) {
-                // Filter by shift type if schedule exists for today
-                if ($schedule) {
-                    if (!TaskTemplate::matchesShift($template->start_time, $schedule->shift_type)) {
-                        continue;
-                    }
+                // Filter by shift type
+                if ($schedule && !TaskTemplate::matchesShift($template->start_time, $schedule->shift_type)) {
+                    continue;
                 }
 
-                DailyTask::firstOrCreate(
-                    [
-                        'template_id' => $template->id,
-                        'uploader_id' => $user->id,
-                        'task_date'   => $today,
-                    ],
-                    [
+                // 2. Cek di array memori, bukan nembak DB berulang-ulang
+                if (!in_array($template->id, $existingTaskTemplateIds)) {
+                    $tasksToInsert[] = [
+                        'id'            => (string) \Illuminate\Support\Str::uuid(), // Wajib karena lu pakai HasUuids
+                        'template_id'   => $template->id,
+                        'uploader_id'   => $user->id,
+                        'task_date'     => $today,
                         'division_id'   => $user->division_id,
                         'status'        => 'pending',
                         'assign_note'   => $template->description,
                         'start_time'    => $template->start_time,
                         'end_time'      => $template->end_time,
                         'reminder_time' => $template->reminder_time,
-                    ]
-                );
+                        'created_at'    => now(),
+                        'updated_at'    => now(),
+                    ];
+                }
+            }
+
+            // 3. Tembak database cuma 1x untuk semua tugas baru!
+            if (!empty($tasksToInsert)) {
+                DailyTask::insert($tasksToInsert);
             }
         }
 

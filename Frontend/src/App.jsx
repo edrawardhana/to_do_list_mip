@@ -13,7 +13,7 @@ import ChangePasswordForce from "./pages/auth/ChangePasswordForce";
 
 // Pages - Universal (Semua Role)
 import Dashboard from "./pages/dashboard/Dashboard";
-import Whitebook from "./pages/Whitebook";
+import Whiteboard from "./pages/Whiteboard"
 import Settings from "./pages/Settings";
 import LockedPage from "./pages/LockedPage";
 
@@ -31,7 +31,6 @@ import ManageAccountIntern from "./pages/admin/ManageAccountIntern";
 import ManageSchedules from "./pages/admin/ManageSchedules";
 import ManageSchedulesCalendar from "./pages/admin/ManageSchedulesCalendar";
 import Broadcasts from "./pages/admin/Broadcasts";
-import Reports from "./pages/admin/Reports";
 
 // Pages - VVIP (Superadmin & Up)
 import ManageAdmin from "./pages/superadmin/ManageAdmin";
@@ -89,7 +88,7 @@ function App() {
               } />
               <Route path="whitebook" element={
                 <ProtectedRoute roles={["intern", "admin", "superadmin"]}>
-                  <Whitebook />
+                  <Whiteboard />
                 </ProtectedRoute>
               } />
               {/* Manajerial */}
@@ -116,11 +115,6 @@ function App() {
               <Route path="broadcasts" element={
                 <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
                   <Broadcasts />
-                </ProtectedRoute>
-              } />
-              <Route path="reports" element={
-                <ProtectedRoute roles={["admin", "superadmin"]}>
-                  <Reports />
                 </ProtectedRoute>
               } />
 

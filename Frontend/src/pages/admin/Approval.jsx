@@ -1,24 +1,19 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import { createPortal } from "react-dom";
 
 const PAGE_SIZE = 6;
 
+// ── Pagination Tetap Sama ────────────────────────────────────────────────
 const Pagination = ({ page, totalPages, onChange }) => {
   const { isSuperAdmin } = useAuth();
   if (totalPages <= 1) return null;
   return (
     <div className="flex items-center justify-center gap-1.5 mt-8">
-      <button
-        onClick={() => onChange(page - 1)}
-        disabled={page === 1}
-        className={`w-9 h-9 rounded-xl border flex items-center justify-center disabled:opacity-30 transition-all shadow-sm ${
-          isSuperAdmin
-            ? "border-pink-200 bg-pink-500/5 text-pink-600 hover:bg-pink-500/10"
-            : "border-blue-900/20 bg-[#162447]/5 text-blue-900 hover:bg-[#162447]/10"
-        }`}
-      >
+      <button onClick={() => onChange(page - 1)} disabled={page === 1} className={`w-9 h-9 rounded-xl border flex items-center justify-center disabled:opacity-30 transition-all shadow-sm ${isSuperAdmin ? "border-pink-200 bg-pink-500/5 text-pink-600 hover:bg-pink-500/10" : "border-blue-900/20 bg-[#162447]/5 text-blue-900 hover:bg-[#162447]/10"}`}>
         <i className="fa-solid fa-chevron-left text-xs" />
       </button>
 
@@ -26,40 +21,17 @@ const Pagination = ({ page, totalPages, onChange }) => {
         const isEdge = p === 1 || p === totalPages;
         const isNear = Math.abs(p - page) <= 1;
         if (!isEdge && !isNear) {
-          if (p === 2 || p === totalPages - 1)
-            return (
-              <span key={p} className="text-slate-400 text-sm px-1">
-                …
-              </span>
-            );
+          if (p === 2 || p === totalPages - 1) return <span key={p} className="text-slate-400 text-sm px-1">…</span>;
           return null;
         }
         return (
-          <button
-            key={p}
-            onClick={() => onChange(p)}
-            className={`w-9 h-9 rounded-xl text-sm font-bold border transition-all shadow-sm ${
-              p === page
-                ? isSuperAdmin
-                  ? "bg-pink-500 text-white border-pink-500 shadow-pink-500/20 scale-105"
-                  : "bg-[#162447] text-white border-[#162447] shadow-[#162447]/20 scale-105"
-                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-            }`}
-          >
+          <button key={p} onClick={() => onChange(p)} className={`w-9 h-9 rounded-xl text-sm font-bold border transition-all shadow-sm ${p === page ? (isSuperAdmin ? "bg-pink-500 text-white border-pink-500 shadow-pink-500/20 scale-105" : "bg-[#162447] text-white border-[#162447] shadow-[#162447]/20 scale-105") : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"}`}>
             {p}
           </button>
         );
       })}
 
-      <button
-        onClick={() => onChange(page + 1)}
-        disabled={page === totalPages}
-        className={`w-9 h-9 rounded-xl border flex items-center justify-center disabled:opacity-30 transition-all shadow-sm ${
-          isSuperAdmin
-            ? "border-pink-200 bg-pink-500/5 text-pink-600 hover:bg-pink-500/10"
-            : "border-blue-900/20 bg-[#162447]/5 text-blue-900 hover:bg-[#162447]/10"
-        }`}
-      >
+      <button onClick={() => onChange(page + 1)} disabled={page === totalPages} className={`w-9 h-9 rounded-xl border flex items-center justify-center disabled:opacity-30 transition-all shadow-sm ${isSuperAdmin ? "border-pink-200 bg-pink-500/5 text-pink-600 hover:bg-pink-500/10" : "border-blue-900/20 bg-[#162447]/5 text-blue-900 hover:bg-[#162447]/10"}`}>
         <i className="fa-solid fa-chevron-right text-xs" />
       </button>
     </div>
@@ -68,11 +40,9 @@ const Pagination = ({ page, totalPages, onChange }) => {
 
 const Approval = () => {
   const { user, isSuperAdmin } = useAuth();
+  const queryClient = useQueryClient(); // ✅ Alat tempur auto-refresh data
+
   const [activeTab, setActiveTab] = useState(isSuperAdmin ? "leaves" : "tasks");
-  const [loading, setLoading] = useState(true);
-  const [pendingTasks, setPendingTasks] = useState([]);
-  const [pendingLeaves, setPendingLeaves] = useState([]);
-  const [approvedLeaves, setApprovedLeaves] = useState([]);
   const [rejectState, setRejectState] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [taskPage, setTaskPage] = useState(1);
@@ -81,134 +51,85 @@ const Approval = () => {
   const [searchTask, setSearchTask] = useState("");
   const [searchLeave, setSearchLeave] = useState("");
   const [searchHistory, setSearchHistory] = useState("");
+  
+  // State Fitur Baru Lu
   const [confirmAccLeave, setConfirmAccLeave] = useState(null);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [resendingId, setResendingId] = useState(null);
 
-  const fetchApprovals = useCallback(async () => {
-    setLoading(true);
-    try {
+  // ── 1. MESIN BARU: TanStack Query (Bakar useEffect lu!) ──
+  const { data, isLoading: loading, isFetching } = useQuery({
+    queryKey: ["approvalsData"],
+    queryFn: async () => {
       const [tRes, lRes] = await Promise.all([
         api.get("/daily-tasks"),
         api.get("/exceptions"),
       ]);
-      const tData = tRes.data?.data || tRes.data || [];
-      const lData = lRes.data?.data || lRes.data || [];
+      return {
+        tasks: tRes.data?.data || tRes.data || [],
+        leaves: lRes.data?.data || lRes.data || [],
+      };
+    },
+    staleTime: 60 * 1000, // Tahan data 1 menit biar gak spam API
+  });
 
-      setPendingTasks(
-        tData
-          .filter((t) => t.status === "pending" && t.submitted_at)
-          .sort((a, b) => {
-            // Urutkan dari yang mengumpulkan paling awal (tertua ke terbaru)
-            const aTime = a.submitted_at
-              ? new Date(a.submitted_at)
-              : new Date(a.created_at);
-            const bTime = b.submitted_at
-              ? new Date(b.submitted_at)
-              : new Date(b.created_at);
-            return aTime - bTime;
-          })
-          .map((t) => ({
-            ...t,
-            internName: t.uploader?.full_name || "Intern",
-            division: t.uploader?.division?.name || t.division?.name || "—",
-            taskTitle:
-              t.taskTemplate?.title || t.template?.title || "Tugas Harian",
-            notes: t.description,
-            photo: t.evidence_url,
-            submittedAt: t.submitted_at || t.created_at, // ← gunakan submitted_at jika ada
-            participants_detail: t.participants_detail || [],
-          })),
-      );
-      setPendingLeaves(
-        lData
-          .filter((l) => l.status === "pending")
-          .map((l) => ({
-            ...l,
-            internName: l.user?.full_name || "Intern",
-            division: l.user?.division?.name || "—",
-            reason: l.description,
-            dateReq: l.permission_date,
-            proof: l.evidence_url,
-          })),
-      );
-      setApprovedLeaves(
-        lData
-          .filter((l) => l.status === "approved")
-          .map((l) => ({
-            ...l,
-            internName: l.user?.full_name || "Intern",
-            division: l.user?.division?.name || "—",
-            reason: l.description,
-            dateReq: l.permission_date,
-            proof: l.evidence_url,
-          })),
-      );
-    } catch {
-      toast.error("Gagal memuat data approval");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // ── 2. OLAH DATA LANGSUNG (Derived State) ──
+  const pendingTasks = (data?.tasks || [])
+    .filter((t) => t.status === "pending" && t.submitted_at)
+    .sort((a, b) => new Date(a.submitted_at || a.created_at) - new Date(b.submitted_at || b.created_at))
+    .map((t) => ({
+      ...t,
+      internName: t.uploader?.full_name || "Intern",
+      division: t.uploader?.division?.name || t.division?.name || "—",
+      taskTitle: t.taskTemplate?.title || t.template?.title || "Tugas Harian",
+      notes: t.description,
+      photo: t.evidence_url,
+      submittedAt: t.submitted_at || t.created_at,
+      participants_detail: t.participants_detail || [],
+    }));
 
-  useEffect(() => {
-    fetchApprovals();
-  }, [fetchApprovals]);
+  const pendingLeaves = (data?.leaves || [])
+    .filter((l) => l.status === "pending")
+    .map((l) => ({
+      ...l,
+      internName: l.user?.full_name || "Intern",
+      division: l.user?.division?.name || "—",
+      reason: l.description,
+      dateReq: l.permission_date,
+      proof: l.evidence_url,
+    }));
+
+  const approvedLeaves = (data?.leaves || [])
+    .filter((l) => l.status === "approved")
+    .map((l) => ({
+      ...l,
+      internName: l.user?.full_name || "Intern",
+      division: l.user?.division?.name || "—",
+      reason: l.description,
+      dateReq: l.permission_date,
+      proof: l.evidence_url,
+    }));
 
   // reset page on tab/search change
-  useEffect(() => {
-    setTaskPage(1);
-  }, [activeTab, searchTask]);
-  useEffect(() => {
-    setLeavePage(1);
-  }, [activeTab, searchLeave]);
+  useEffect(() => { setTaskPage(1); }, [activeTab, searchTask]);
+  useEffect(() => { setLeavePage(1); }, [activeTab, searchLeave]);
+  useEffect(() => { setHistoryPage(1); }, [activeTab, searchHistory]);
 
-  // ── filtered + paginated ────────────────────────────────────────────────
-  const filteredTasks = pendingTasks.filter(
-    (t) =>
-      !searchTask ||
-      t.internName.toLowerCase().includes(searchTask.toLowerCase()) ||
-      t.taskTitle.toLowerCase().includes(searchTask.toLowerCase()),
-  );
-  const filteredLeaves = pendingLeaves.filter(
-    (l) =>
-      !searchLeave ||
-      l.internName.toLowerCase().includes(searchLeave.toLowerCase()) ||
-      l.type?.includes(searchLeave.toLowerCase()),
-  );
-  const taskTotalPages = Math.max(
-    1,
-    Math.ceil(filteredTasks.length / PAGE_SIZE),
-  );
-  const leaveTotalPages = Math.max(
-    1,
-    Math.ceil(filteredLeaves.length / PAGE_SIZE),
-  );
-  const pagedTasks = filteredTasks.slice(
-    (taskPage - 1) * PAGE_SIZE,
-    taskPage * PAGE_SIZE,
-  );
-  const pagedLeaves = filteredLeaves.slice(
-    (leavePage - 1) * PAGE_SIZE,
-    leavePage * PAGE_SIZE,
-  );
-  const filteredHistory = approvedLeaves.filter(
-    (l) =>
-      !searchHistory ||
-      l.internName.toLowerCase().includes(searchHistory.toLowerCase()) ||
-      l.type?.includes(searchHistory.toLowerCase()),
-  );
-  const historyTotalPages = Math.max(
-    1,
-    Math.ceil(filteredHistory.length / PAGE_SIZE),
-  );
-  const pagedHistory = filteredHistory.slice(
-    (historyPage - 1) * PAGE_SIZE,
-    historyPage * PAGE_SIZE,
-  );
+  // Filters & Pagination
+  const filteredTasks = pendingTasks.filter((t) => !searchTask || t.internName.toLowerCase().includes(searchTask.toLowerCase()) || t.taskTitle.toLowerCase().includes(searchTask.toLowerCase()));
+  const filteredLeaves = pendingLeaves.filter((l) => !searchLeave || l.internName.toLowerCase().includes(searchLeave.toLowerCase()) || l.type?.includes(searchLeave.toLowerCase()));
+  const filteredHistory = approvedLeaves.filter((l) => !searchHistory || l.internName.toLowerCase().includes(searchHistory.toLowerCase()) || l.type?.includes(searchHistory.toLowerCase()));
 
-  // ── handlers ──────────────────────────────────────────────────────────
+  const taskTotalPages = Math.max(1, Math.ceil(filteredTasks.length / PAGE_SIZE));
+  const leaveTotalPages = Math.max(1, Math.ceil(filteredLeaves.length / PAGE_SIZE));
+  const historyTotalPages = Math.max(1, Math.ceil(filteredHistory.length / PAGE_SIZE));
+
+  const pagedTasks = filteredTasks.slice((taskPage - 1) * PAGE_SIZE, taskPage * PAGE_SIZE);
+  const pagedLeaves = filteredLeaves.slice((leavePage - 1) * PAGE_SIZE, leavePage * PAGE_SIZE);
+  const pagedHistory = filteredHistory.slice((historyPage - 1) * PAGE_SIZE, historyPage * PAGE_SIZE);
+
+  // ── 3. HANDLERS (Pake InvalidateQueries biar UI ga kedip) ──
   const handleActionTask = async (id, action) => {
     if (action === "reject") {
       setRejectState({ id, type: "task" });
@@ -218,11 +139,20 @@ const Approval = () => {
     try {
       await api.put(`/daily-tasks/${id}`, { status: "approved" });
       toast.success("✅ Tugas berhasil di-ACC");
-      fetchApprovals();
+      queryClient.invalidateQueries(["approvalsData"]); // 🔥 Refresh otomatis di background
     } catch {
       toast.error("Gagal memproses tugas");
     }
   };
+
+  useEffect(() => {
+    if (confirmAccLeave) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => { document.body.style.overflow = "unset"; };
+  }, [confirmAccLeave]);
 
   const handleActionLeave = async (leave, action) => {
     if (action === "reject") {
@@ -248,7 +178,7 @@ const Approval = () => {
       toast.success(res.data?.message || "✅ Izin berhasil diproses!");
       setConfirmAccLeave(null);
       setConfirmPassword("");
-      fetchApprovals();
+      queryClient.invalidateQueries(["approvalsData"]); // 🔥 Refresh otomatis
     } catch (err) {
       toast.error(err.response?.data?.message || "Gagal memproses izin");
     } finally {
@@ -262,19 +192,14 @@ const Approval = () => {
       return;
     }
     try {
-      if (rejectState.type === "task")
-        await api.put(`/daily-tasks/${rejectState.id}`, {
-          status: "rejected",
-          reject_reason: rejectReason,
-        });
-      else
-        await api.put(`/exceptions/${rejectState.id}`, {
-          status: "rejected",
-          description: rejectReason,
-        });
+      if (rejectState.type === "task") {
+        await api.put(`/daily-tasks/${rejectState.id}`, { status: "rejected", reject_reason: rejectReason });
+      } else {
+        await api.put(`/exceptions/${rejectState.id}`, { status: "rejected", description: rejectReason });
+      }
       toast.success("Berhasil diproses");
       setRejectState(null);
-      fetchApprovals();
+      queryClient.invalidateQueries(["approvalsData"]); // 🔥 Refresh otomatis
     } catch {
       toast.error("Gagal memproses penolakan");
     }
@@ -291,109 +216,32 @@ const Approval = () => {
         toast.error(res.data?.message || "Gagal mengirim ulang email.", { id: toastId });
       }
     } catch (error) {
-      console.error(error);
       toast.error(error.response?.data?.message || "Gagal mengirim ulang email.", { id: toastId });
     } finally {
       setResendingId(null);
     }
   };
 
-  // Format tanggal saja
-  const fmt = (d) =>
-    d
-      ? new Date(d).toLocaleDateString("id-ID", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        })
-      : "—";
-
-  // Format waktu submit: "HH:mm WIB" untuk sorting transparency
+  // ── UTILS Tetap Sama ──
+  const fmt = (d) => d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
   const fmtTime = (d) => {
     if (!d) return "—";
-    return (
-      new Date(d).toLocaleString("id-ID", {
-        timeZone: "Asia/Jakarta",
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }) + " WIB"
-    );
+    return new Date(d).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }) + " WIB";
   };
 
-  const exStyle = (type) =>
-    ({
-      swap_shift: {
-        icon: "fa-code-compare",
-        color: "text-blue-500",
-        bg: "bg-blue-50",
-        bar: "bg-blue-500",
-        label: "Ganti Shift",
-      },
-      sakit: {
-        icon: "fa-house-medical",
-        color: "text-rose-500",
-        bg: "bg-rose-50",
-        bar: "bg-rose-500",
-        label: "Sakit",
-      },
-      izin: {
-        icon: "fa-envelope-open-text",
-        color: "text-amber-500",
-        bg: "bg-amber-50",
-        bar: "bg-amber-500",
-        label: "Sebab Lain (Izin)",
-      },
-      tugas_luar: {
-        icon: "fa-briefcase",
-        color: "text-emerald-500",
-        bg: "bg-emerald-50",
-        bar: "bg-emerald-500",
-        label: "Tugas Luar",
-      },
-      terlambat: {
-        icon: "fa-clock",
-        color: "text-indigo-500",
-        bg: "bg-indigo-50",
-        bar: "bg-indigo-500",
-        label: "Terlambat Masuk",
-      },
-      pulang_awal: {
-        icon: "fa-person-walking-arrow-right",
-        color: "text-purple-500",
-        bg: "bg-purple-50",
-        bar: "bg-purple-500",
-        label: "Pulang Awal",
-      },
-    })[type] || {
-      icon: "fa-envelope",
-      color: "text-slate-500",
-      bg: "bg-slate-50",
-      bar: "bg-slate-500",
-      label: "Pengajuan",
-    };
+  const exStyle = (type) => ({
+    swap_shift: { icon: "fa-code-compare", color: "text-blue-500", bg: "bg-blue-50", bar: "bg-blue-500", label: "Ganti Shift" },
+    sakit: { icon: "fa-house-medical", color: "text-rose-500", bg: "bg-rose-50", bar: "bg-rose-500", label: "Sakit" },
+    izin: { icon: "fa-envelope-open-text", color: "text-amber-500", bg: "bg-amber-50", bar: "bg-amber-500", label: "Sebab Lain (Izin)" },
+    tugas_luar: { icon: "fa-briefcase", color: "text-emerald-500", bg: "bg-emerald-50", bar: "bg-emerald-500", label: "Tugas Luar" },
+    terlambat: { icon: "fa-clock", color: "text-indigo-500", bg: "bg-indigo-50", bar: "bg-indigo-500", label: "Terlambat Masuk" },
+    pulang_awal: { icon: "fa-person-walking-arrow-right", color: "text-purple-500", bg: "bg-purple-50", bar: "bg-purple-500", label: "Pulang Awal" },
+  })[type] || { icon: "fa-envelope", color: "text-slate-500", bg: "bg-slate-50", bar: "bg-slate-500", label: "Pengajuan" };
 
   const tabs = [
-    ...(!isSuperAdmin ? [{
-      id: "tasks",
-      label: "Laporan Tugas",
-      icon: "fa-list-check",
-      count: filteredTasks.length,
-    }] : []),
-    {
-      id: "leaves",
-      label: "Pengajuan Izin",
-      icon: "fa-envelope-open-text",
-      count: filteredLeaves.length,
-    },
-    {
-      id: "history",
-      label: "Riwayat Izin",
-      icon: "fa-clock-rotate-left",
-      count: approvedLeaves.length,
-    },
+    ...(!isSuperAdmin ? [{ id: "tasks", label: "Laporan Tugas", icon: "fa-list-check", count: filteredTasks.length }] : []),
+    { id: "leaves", label: "Pengajuan Izin", icon: "fa-envelope-open-text", count: filteredLeaves.length },
+    { id: "history", label: "Riwayat Izin", icon: "fa-clock-rotate-left", count: approvedLeaves.length },
   ];
 
   return (
@@ -429,10 +277,14 @@ const Approval = () => {
           </div>
 
           <button
-            onClick={fetchApprovals}
-            className="flex items-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all shadow-lg active:scale-95 shrink-0 mt-4 sm:mt-0 bg-white/10 hover:bg-white/20 border-white/20 text-white"
+            onClick={() => queryClient.invalidateQueries(["approvalsData"])}
+            disabled={isFetching}
+            className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all shadow-lg shrink-0 mt-4 sm:mt-0 ${
+              isFetching ? "opacity-50 cursor-not-allowed bg-white/5 border-white/10 text-white/50" : "bg-white/10 hover:bg-white/20 border-white/20 text-white active:scale-95"
+            }`}
           >
-            <i className="fa-solid fa-arrows-rotate" /> Refresh Data
+            <i className={`fa-solid fa-arrows-rotate ${isFetching ? "animate-spin" : ""}`} /> 
+            {isFetching ? "Memuat..." : "Refresh Data"}
           </button>
         </div>
 
@@ -1035,15 +887,17 @@ const Approval = () => {
         </div>
       )}
       {/* ── LEAVE ACC CONFIRMATION MODAL ───────────────────────────────────── */}
-      {confirmAccLeave && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 w-full max-w-lg p-8 animate-in zoom-in-95 space-y-6">
+      {confirmAccLeave && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in p-4 overflow-y-auto">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 w-full max-w-lg p-6 sm:p-8 animate-in zoom-in-95 space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar my-auto">
+            
+            {/* ISINYA SAMA PERSIS KAYA KODINGAN LU SEBELUMNYA */}
             <div>
-              <h3 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+              <h3 className="text-xl sm:text-2xl font-black text-slate-800 flex items-center gap-2">
                 <i className="fa-solid fa-signature text-emerald-500" />
                 Konfirmasi ACC Izin
               </h3>
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mt-1">
+              <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
                 Verifikasi password & Tinjau Data Pengaju
               </p>
             </div>
@@ -1061,19 +915,19 @@ const Approval = () => {
             <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 space-y-3 text-xs">
               <div className="flex justify-between border-b border-slate-200/60 pb-2">
                 <span className="text-slate-400 font-bold uppercase">Nama Karyawan</span>
-                <span className="text-slate-800 font-black">{confirmAccLeave.internName}</span>
+                <span className="text-slate-800 font-black text-right">{confirmAccLeave.internName}</span>
               </div>
               <div className="flex justify-between border-b border-slate-200/60 pb-2">
                 <span className="text-slate-400 font-bold uppercase">Divisi</span>
-                <span className="text-slate-800 font-black">{confirmAccLeave.division}</span>
+                <span className="text-slate-800 font-black text-right">{confirmAccLeave.division}</span>
               </div>
               <div className="flex justify-between border-b border-slate-200/60 pb-2">
                 <span className="text-slate-400 font-bold uppercase">Jenis Izin</span>
-                <span className="text-slate-800 font-black uppercase">{confirmAccLeave.type?.replace('_', ' ')}</span>
+                <span className="text-slate-800 font-black uppercase text-right">{confirmAccLeave.type?.replace('_', ' ')}</span>
               </div>
               <div className="flex justify-between border-b border-slate-200/60 pb-2">
                 <span className="text-slate-400 font-bold uppercase">Tanggal Pengajuan</span>
-                <span className="text-slate-800 font-black">{fmt(confirmAccLeave.dateReq)}</span>
+                <span className="text-slate-800 font-black text-right">{fmt(confirmAccLeave.dateReq)}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-slate-400 font-bold uppercase">Alasan</span>
@@ -1100,14 +954,14 @@ const Approval = () => {
               <button
                 onClick={() => setConfirmAccLeave(null)}
                 disabled={confirmLoading}
-                className="flex-1 py-4 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-50"
+                className="flex-1 py-4 rounded-xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-50 shrink-0"
               >
                 Batal
               </button>
               <button
                 onClick={handleConfirmAccLeave}
                 disabled={confirmLoading}
-                className="flex-1 py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
               >
                 {confirmLoading ? (
                   <>
@@ -1115,13 +969,14 @@ const Approval = () => {
                   </>
                 ) : (
                   <>
-                    <i className="fa-solid fa-check" /> Konfirmasi & ACC
+                    <i className="fa-solid fa-check" /> ACC
                   </>
                 )}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body // Ini yang bikin modal lu nembus full layar!
       )}
     </div>
   );

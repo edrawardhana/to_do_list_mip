@@ -138,7 +138,7 @@ class ProfileController extends Controller
             'division_id'      => 'required|uuid|exists:divisions,id',
             'role'             => 'required|in:intern,admin,super_admin',
             'password'         => 'nullable|string|min:6',
-            'internship_batch' => 'nullable|string|max:100',
+            'internship_batch' => 'nullable|integer',
         ]);
 
         // Auto-generate password jika tidak diisi
@@ -185,15 +185,19 @@ class ProfileController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Hanya Superadmin yang dapat mengunduh detail user.'], 403);
         }
 
-        $request->validate([
-            'full_name'        => 'required|string',
-            'email'            => 'required|string',
-            'username'         => 'required|string',
-            'role'             => 'required|string',
-            'division_name'    => 'required|string',
-            'password'         => 'required|string',
-            'internship_batch' => 'nullable|string',
+        $validator = Validator::make($row, [
+            'full_name' => 'required|string',
+            'email' => 'required|email|unique:users,email',
+            'username' => 'required|string|unique:profiles,username',
+            'division_name' => 'required|string',
+            'role' => 'required|in:intern,admin,super_admin',
+            'internship_batch' => 'nullable|integer'
         ]);
+
+        if ($validator->fails()) {
+            $errors[] = "Baris ke-{$rowIndex}: " . implode(', ', $validator->errors()->all());
+            continue; 
+        }
 
         $csvContent = "full_name,email,username,division_name,role,password,internship_batch\n";
         $csvContent .= sprintf(
@@ -256,6 +260,20 @@ class ProfileController extends Controller
             }
 
             $role = $data['role'] ?? 'intern';
+            
+            $validator = \Illuminate\Support\Facades\Validator::make($data, [
+                'full_name' => 'required|string',
+                'email' => 'required|email',
+                'username' => 'required|string',
+                'internship_batch' => 'nullable|integer' 
+            ]);
+
+            if ($validator->fails()) {
+                $errorMessages = implode(', ', $validator->errors()->all());
+                $errors[] = "Baris " . ($lineNum + 2) . ": Format salah ({$errorMessages}).";
+                continue; 
+            }
+
             if (!in_array($role, ['intern', 'admin', 'super_admin'])) {
                 $errors[] = "Baris " . ($lineNum + 2) . ": Role '{$role}' tidak valid.";
                 continue;

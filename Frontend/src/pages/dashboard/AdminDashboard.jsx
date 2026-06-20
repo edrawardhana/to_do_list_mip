@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   PieChart,
   Pie,
@@ -16,59 +17,34 @@ const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#f43f5e", "#8b5cf6"];
 
 const AdminDashboard = () => {
   const { user } = useAuth();
-  const myDivision =
-    user?.division?.name || user?.division_name || "Divisi Anda";
+  const queryClient = useQueryClient(); // Alat tempur buat narik refresh manual
+  const myDivision = user?.division?.name || user?.division_name || "Divisi Anda";
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [chartData, setChartData] = useState([]);
-  const [stats, setStats] = useState({
-    onSiteInterns: 0,
-    totalInterns: 0,
-    pendingTasks: 0,
-    pendingUsers: 0,
-  });
-  const [activityLogs, setActivityLogs] = useState([]);
-
-  const fetchDashboardData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-    try {
+  // ── TANSTACK QUERY: Fetch Dashboard Admin ──
+  const { data, isLoading: loading, isFetching: refreshing } = useQuery({
+    queryKey: ["adminDashboard"],
+    queryFn: async () => {
       const response = await api.get("/dashboard/admin");
-      const data = response.data?.data || response.data;
-      setChartData(data.chartData || []);
-      setStats({
-        onSiteInterns: data.onSiteInterns ?? data.totalInterns ?? 0,
-        totalInterns: data.totalInterns ?? 0,
-        pendingTasks: data.pendingTasks ?? 0,
-        pendingUsers: data.pendingUsers ?? 0,
-      });
-      setActivityLogs(data.activityLogs || []);
-      if (isRefresh) toast.success("Data diperbarui");
-    } catch (error) {
-      console.error("Gagal mengambil data admin:", error);
-      if (!isRefresh) toast.error("Gagal memuat data dashboard");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+      return response.data?.data || response.data || {};
+    },
+    staleTime: 5 * 60 * 1000, // Data tahan di RAM 5 menit
+  });
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
-
-  const formatRelativeTime = (ts) => {
-    if (!ts) return "—";
-    const diff = Math.round((new Date() - new Date(ts)) / 1000);
-    if (diff < 60) return "Baru saja";
-    if (diff < 3600) return `${Math.floor(diff / 60)} mnt lalu`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
-    return new Date(ts).toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-    });
+  // ── HANDLE REFRESH MANUAL ──
+  const handleRefresh = async () => {
+    await queryClient.invalidateQueries(["adminDashboard"]);
+    toast.success("Data diperbarui");
   };
+
+  // ── FALLBACK DATA AMAN ──
+  const chartData = data?.chartData || [];
+  const stats = {
+    onSiteInterns: data?.onSiteInterns ?? data?.totalInterns ?? 0,
+    totalInterns: data?.totalInterns ?? 0,
+    pendingTasks: data?.pendingTasks ?? 0,
+    pendingUsers: data?.pendingUsers ?? 0,
+  };
+  const activityLogs = data?.activityLogs || [];
 
   const statCards = [
     {
@@ -160,20 +136,20 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          <div className="flex-1 min-h-[250px] w-full">
+          <div className="flex-1 w-full" style={{ minHeight: '250px' }}>
             {loading ? (
-              <div className="h-full flex items-center justify-center">
+              <div className="h-full flex items-center justify-center min-h-[250px]">
                 <div className="w-40 h-40 rounded-full border-4 border-blue-800 border-t-blue-400 animate-spin" />
               </div>
             ) : chartData.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center gap-3 opacity-40">
+              <div className="h-full flex flex-col items-center justify-center gap-3 opacity-40 min-h-[250px]">
                 <i className="fa-solid fa-chart-pie text-5xl text-blue-400" />
                 <p className="text-xs text-blue-300 font-medium">
                   Belum ada data tugas selesai
                 </p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie
                     data={chartData}
@@ -351,7 +327,7 @@ const AdminDashboard = () => {
               ({myDivision})
             </h3>
             <button
-              onClick={() => fetchDashboardData(true)}
+              onClick={handleRefresh}
               disabled={refreshing}
               title="Refresh log"
               className="w-8 h-8 rounded-xl bg-white/10 border border-blue-400/20 text-blue-300 hover:bg-blue-500/50 hover:text-white transition-all flex items-center justify-center disabled:opacity-50"

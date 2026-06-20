@@ -124,6 +124,27 @@ class ExceptionController extends Controller
             $exception->toArray()
         );
 
+        try {
+            \DB::table('schedules') // 💡 Sesuaikan dengan nama tabel jadwal/absen lu (misal: 'schedules')
+                ->where('user_id', $user->id)
+                ->whereDate('date', $request->permission_date) // 💡 Sesuaikan nama kolom tanggal di tabel jadwal lu
+                ->update(['status' => 'pending_' . $request->type]); // Hasilnya misal: 'pending_sakit' atau 'pending_izin'
+        } catch (\Exception $e) {
+            \Log::error("Gagal update Pre-Approval Visibility: " . $e->getMessage());
+        }
+
+        try {
+            $admins = \App\Models\User::whereIn('role', ['admin', 'super_admin'])
+                ->where('division_id', $user->division_id)
+                ->whereNotNull('fcm_token') 
+                ->get();
+
+            foreach ($admins as $admin) {
+            }
+        } catch (\Exception $e) {
+            \Log::error("Gagal mengirim Push Notification FCM: " . $e->getMessage());
+        }
+
         return response()->json([
             'status'  => 'success',
             'message' => 'Berhasil mengajukan Exception.',

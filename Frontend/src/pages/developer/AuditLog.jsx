@@ -1,54 +1,48 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "../../api/axios";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../../contexts/AuthContext";
 
-const ITEMS_PER_PAGE = 15;
-
 const AuditLog = () => {
-  // 1. Hapus isDeveloper, gunakan logic tema yang sama dengan Broadcast
   const { user, isAdmin, isSuperAdmin } = useAuth();
+  const queryClient = useQueryClient();
   
   const isPinkTheme = isSuperAdmin;
   const isDarkBlueTheme = isAdmin && !isSuperAdmin;
 
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // ── STATE FILTER & PAGINATION CRUCIAL ──
+  const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
   const [expandedRow, setExpandedRow] = useState(null);
 
-  // -----------------------------------------------
-  // Fetch data dari Laravel API
-  // -----------------------------------------------
-  const fetchData = useCallback(async (page = 1) => {
-    setLoading(true);
-    try {
+  // ── TANSTACK QUERY: Otomatis Fetch Tiap Parameter Berubah ──
+  const { data, isLoading: loading, isFetching } = useQuery({
+    queryKey: ["auditLogs", page, search, dateFilter],
+    queryFn: async () => {
       const params = { page };
       if (search) params.search = search;
       if (dateFilter) params.date = dateFilter;
 
       const res = await api.get("/audit-logs", { params });
-      const body = res.data;
+      return res.data || {};
+    },
+    staleTime: 15 * 1000, // Cache aman selama 15 detik untuk data log real-time
+    placeholderData: (previousData) => previousData, // Jalur cepat: Anti-blink pas ganti halaman
+  });
 
-      setLogs(body.data || []);
-      setTotal(body.total || 0);
-      setTotalPages(body.last_page || 1);
-      setCurrentPage(body.current_page || 1);
-    } catch (err) {
-      toast.error("Gagal mengambil audit log");
-    } finally {
-      setLoading(false);
-    }
-  }, [search, dateFilter]);
+  // ── DERIVED STATE DARI SERVER PAYLOAD ──
+  const logs = data?.data || [];
+  const total = data?.total || 0;
+  const totalPages = data?.last_page || 1;
+  const currentPage = data?.current_page || 1;
 
+  // Reset ke halaman 1 kalau filter pencarian atau tanggal berubah
   useEffect(() => {
-    fetchData(1);
-  }, [fetchData]);
+    setPage(1);
+  }, [search, dateFilter]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -59,11 +53,10 @@ const AuditLog = () => {
     setSearchInput("");
     setSearch("");
     setDateFilter("");
+    setPage(1);
   };
 
-  // -----------------------------------------------
-  // Badge styling per action (Disesuaikan untuk Light Mode)
-  // -----------------------------------------------
+  // ── BADGE STYLING HELPER ──
   const getActionBadge = (action = "") => {
     const act = action.toLowerCase();
     if (act.includes("login")) return { cls: "bg-emerald-50 text-emerald-600 border-emerald-200", icon: "fa-right-to-bracket" };
@@ -82,15 +75,13 @@ const AuditLog = () => {
     const d = new Date(iso);
     return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
   };
+
   const formatTime = (iso) => {
     if (!iso) return "";
     const d = new Date(iso);
     return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB";
   };
 
-  // -----------------------------------------------
-  // Pagination helpers
-  // -----------------------------------------------
   const getPageNumbers = () => {
     const pages = [];
     const delta = 2;
@@ -103,19 +94,15 @@ const AuditLog = () => {
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 sm:pt-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
 
-      {/* ================================================================= */}
-      {/* HERO SECTION & FILTER (TEMA DINAMIS: PINK & DEEP BLUE)            */}
-      {/* ================================================================= */}
+      {/* HERO SECTION & FILTER */}
       <div className={`rounded-[2.5rem] border shadow-2xl relative overflow-hidden flex flex-col text-white mb-6 transition-all duration-500 ${
         isPinkTheme 
           ? "bg-gradient-to-br from-pink-300 to-rose-400 border-pink-300 shadow-pink-200/50" 
           : "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20 shadow-2xl"
       }`}>
-        {/* Glow Effects */}
         <div className={`absolute -top-32 -right-32 w-96 h-96 rounded-full blur-[100px] pointer-events-none ${isPinkTheme ? "bg-white/40" : "bg-blue-500/20"}`} />
         <div className={`absolute -bottom-32 -left-32 w-72 h-72 rounded-full blur-[100px] pointer-events-none ${isPinkTheme ? "bg-rose-100/30" : "bg-sky-500/10"}`} />
 
-        {/* Content Top */}
         <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col lg:flex-row justify-between gap-8 border-b border-white/10">
           <div className="lg:max-w-xl">
             <div className="flex items-center gap-3 mb-5">
@@ -130,14 +117,11 @@ const AuditLog = () => {
                 System Security Monitor
               </span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight">
-              Audit Log.
-            </h1>
+            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight">Audit Log.</h1>
             <p className={`text-sm font-medium leading-relaxed ${isPinkTheme ? "text-pink-50" : "text-blue-100/70"}`}>
               Seluruh aktivitas sistem tercatat di sini secara real-time. Lacak perubahan, login, dan aksi user.
             </p>
 
-            {/* Badges */}
             <div className="flex flex-wrap gap-2 mt-6">
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 border border-white/20 text-white shadow-sm backdrop-blur-sm">
                 <i className="fa-solid fa-server text-[10px]" />
@@ -146,7 +130,7 @@ const AuditLog = () => {
             </div>
           </div>
 
-          {/* Widget Kanan */}
+          {/* Widget Status */}
           <div className="w-full lg:w-80 shrink-0 bg-white/10 border border-white/20 rounded-3xl p-6 backdrop-blur-md flex flex-col sm:flex-row lg:flex-col items-center justify-center gap-5 shadow-lg">
             <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
               <div className={`absolute inset-0 border-[3px] border-white/10 rounded-full animate-[spin_2s_linear_infinite] ${isPinkTheme ? "border-t-pink-200" : "border-t-blue-300"}`} />
@@ -171,14 +155,11 @@ const AuditLog = () => {
           </div>
         </div>
 
-        {/* Filter Section (Menyatu dengan Hero) */}
+        {/* Filter Form Section */}
         <div className="p-6 sm:p-8 relative z-10 bg-black/10">
           <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 items-end w-full">
-            {/* Search */}
             <div className="flex-1 w-full">
-              <label className="text-[10px] font-black uppercase tracking-widest text-white/70 block mb-2">
-                Cari Aktivitas
-              </label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-white/70 block mb-2">Cari Aktivitas</label>
               <div className="relative group">
                 <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-white/50 group-focus-within:text-white transition-colors text-sm" />
                 <input
@@ -191,11 +172,8 @@ const AuditLog = () => {
               </div>
             </div>
 
-            {/* Date Filter */}
             <div className="w-full md:w-52 shrink-0">
-              <label className="text-[10px] font-black uppercase tracking-widest text-white/70 block mb-2">
-                Filter Tanggal
-              </label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-white/70 block mb-2">Filter Tanggal</label>
               <input
                 type="date"
                 value={dateFilter}
@@ -204,42 +182,30 @@ const AuditLog = () => {
               />
             </div>
 
-            {/* Buttons */}
             <div className="flex gap-2 sm:gap-3 shrink-0 w-full md:w-auto">
-              <button
-                type="submit"
-                className="flex-1 md:flex-none px-6 py-3 bg-white text-slate-900 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 hover:bg-slate-100"
-              >
+              <button type="submit" className="flex-1 md:flex-none px-6 py-3 bg-white text-slate-900 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 hover:bg-slate-100">
                 <i className="fa-solid fa-search" /> <span className="hidden sm:inline">Cari</span>
               </button>
               {(search || dateFilter) && (
-                <button
-                  type="button"
-                  onClick={handleClearFilters}
-                  className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-bold transition-all border border-white/20 flex items-center justify-center gap-2"
-                >
+                <button type="button" onClick={handleClearFilters} className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-bold transition-all border border-white/20 flex items-center justify-center gap-2">
                   <i className="fa-solid fa-xmark" />
                 </button>
               )}
               <button
                 type="button"
-                onClick={() => fetchData(currentPage)}
+                onClick={() => queryClient.invalidateQueries(["auditLogs"])}
                 className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-bold transition-all border border-white/20 flex items-center justify-center gap-2"
                 title="Refresh"
               >
-                <i className={`fa-solid fa-rotate ${loading ? "animate-spin" : ""}`} />
+                <i className={`fa-solid fa-rotate ${isFetching ? "animate-spin" : ""}`} />
               </button>
             </div>
           </form>
         </div>
       </div>
 
-      {/* ================================================================= */}
-      {/* TABEL LOG (LIGHT / CLEAN MODE)                                      */}
-      {/* ================================================================= */}
+      {/* TIMELINE TABLE */}
       <div className="rounded-[2rem] bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-
-        {/* Table Header Bar */}
         <div className="px-4 sm:px-6 py-5 border-b border-slate-100 flex items-center justify-between gap-4 bg-slate-50/50">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${
@@ -254,7 +220,6 @@ const AuditLog = () => {
           </span>
         </div>
 
-        {/* Pembungkus agar scrollable di HP */}
         <div className="overflow-x-auto w-full flex-1 custom-scrollbar">
           <table className="w-full text-left text-sm min-w-[700px]">
             <thead className="border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50">
@@ -268,7 +233,6 @@ const AuditLog = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                // Skeleton loading rows
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
                     <td className="px-6 py-4">
@@ -311,7 +275,6 @@ const AuditLog = () => {
                   return (
                     <React.Fragment key={log.id || idx}>
                       <tr className="hover:bg-slate-50 transition-colors group">
-                        {/* Actor */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black shrink-0 bg-slate-100 text-slate-600 border border-slate-200">
@@ -324,7 +287,6 @@ const AuditLog = () => {
                           </div>
                         </td>
 
-                        {/* Aksi Badge */}
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border whitespace-nowrap shadow-sm ${badge.cls}`}>
                             <i className={`fa-solid ${badge.icon}`} />
@@ -332,18 +294,15 @@ const AuditLog = () => {
                           </span>
                         </td>
 
-                        {/* Target */}
                         <td className="px-6 py-4">
                           <span className="text-sm font-bold text-slate-600 whitespace-nowrap truncate block max-w-[180px]">{targetName}</span>
                         </td>
 
-                        {/* Waktu */}
                         <td className="px-6 py-4">
                           <p className="text-[11px] font-black text-slate-700 whitespace-nowrap">{formatDate(log.created_at)}</p>
                           <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap mt-0.5">{formatTime(log.created_at)}</p>
                         </td>
 
-                        {/* Toggle Detail */}
                         <td className="px-6 py-4 text-center">
                           {(log.new_values || log.old_values) && (
                             <button
@@ -360,7 +319,7 @@ const AuditLog = () => {
                         </td>
                       </tr>
 
-                      {/* Expanded Detail Row */}
+                      {/* Detail JSON Perubahan Data */}
                       {isExpanded && (
                         <tr className="bg-slate-50 border-y border-slate-100">
                           <td colSpan="5" className="px-4 sm:px-6 py-5">
@@ -397,9 +356,7 @@ const AuditLog = () => {
           </table>
         </div>
 
-        {/* ================================================================= */}
-        {/* PAGINATION                                                          */}
-        {/* ================================================================= */}
+        {/* PAGINATION PANEL */}
         {!loading && totalPages > 1 && (
           <div className="px-4 sm:px-6 py-4 sm:py-5 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-[11px] font-bold text-slate-500 text-center sm:text-left">
@@ -409,7 +366,7 @@ const AuditLog = () => {
 
             <div className="flex items-center gap-2 flex-wrap justify-center">
               <button
-                onClick={() => fetchData(currentPage - 1)}
+                onClick={() => setPage(currentPage - 1)}
                 disabled={currentPage <= 1}
                 className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs shadow-sm"
               >
@@ -419,21 +376,19 @@ const AuditLog = () => {
               {currentPage > 3 && (
                 <>
                   <button
-                    onClick={() => fetchData(1)}
+                    onClick={() => setPage(1)}
                     className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all text-xs font-black shadow-sm"
                   >
                     1
                   </button>
-                  {currentPage > 4 && (
-                    <span className="text-slate-400 text-xs font-bold px-1">···</span>
-                  )}
+                  {currentPage > 4 && <span className="text-slate-400 text-xs font-bold px-1">···</span>}
                 </>
               )}
 
               {getPageNumbers().map((p) => (
                 <button
                   key={p}
-                  onClick={() => fetchData(p)}
+                  onClick={() => setPage(p)}
                   className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center border text-xs font-black transition-all shadow-sm ${
                     p === currentPage
                       ? isPinkTheme 
@@ -448,11 +403,9 @@ const AuditLog = () => {
 
               {currentPage < totalPages - 2 && (
                 <>
-                  {currentPage < totalPages - 3 && (
-                    <span className="text-slate-400 text-xs font-bold px-1">···</span>
-                  )}
+                  {currentPage < totalPages - 3 && <span className="text-slate-400 text-xs font-bold px-1">···</span>}
                   <button
-                    onClick={() => fetchData(totalPages)}
+                    onClick={() => setPage(totalPages)}
                     className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all text-xs font-black shadow-sm"
                   >
                     {totalPages}
@@ -461,7 +414,7 @@ const AuditLog = () => {
               )}
 
               <button
-                onClick={() => fetchData(currentPage + 1)}
+                onClick={() => setPage(currentPage + 1)}
                 disabled={currentPage >= totalPages}
                 className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs shadow-sm"
               >

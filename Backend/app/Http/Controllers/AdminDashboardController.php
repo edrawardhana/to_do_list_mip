@@ -51,11 +51,15 @@ class AdminDashboardController extends Controller
         ])->values();
 
         // ── 3. ACTIVITY LOG — 8 recent audit logs for this division ─────────
-        $activityLogs = AuditLog::with(['actor:id,full_name,role'])
+        $activityLogs = AuditLog::with([
+                'actor:id,full_name,role', 
+                'target:id,full_name' // ✅ INI OBATNYA (Eager Load Target)
+            ])
             ->whereHas('actor', fn($q) => $q->where('division_id', $divisionId))
             ->orderBy('created_at', 'desc')
             ->limit(8)
-            ->get(['id', 'actor_id', 'actor_role', 'action', 'created_at']);
+            // ✅ TAMBAHIN `target_user_id` DI SINI BIAR RELASI NGGAK PUTUS!
+            ->get(['id', 'actor_id', 'target_user_id', 'actor_role', 'action', 'created_at']);
 
         return response()->json([
             'status' => 'success',

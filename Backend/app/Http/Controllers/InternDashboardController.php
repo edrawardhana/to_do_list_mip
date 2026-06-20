@@ -29,8 +29,8 @@ class InternDashboardController extends Controller
             ]);
 
         // ── 2. PROGRESS: task completion today ──────────────────────────────
-        $total     = DailyTask::where('uploader_id', $intern->id)->whereDate('task_date', $today)->count();
-        $completed = DailyTask::where('uploader_id', $intern->id)->whereDate('task_date', $today)->where('status', 'approved')->count();
+        $total     = $todayTasks->count();
+        $completed = $todayTasks->where('status', 'approved')->count();
         $percentage = $total > 0 ? (int) round(($completed / $total) * 100) : 0;
 
         // ── 3. SHIFT INFO: real data from schedules table ────────────────────

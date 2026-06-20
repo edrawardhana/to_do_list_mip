@@ -1,55 +1,42 @@
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { toast } from 'react-hot-toast';
 
 export default function ManageSchedules() {
-  const [schedules, setSchedules] = useState([]);
-  const [interns, setInterns] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
   
-  // Form state
+  // Form & Filter states
   const [selectedIntern, setSelectedIntern] = useState('');
   const [shiftDate, setShiftDate] = useState('');
   const [shiftType, setShiftType] = useState('morning');
   const [filterDate, setFilterDate] = useState('');
 
-  // Fetch schedules
-  const fetchSchedules = async () => {
-    try {
+  // ── TANSTACK QUERY: Fetch Schedules (Auto Cache & Sync by filterDate) ──
+  const { data: schedules = [], isLoading: schedulesLoading } = useQuery({
+    queryKey: ['adminSchedulesList', filterDate],
+    queryFn: async () => {
       const params = filterDate ? { date: filterDate } : {};
       const response = await api.get('/schedules', { params });
-      setSchedules(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching schedules:', error);
-      toast.error('Gagal memuat jadwal');
-    }
-  };
+      return response.data?.data || response.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
-  // Fetch interns in same division
-  const fetchInterns = async () => {
-    try {
+  // ── TANSTACK QUERY: Fetch Interns (Auto Cache) ──
+  const { data: interns = [], isLoading: internsLoading } = useQuery({
+    queryKey: ['adminInternsProfiles'],
+    queryFn: async () => {
       const response = await api.get('/profiles');
-      // Filter only interns in same division as admin
-      const internList = response.data.data.filter(user => 
-        user.role === 'intern'
-      );
-      setInterns(internList);
-    } catch (error) {
-      console.error('Error fetching interns:', error);
-      toast.error('Gagal memuat data intern');
-    }
-  };
+      const allProfiles = response.data?.data || response.data || [];
+      return allProfiles.filter(user => user.role === 'intern');
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([fetchSchedules(), fetchInterns()]);
-      setLoading(false);
-    };
-    loadData();
-  }, [filterDate]);
+  const loading = schedulesLoading || internsLoading;
 
   // Handle create/update schedule
   const handleSubmit = async (e) => {
@@ -79,7 +66,8 @@ export default function ManageSchedules() {
 
       setShowModal(false);
       resetForm();
-      fetchSchedules();
+      // 🔥 REFRESH OTOMATIS: Beritahu TanStack Query untuk update cache di background
+      queryClient.invalidateQueries(['adminSchedulesList']);
     } catch (error) {
       console.error('Error saving schedule:', error);
       const message = error.response?.data?.message || 'Gagal menyimpan jadwal';
@@ -95,23 +83,21 @@ export default function ManageSchedules() {
     try {
       await api.delete(`/schedules/${id}`);
       toast.success('Jadwal berhasil dihapus', { id: tid });
-      fetchSchedules();
+      queryClient.invalidateQueries(['adminSchedulesList']);
     } catch (error) {
       console.error('Error deleting schedule:', error);
       toast.error('Gagal menghapus jadwal', { id: tid });
     }
   };
 
-  // Handle edit
   const handleEdit = (schedule) => {
     setEditingSchedule(schedule);
     setSelectedIntern(schedule.user_id);
-    setShiftDate(schedule.shift_date);
+    setShiftDate(schedule.shift_date ? schedule.shift_date.substring(0, 10) : '');
     setShiftType(schedule.shift_type);
     setShowModal(true);
   };
 
-  // Reset form
   const resetForm = () => {
     setEditingSchedule(null);
     setSelectedIntern('');
@@ -119,7 +105,6 @@ export default function ManageSchedules() {
     setShiftType('morning');
   };
 
-  // Get shift type label
   const getShiftLabel = (type) => {
     const labels = {
       morning: '🌅 Pagi (08:00 - 15:00 WIB)',
@@ -130,7 +115,6 @@ export default function ManageSchedules() {
     return labels[type] || type;
   };
 
-  // Get shift badge color
   const getShiftBadge = (type) => {
     const badges = {
       morning: 'bg-blue-100 text-blue-700',
@@ -157,22 +141,15 @@ export default function ManageSchedules() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">
-            📅 Manage Schedules
-          </h1>
-          <p className="text-slate-600">
-            Kelola jadwal shift intern di divisi Anda
-          </p>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">📅 Manage Schedules</h1>
+          <p className="text-slate-600">Kelola jadwal shift intern di divisi Anda</p>
         </div>
 
         {/* Actions Bar */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            {/* Filter Date */}
             <div className="flex items-center gap-3">
-              <label className="text-sm font-semibold text-slate-700">
-                Filter Tanggal:
-              </label>
+              <label className="text-sm font-semibold text-slate-700">Filter Tanggal:</label>
               <input
                 type="date"
                 value={filterDate}
@@ -180,25 +157,15 @@ export default function ManageSchedules() {
                 className="px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
               {filterDate && (
-                <button
-                  onClick={() => setFilterDate('')}
-                  className="text-sm text-slate-500 hover:text-slate-700"
-                >
-                  Clear
-                </button>
+                <button onClick={() => setFilterDate('')} className="text-sm text-slate-500 hover:text-slate-700">Clear</button>
               )}
             </div>
 
-            {/* Add Button */}
             <button
-              onClick={() => {
-                resetForm();
-                setShowModal(true);
-              }}
+              onClick={() => { resetForm(); setShowModal(true); }}
               className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
             >
-              <i className="fa-solid fa-plus"></i>
-              Tambah Jadwal
+              <i className="fa-solid fa-plus"></i> Tambah Jadwal
             </button>
           </div>
         </div>
@@ -208,33 +175,19 @@ export default function ManageSchedules() {
           {schedules.length === 0 ? (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📅</div>
-              <h3 className="text-xl font-semibold text-slate-700 mb-2">
-                Belum Ada Jadwal
-              </h3>
-              <p className="text-slate-500 mb-6">
-                Klik "Tambah Jadwal" untuk membuat jadwal shift intern
-              </p>
+              <h3 className="text-xl font-semibold text-slate-700 mb-2">Belum Ada Jadwal</h3>
+              <p className="text-slate-500 mb-6">Klik "Tambah Jadwal" untuk membuat jadwal shift intern</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                      Intern
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                      Tanggal
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                      Shift
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                      Divisi
-                    </th>
-                    <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Intern</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Tanggal</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Shift</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Divisi</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -246,22 +199,15 @@ export default function ManageSchedules() {
                             {schedule.user?.full_name?.charAt(0) || 'I'}
                           </div>
                           <div>
-                            <div className="font-semibold text-slate-800">
-                              {schedule.user?.full_name || 'Unknown'}
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              {schedule.user?.email}
-                            </div>
+                            <div className="font-semibold text-slate-800">{schedule.user?.full_name || 'Unknown'}</div>
+                            <div className="text-xs text-slate-500">{schedule.user?.email}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-slate-700">
                           {new Date(schedule.shift_date).toLocaleDateString('id-ID', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
+                            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
                           })}
                         </div>
                       </td>
@@ -271,24 +217,14 @@ export default function ManageSchedules() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-slate-600">
-                          {schedule.user?.division?.name || '-'}
-                        </div>
+                        <div className="text-sm text-slate-600">{schedule.user?.division?.name || '-'}</div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleEdit(schedule)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Edit"
-                          >
+                          <button onClick={() => handleEdit(schedule)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
                             <i className="fa-solid fa-pen-to-square"></i>
                           </button>
-                          <button
-                            onClick={() => handleDelete(schedule.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete"
-                          >
+                          <button onClick={() => handleDelete(schedule.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
                             <i className="fa-solid fa-trash"></i>
                           </button>
                         </div>
@@ -306,29 +242,16 @@ export default function ManageSchedules() {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
             <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-800">
-                {editingSchedule ? '✏️ Edit Jadwal' : '➕ Tambah Jadwal'}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  resetForm();
-                }}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
-              >
+              <h2 className="text-xl font-bold text-slate-800">{editingSchedule ? '✏️ Edit Jadwal' : '➕ Tambah Jadwal'}</h2>
+              <button onClick={() => { setShowModal(false); resetForm(); }} className="text-slate-400 hover:text-slate-600 transition-colors">
                 <i className="fa-solid fa-xmark text-xl"></i>
               </button>
             </div>
 
-            {/* Modal Body */}
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              {/* Select Intern */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Pilih Intern <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Pilih Intern <span className="text-red-500">*</span></label>
                 <select
                   value={selectedIntern}
                   onChange={(e) => setSelectedIntern(e.target.value)}
@@ -345,25 +268,13 @@ export default function ManageSchedules() {
                 </select>
               </div>
 
-              {/* Shift Date */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Tanggal Shift <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={shiftDate}
-                  onChange={(e) => setShiftDate(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                />
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Tanggal Shift <span className="text-red-500">*</span></label>
+                <input type="date" value={shiftDate} onChange={(e) => setShiftDate(e.target.value)} required className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
               </div>
 
-              {/* Shift Type */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Tipe Shift <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Tipe Shift <span className="text-red-500">*</span></label>
                 <div className="space-y-2">
                   {[
                     { value: 'morning', label: '🌅 Pagi', time: '08:00 - 15:00 WIB' },
@@ -371,22 +282,8 @@ export default function ManageSchedules() {
                     { value: 'afternoon', label: '🌆 Sore', time: '15:00 - 22:00 WIB' },
                     { value: 'full', label: '🌞 Full Day', time: '08:00 - 17:00 WIB' }
                   ].map((shift) => (
-                    <label
-                      key={shift.value}
-                      className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                        shiftType === shift.value
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="shiftType"
-                        value={shift.value}
-                        checked={shiftType === shift.value}
-                        onChange={(e) => setShiftType(e.target.value)}
-                        className="w-4 h-4 text-blue-600"
-                      />
+                    <label key={shift.value} className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${shiftType === shift.value ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                      <input type="radio" name="shiftType" value={shift.value} checked={shiftType === shift.value} onChange={(e) => setShiftType(e.target.value)} className="w-4 h-4 text-blue-600" />
                       <div className="flex-1">
                         <div className="font-semibold text-slate-800">{shift.label}</div>
                         <div className="text-xs text-slate-500">{shift.time}</div>
@@ -396,22 +293,9 @@ export default function ManageSchedules() {
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                  className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 transition-all"
-                >
+                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors">Batal</button>
+                <button type="submit" className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 transition-all">
                   {editingSchedule ? 'Update' : 'Simpan'}
                 </button>
               </div>

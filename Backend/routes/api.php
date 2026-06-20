@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DivisionController;
 use App\Http\Controllers\ExceptionController;
 use App\Http\Controllers\DailyTaskController;
+use App\Http\Controllers\WhiteboardAIController;
 use App\Http\Controllers\WhiteboardController;
 use App\Http\Controllers\TaskTemplateController;
 use App\Http\Controllers\AuditLogController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SuperadminDashboardController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\InternDashboardController;
+use App\Http\Controllers\LogbookAIController; // ← TAMBAHAN 1: Import Controller AI
 
 // Endpoint publik (Bisa diakses tanpa login)
 Route::get('/divisions', [DivisionController::class, 'index']);
@@ -42,6 +44,7 @@ Route::middleware('auth:api')->group(function () {
 
     // Daily Task (Logbook) Routes
     // ⚠️ Specific routes MUST be before apiResource to avoid wildcard capture
+    Route::post('/logbook/evaluate', [LogbookAIController::class, 'checkLogbook']); // ← TAMBAHAN 2: Endpoint evaluasi AI (Gatekeeper Llama 4 Scout)
     Route::post('/daily-tasks/assign', [DailyTaskController::class, 'assignTask']);
     Route::post('/daily-tasks/{id}/submit', [DailyTaskController::class, 'submit']);
     Route::put('/daily-tasks/{id}/confirm', [DailyTaskController::class, 'confirm']);  // ← Tugas Bersama: ACC
@@ -50,6 +53,8 @@ Route::middleware('auth:api')->group(function () {
 
     // Whiteboard Routes
     Route::apiResource('whiteboards', WhiteboardController::class)->except(['show']);
+    Route::post('/whiteboards/breakdown', [WhiteboardAIController::class, 'generateBreakdown']);
+    Route::post('/whiteboards/ask', [WhiteboardAIController::class, 'askAssistant']);
 
     // Task Template Routes (Admin/Superadmin)
     Route::apiResource('task-templates', TaskTemplateController::class)->except(['show']);

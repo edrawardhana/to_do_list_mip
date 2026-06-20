@@ -312,7 +312,16 @@ const ManageAdmin = () => {
         toast.success(`${mappedCreds.length} akun berhasil diimpor!`);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || "Gagal mengimpor file.");
+      const errResponse = err.response?.data;
+      let errorMessage = errResponse?.message || "Gagal mengimpor file CSV/Excel.";
+      
+      if (errResponse?.errors && Array.isArray(errResponse.errors)) {
+         errorMessage = `Gagal: ${errResponse.errors[0]}`; 
+         toast.error("Ada format yang salah! Cek pesan di atas atau buka console.");
+         console.table(errResponse.errors); 
+      }
+      
+      toast.error(errorMessage, { duration: 3000 }); 
     } finally {
       setIsSubmitting(false);
     }
@@ -323,7 +332,7 @@ const ManageAdmin = () => {
     try {
       const headers = ['full_name', 'email', 'username', 'division_name', 'role', 'internship_batch'];
       const exampleRows = [
-        ['Budi Santoso', 'budi@mip.co.id', 'budisan', 'IT Support', 'intern', 'Batch 1 2026'],
+        ['Budi Santoso', 'budi@mip.co.id', 'budisan', 'IT Support', 'intern', '1'],
         ['Siti Aminah', 'siti@mip.co.id', 'sitiamin', 'Marketing', 'admin', ''],
       ];
       
@@ -756,8 +765,8 @@ const ManageAdmin = () => {
                   </div>
                   {manualForm.role === "intern" && (
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Internship Batch (Opsional)</label>
-                      <input type="text" value={manualForm.internship_batch} onChange={e => setManualForm({...manualForm, internship_batch: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none" placeholder="Contoh: Batch 1 2026" />
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Internship Batch Angkatan (Opsional)</label>
+                      <input type="number" min="1" value={manualForm.internship_batch} onChange={e => setManualForm({...manualForm, internship_batch: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none" placeholder="Contoh: Masukkan angka (misal: 1, 2, 3)" />
                     </div>
                   )}
                   <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 flex gap-3 items-start mt-4 shadow-sm">

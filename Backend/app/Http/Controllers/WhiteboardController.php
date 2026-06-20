@@ -47,14 +47,16 @@ class WhiteboardController extends Controller
         $request->validate([
             'title' => 'required|string',
             'file_url' => 'required|string',
-            'type' => 'required|in:pdf,image,link'
+            'type' => 'required|in:pdf,image,link',
+            'description' => 'nullable|string'
         ]);
 
         $whiteboard = Whiteboard::create([
             'division_id' => $user->division_id,
             'title' => $request->title,
             'file_url' => $request->file_url,
-            'type' => $request->type
+            'type' => $request->type,
+            'description' => $request->description
         ]);
 
         AuditLog::record(
@@ -92,10 +94,11 @@ class WhiteboardController extends Controller
         $request->validate([
             'title' => 'sometimes|string',
             'file_url' => 'sometimes|string',
-            'type' => 'sometimes|in:pdf,image,link'
+            'type' => 'sometimes|in:pdf,image,link',
+            'description' => 'nullable|string'
         ]);
 
-        $whiteboard->update($request->only(['title', 'file_url', 'type']));
+        $whiteboard->update($request->only(['title', 'file_url', 'type', 'description']));
 
         AuditLog::record(
             $user->id,

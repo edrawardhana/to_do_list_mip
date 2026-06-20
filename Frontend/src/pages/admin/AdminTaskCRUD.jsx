@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
 import { useAuth } from "../../contexts/AuthContext";
 
 const AdminTaskCRUD = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const myDivisionId = user?.division_id || user?.division?.id;
   const myDivisionName = user?.division?.name || user?.division_name || "IT Support";
-
-  const canManageAll = false; 
 
   const [activeTab, setActiveTab] = useState("template"); 
 
@@ -37,18 +37,12 @@ const AdminTaskCRUD = () => {
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("15:00");
   const [reminderTime, setReminderTime] = useState("14:30");
-
-  const [taskTemplates, setTaskTemplates] = useState([]);
-  const [liveTasks, setLiveTasks] = useState([]);
-  const [todaySchedules, setTodaySchedules] = useState([]);
-  const [interns, setInterns] = useState([]);
-  const [filterDivision, setFilterDivision] = useState(myDivisionId || myDivisionName);
-  const [loading, setLoading] = useState(true);
   const [editTaskId, setEditTaskId] = useState(null);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
+  // ── TANSTACK QUERY: FETCH 4 API SEKALIGUS (AUTO CACHE) ──
+  const { data, isLoading: loading, isFetching } = useQuery({
+    queryKey: ["adminTasksData"],
+    queryFn: async () => {
       const todayDate = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
       const todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
 
@@ -59,28 +53,28 @@ const AdminTaskCRUD = () => {
         api.get("/schedules", { params: { date: todayStr } }),
       ]);
 
-      setTaskTemplates(tplRes.data?.data || tplRes.data || []);
+      return {
+        templates: tplRes.data?.data || tplRes.data || [],
+        tasks: tasksRes.data?.data || tasksRes.data || [],
+        profiles: profRes.data?.data || profRes.data || [],
+        schedules: schedRes.data?.data || schedRes.data || [],
+        todayStr,
+      };
+    },
+    staleTime: 5 * 60 * 1000, // Tahan di cache 5 menit
+  });
 
-      const allTasks = tasksRes.data?.data || tasksRes.data || [];
-      // Tampilkan tugas hari ini yang tidak punya template di tab Tugas Dadakan
-      setLiveTasks(allTasks.filter((t) => t.template_id === null && t.task_date === todayStr));
+  // ── DERIVED STATE DARI CACHE ──
+  const taskTemplates = data?.templates || [];
+  const allTasks = data?.tasks || [];
+  const interns = (data?.profiles || []).filter((p) => p.role === "intern");
+  const todaySchedules = data?.schedules || [];
+  const todayStr = data?.todayStr || "";
 
-      const allProfiles = profRes.data?.data || profRes.data || [];
-      setInterns(allProfiles.filter((p) => p.role === "intern"));
+  const liveTasks = useMemo(() => {
+    return allTasks.filter((t) => t.template_id === null && t.task_date === todayStr);
+  }, [allTasks, todayStr]);
 
-      setTodaySchedules(schedRes.data?.data || schedRes.data || []);
-    } catch (error) {
-      console.error("Gagal memuat data tasks:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // Filter data berdasarkan divisi
   const filteredTemplates = useMemo(() => {
     return taskTemplates.filter((t) => t.division_id === myDivisionId || t.division?.name === myDivisionName);
   }, [taskTemplates, myDivisionId, myDivisionName]);
@@ -89,7 +83,6 @@ const AdminTaskCRUD = () => {
     return liveTasks.filter((t) => t.division_id === myDivisionId || t.division?.name === myDivisionName);
   }, [liveTasks, myDivisionId, myDivisionName]);
 
-  // Filter interns untuk dropdown form penugasan
   const modalInterns = useMemo(() => {
     return interns.filter((i) => {
       const internDivId = i.division_id || i.division?.id;
@@ -163,7 +156,8 @@ const AdminTaskCRUD = () => {
       }
       setShowAddModal(false);
       setShowSuccessModal(true);
-      fetchData();
+      // 🔥 MAGIC: Paksa UI refresh data otomatis tanpa loading browser
+      queryClient.invalidateQueries(["adminTasksData"]);
       setTimeout(() => setShowSuccessModal(false), 2000);
     } catch (error) {
       toast.error(error.response?.data?.message || "Gagal menyimpan tugas!");
@@ -175,7 +169,7 @@ const AdminTaskCRUD = () => {
       try {
         await api.delete(`/task-templates/${id}`);
         toast.success("Blueprint dihapus");
-        fetchData();
+        queryClient.invalidateQueries(["adminTasksData"]);
       } catch (e) {
         toast.error("Gagal menghapus blueprint");
       }
@@ -187,7 +181,7 @@ const AdminTaskCRUD = () => {
       try {
         await api.delete(`/daily-tasks/${id}`);
         toast.success("Tugas urgent dihapus");
-        fetchData();
+        queryClient.invalidateQueries(["adminTasksData"]);
       } catch (e) {
         toast.error("Gagal menghapus tugas");
       }
@@ -197,16 +191,11 @@ const AdminTaskCRUD = () => {
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 sm:pt-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative">
       
-      {/* ================================================================= */}
-      {/* HERO SECTION + TABS (MURNI ADMIN DARK BLUE THEME)                 */}
-      {/* ================================================================= */}
+      {/* HERO SECTION + TABS */}
       <div className="rounded-[2.5rem] border shadow-2xl relative overflow-hidden flex flex-col text-white mb-6 transition-all duration-500 bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20">
-        
-        {/* Glow Effects */}
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full blur-[100px] pointer-events-none bg-blue-500/20" />
         <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full blur-[100px] pointer-events-none bg-indigo-500/10" />
 
-        {/* Content Top */}
         <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/10">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-5">
@@ -237,11 +226,8 @@ const AdminTaskCRUD = () => {
           </div>
         </div>
 
-        {/* Tabs Bar (Menyatu di Bawah Hero) */}
         <div className="p-6 sm:p-8 relative z-10 bg-black/10">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
-            
-            {/* Tabs Selector */}
             <div className="flex items-center gap-2 w-full overflow-x-auto custom-scrollbar pb-2 md:pb-0">
               <button
                 onClick={() => setActiveTab("template")}
@@ -266,17 +252,17 @@ const AdminTaskCRUD = () => {
             </div>
             
             <button
-              onClick={fetchData}
+              onClick={() => queryClient.invalidateQueries(["adminTasksData"])}
               className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all active:scale-95 shrink-0 bg-white/10 hover:bg-white/20 border-white/20 text-white"
             >
-              <i className="fa-solid fa-arrows-rotate" /> Refresh
+              <i className={`fa-solid fa-arrows-rotate ${isFetching ? 'animate-spin' : ''}`} /> Refresh
             </button>
 
           </div>
         </div>
       </div>
 
-      {/* Header Info List (Pemisah Gede) */}
+      {/* Header Info List */}
       <div className={`px-4 sm:px-6 py-4 flex items-center gap-4 border border-slate-200 rounded-3xl ${activeTab === "template" ? "bg-blue-50/50" : "bg-rose-50/50"}`}>
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner shrink-0 ${activeTab === "template" ? "bg-blue-100 text-blue-600" : "bg-rose-100 text-rose-500"}`}>
           <i className={`fa-solid ${activeTab === "template" ? "fa-robot" : "fa-person-running"}`}></i>
@@ -293,11 +279,8 @@ const AdminTaskCRUD = () => {
         </div>
       </div>
 
-      {/* ================================================================= */}
-      {/* DESAIN CARD LIST                                                    */}
-      {/* ================================================================= */}
+      {/* DESAIN CARD LIST */}
       <div className="space-y-6">
-        {/* JIKA DATA KOSONG */}
         {(activeTab === "template" ? filteredTemplates : filteredLiveTasks).length === 0 && (
           <div className="p-16 text-center flex flex-col items-center justify-center bg-white border border-slate-200 rounded-[2.5rem]">
             <div className="w-20 h-20 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center text-4xl mb-4 shadow-inner border border-slate-100">
@@ -366,7 +349,7 @@ const AdminTaskCRUD = () => {
                   <i className="fa-solid fa-bolt animate-pulse"></i>
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-800 text-[18px] leading-tight mb-1.5">{task.description || "Tugas Urgent"}</h3>
+                  <h3 className="font-bold text-slate-800 text-[18px] leading-tight mb-1.5">{task.title || task.description || "Tugas Urgent"}</h3>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="bg-rose-50 text-rose-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-rose-100">Dibuat: {new Date(task.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB</span>
                     <span className="bg-amber-50 text-amber-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-amber-100">Due: {task.due_date ? new Date(task.due_date).toLocaleDateString("id-ID") : "Hari Ini"}</span>
@@ -399,14 +382,11 @@ const AdminTaskCRUD = () => {
         ))}
       </div>
 
-      {/* ================================================================= */}
-      {/* MODAL FORM: BUILDER TEMPLATE & URGENT                             */}
-      {/* ================================================================= */}
+      {/* MODAL FORM: BUILDER TEMPLATE & URGENT */}
       {showAddModal && createPortal(
           <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 bg-[#0b1437]/90 backdrop-blur-md animate-in fade-in m-0">
             <div className="bg-[#1a3a6c] border border-blue-400/20 w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
               
-              {/* Header Modal */}
               <div className={`px-6 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center shrink-0 ${activeTab === "template" ? "bg-blue-50/50" : "bg-rose-50/50"}`}>
                 <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-3">
                   {activeTab === "template" ? (
@@ -420,7 +400,6 @@ const AdminTaskCRUD = () => {
                 </button>
               </div>
 
-              {/* Body Form Modal */}
               <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar bg-white">
                 <form id="taskForm" onSubmit={handleSubmitTask} className="space-y-6">
                   
@@ -431,7 +410,6 @@ const AdminTaskCRUD = () => {
                     <input type="text" required value={taskName} onChange={(e) => setTaskName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder={activeTab === "template" ? "Misal: Cek Suhu Ruang Server..." : "Misal: Angkat Proyektor ke Lantai 4..."} />
                   </div>
 
-                  {/* TEMPLATE RUTIN (Automation Setup) */}
                   {activeTab === "template" && (
                     <>
                       <div className="bg-blue-50 border border-blue-100 p-4 sm:p-5 rounded-xl flex gap-3.5 items-start">
@@ -464,7 +442,6 @@ const AdminTaskCRUD = () => {
                     </>
                   )}
 
-                  {/* TUGAS URGENT (Live Assign) */}
                   {activeTab === "live" && (
                     <>
                       <div>
@@ -509,7 +486,6 @@ const AdminTaskCRUD = () => {
                 </form>
               </div>
 
-              {/* Footer Modal */}
               <div className="p-4 sm:p-6 border-t border-slate-100 shrink-0 bg-white shadow-[0_-10px_15px_rgba(0,0,0,0.02)]">
                 <button form="taskForm" type="submit" className={`w-full py-4 rounded-xl text-white font-black shadow-lg transition-all active:scale-95 flex justify-center items-center gap-2 ${activeTab === "template" ? "bg-[#162447] hover:bg-[#1a3a6c] shadow-[#162447]/30" : "bg-rose-500 hover:bg-rose-600 shadow-rose-500/30"}`}>
                   <i className="fa-solid fa-cloud-arrow-up"></i> Simpan ke Sistem
@@ -520,9 +496,6 @@ const AdminTaskCRUD = () => {
           document.body
         )}
 
-      {/* ================================================================= */}
-      {/* MODAL SUCCESS AFTER-EFFECT                                        */}
-      {/* ================================================================= */}
       {showSuccessModal && createPortal(
           <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-[#0b1437]/70 backdrop-blur-md animate-in fade-in m-0">
             <div className="bg-white rounded-[3rem] p-8 sm:p-10 flex flex-col items-center text-center shadow-2xl animate-in zoom-in-75 slide-in-from-bottom-10 duration-300 border-[8px] border-white ring-1 ring-slate-100 max-w-sm w-full">

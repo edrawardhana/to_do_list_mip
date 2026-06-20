@@ -185,6 +185,28 @@ const InternTaskCard = ({ task, index, onOpenCameraModal, currentUserId, onRefre
                 ))}
               </div>
             )}
+
+            {task.ai_summary && (
+              <div className="mt-3 bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 shadow-sm relative overflow-hidden group">
+                <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine" />
+                
+                <div className="flex items-center justify-between mb-1.5 relative z-10">
+                  <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1.5">
+                    <i className="fa-solid fa-microchip text-indigo-500 animate-pulse"></i> 
+                    Diulas oleh Qwen 3
+                  </span>
+                  {task.ai_category && (
+                    <span className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-200">
+                      {task.ai_category}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-700 font-medium italic relative z-10">
+                  "{task.ai_summary}"
+                </p>
+              </div>
+            )}
+
           </div>
         </div>
 
