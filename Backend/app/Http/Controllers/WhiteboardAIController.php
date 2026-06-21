@@ -66,11 +66,24 @@ class WhiteboardAIController extends Controller
             'sop_context' => 'required|string'
         ]);
 
+        $user = Auth::user();
         $apiKey = env('GROK_API_KEY');
+
+        $maxDailyLimit = 5;
+        $cacheKey = "ai_chat_usage_{$user->id}_" . now()->toDateString();
+        $currentUsage = Cache::get($cacheKey, 0);
+
+        if ($currentUsage >= $maxDailyLimit) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Batas limit harian token AI lu udah abis brok! Jatah lu cuma 5 pertanyaan sehari. Coba lagi besok.',
+                'remaining_quota' => 0
+            ], 429); // 429 itu standar HTTP code buat "Too Many Requests"
+        }
 
         // 🔥 PENGAMAN 1: Cek API Key biar ga nembak kosong
         if (empty($apiKey)) {
-            return response()->json(['message' => 'API Key KOSONG di .env brok!'], 500);
+            return response()->json(['message' => 'API Key KOSONG di .env!'], 500);
         }
 
         try {
@@ -106,12 +119,15 @@ class WhiteboardAIController extends Controller
                 ], 500);
             }
 
+            Cache::put($cacheKey, $currentUsage + 1, now()->endOfDay());
+
             $answer = trim($response->json()['choices'][0]['message']['content']);
             
             return response()->json([
                 'status' => 'success',
                 'answer' => $answer,
-                'ai_model' => 'Qwen 3' // UI tetep nangkep ini sebagai Qwen 3
+                'ai_model' => 'Qwen 3', // UI tetep nangkep ini sebagai Qwen 3
+                'remaining_quota' => $maxDailyLimit - ($currentUsage + 1)
             ]);
 
         } catch (\Exception $e) {

@@ -290,38 +290,45 @@ class DailyTaskController extends Controller
         // Jika user adalah admin atau super_admin, buat "Tugas Dadakan / Live Task"
         if (in_array($user->role, ['admin', 'super_admin'])) {
             $request->validate([
-                'uploader_id' => 'required|uuid|exists:profiles,id',
-                'description' => 'required|string',
-                'due_date'    => 'required|date',
-                'assign_note' => 'nullable|string|max:500',
-                'division_id' => 'required|uuid|exists:divisions,id',
-                'start_time'    => ['nullable', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
-                'end_time'      => ['nullable', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
-                'reminder_time' => ['nullable', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+                'uploader_ids'   => 'required|array|min:1', // 🔥 Support banyak intern
+                'uploader_ids.*' => 'uuid|exists:profiles,id',
+                'description'    => 'required|string',
+                'due_date'       => 'required|date',
+                'assign_note'    => 'nullable|string|max:500',
+                'division_id'    => 'required|uuid|exists:divisions,id',
+                'start_time'     => ['nullable', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+                'end_time'       => ['nullable', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+                'reminder_time'  => ['nullable', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
             ]);
 
-            $task = DailyTask::create([
-                'uploader_id'           => $request->uploader_id,
-                'division_id'           => $request->division_id,
-                'template_id'           => null, // Urgent task = no template
-                'task_date'             => $request->due_date,
-                'due_date'              => $request->due_date,
-                'title'                 => $request->description,
-                'description'           => null,
-                'status'                => 'pending',
-                'assign_note'           => $request->assign_note,
-                'assigned_by'           => $user->id,
-                'start_time'            => $request->start_time ?? '08:00',
-                'end_time'              => $request->end_time ?? '15:00',
-                'reminder_time'         => $request->reminder_time ?? '14:30',
-            ]);
+            $createdTasks = [];
 
-            AuditLog::record($user->id, $user->role, 'Buat Tugas Dadakan', $task->toArray(), null, $request->uploader_id);
+            // 🔥 Looping buat nyetak tugas ke masing-masing intern yang dipilih
+            foreach ($request->uploader_ids as $internId) {
+                $task = DailyTask::create([
+                    'uploader_id'           => $internId,
+                    'division_id'           => $request->division_id,
+                    'template_id'           => null, // Urgent task = no template
+                    'task_date'             => $request->due_date,
+                    'due_date'              => $request->due_date,
+                    'description'           => $request->description, // 🔥 BENERIN PENEMPATAN TEKS
+                    'status'                => 'pending',
+                    'assign_note'           => $request->assign_note,
+                    'assigned_by'           => $user->id,
+                    'start_time'            => $request->start_time ?? '08:00',
+                    'end_time'              => $request->end_time ?? '15:00',
+                    'reminder_time'         => $request->reminder_time ?? '14:30',
+                ]);
+
+                $createdTasks[] = $task;
+
+                AuditLog::record($user->id, $user->role, 'Buat Tugas Dadakan', $task->toArray(), null, $internId);
+            }
 
             return response()->json([
                 'status'  => 'success',
-                'message' => 'Tugas urgent berhasil dibuat.',
-                'data'    => $task
+                'message' => count($createdTasks) . ' Tugas urgent berhasil disebar.',
+                'data'    => $createdTasks
             ], 201);
         }
 
@@ -376,6 +383,7 @@ class DailyTaskController extends Controller
         $old_values = $task->toArray();
 
         // Parse confirmed_participants
+        // Parse confirmed_participants
         $participants = [];
         if ($request->has('confirmed_participants')) {
             $decoded = json_decode($request->confirmed_participants, true);
@@ -384,21 +392,23 @@ class DailyTaskController extends Controller
             }
         }
 
+        // 🔥 FILTER FIX: Cari tau apakah ada rekan yang di-tag (SELAIN diri sendiri)
+        $peerParticipants = array_filter($participants, fn($id) => $id !== $user->id);
+
         $data = [
-            'description'           => $request->description,
-            'confirmed_participants' => $participants,
-            'submitted_at'          => now(), // ← Catat waktu pengiriman
+            'description'            => $request->description,
+            'confirmed_participants' => $participants, // Tetap simpan array asli buat riwayat
+            'submitted_at'           => now(), // ← Catat waktu pengiriman
         ];
 
         // ── MENTION / TUGAS BERSAMA ─────────────────────────────────────────
-        if (!empty($participants)) {
+        // 🔥 LOGIC FIX: Sekarang kita ngeceknya ke $peerParticipants, BUKAN $participants
+        if (!empty($peerParticipants)) {
             $data['status']               = 'waiting_confirmation';
             $data['mention_submitted_at'] = now();
 
             // Buat / update tugas rekan yang di-tag
-            foreach ($participants as $participantId) {
-                if ($participantId === $user->id) continue;
-
+            foreach ($peerParticipants as $participantId) {
                 $peer = User::find($participantId);
                 if (!$peer) continue;
 
@@ -422,7 +432,7 @@ class DailyTaskController extends Controller
                     'status'                => 'waiting_confirmation',
                     'parent_task_id'        => $task->id,
                     'description'           => $request->description,
-                    'division_id'           => $peer->division_id, // Pastikan divisinya milik si penerima tag!
+                    'division_id'           => $peer->division_id,
                     'mention_submitted_at'  => now(),
                     'submitted_at'          => now(),
                     'confirmed_participants' => [$user->id],
@@ -441,7 +451,6 @@ class DailyTaskController extends Controller
         } else {
             $data['status'] = 'pending';
         }
-
         // Handle image upload
         if ($request->hasFile('evidence_url') && $request->file('evidence_url')->isValid()) {
             $file = $request->file('evidence_url');

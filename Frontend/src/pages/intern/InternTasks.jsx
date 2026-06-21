@@ -248,7 +248,20 @@ const InternTasks = () => {
 
       {/* TUGAS HARI INI */}
       {activeTab === "todo" && (
-        <div className="space-y-6 lg:space-y-8 max-w-5xl mx-auto mt-6">
+        <div className="space-y-6 lg:space-y-8 max-w-5xl mx-auto mt-6">       
+          {!loading && urgentTasks.length > 0 && (
+            <div className="bg-white p-4 sm:p-5 rounded-[2rem] border border-blue-200 shadow-sm shadow-blue-100 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+              <div className="flex items-center gap-2 mb-4 border-b border-blue-100 pb-3 pl-2 pt-1">
+                <i className="fa-solid fa-bolt text-rose-500 animate-pulse text-lg" /><h2 className="text-sm font-black text-rose-600 uppercase tracking-widest">Tugas Tambahan (Urgent)</h2>
+              </div>
+              <div className="flex flex-col gap-3 sm:gap-4 relative z-10">
+                {urgentTasks.map((task, i) => (
+                  <InternTaskCard key={task.id} task={task} index={i} onOpenCameraModal={handleOpenCamera} currentUserId={currentUser.id} />
+                ))}
+              </div>
+            </div>
+          )}
           <div className="bg-white p-4 sm:p-5 rounded-[2rem] border border-blue-100 shadow-sm shadow-blue-100/50">
             <div className="flex items-center gap-3 mb-4 border-b border-blue-50 pb-3 pl-2 pt-1"><h2 className="text-xs font-black text-slate-800 uppercase tracking-widest">Semua Tugas Rutin</h2></div>
             <div className="flex flex-col gap-3 sm:gap-4">
@@ -266,19 +279,6 @@ const InternTasks = () => {
               )}
             </div>
           </div>
-          {!loading && urgentTasks.length > 0 && (
-            <div className="bg-white p-4 sm:p-5 rounded-[2rem] border border-blue-200 shadow-sm shadow-blue-100 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-              <div className="flex items-center gap-2 mb-4 border-b border-blue-100 pb-3 pl-2 pt-1">
-                <i className="fa-solid fa-bolt text-rose-500 animate-pulse text-lg" /><h2 className="text-sm font-black text-rose-600 uppercase tracking-widest">Tugas Tambahan (Urgent)</h2>
-              </div>
-              <div className="flex flex-col gap-3 sm:gap-4 relative z-10">
-                {urgentTasks.map((task, i) => (
-                  <InternTaskCard key={task.id} task={task} index={i} onOpenCameraModal={handleOpenCamera} currentUserId={currentUser.id} />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 

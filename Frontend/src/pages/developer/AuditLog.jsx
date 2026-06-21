@@ -4,6 +4,101 @@ import api from "../../api/axios";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../../contexts/AuthContext";
 
+const translateKey = (key) => {
+  const dictionary = {
+    title: "Judul",
+    description: "Deskripsi / Catatan",
+    status: "Status",
+    evidence_url: "Link Bukti Foto",
+    task_date: "Tanggal Tugas",
+    due_date: "Tenggat Waktu",
+    reject_reason: "Catatan Revisi/Tolak",
+    start_time: "Jam Mulai",
+    end_time: "Jam Selesai",
+    reminder_time: "Waktu Pengingat",
+    file_url: "URL Lampiran",
+    type: "Tipe Data",
+    division_id: "ID Divisi",
+    assign_note: "Instruksi Tugas",
+    is_active: "Status Aktif",
+    confirmed_participants: "Rekan yang Di-tag",
+    parent_task_id: "ID Tugas Utama",
+  };
+  return dictionary[key] || key.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+};
+
+const renderDataChanges = (oldData, newData) => {
+  const allKeys = Array.from(new Set([...Object.keys(oldData || {}), ...Object.keys(newData || {})]));
+  
+  const ignoredKeys = ['id', 'created_at', 'updated_at', 'deleted_at', 'uploader_id', 'assigned_by', 'evaluated_by'];
+
+  const changes = allKeys.filter(k => !ignoredKeys.includes(k)).filter(key => {
+     return JSON.stringify(oldData?.[key]) !== JSON.stringify(newData?.[key]);
+  });
+
+  if (changes.length === 0) {
+    return (
+      <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-center">
+        <p className="text-xs text-slate-400 font-bold italic">Tidak ada perubahan data yang spesifik pada log ini.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 w-full max-w-4xl mx-auto">
+      {changes.map(key => {
+        let oldVal = oldData?.[key];
+        let newVal = newData?.[key];
+
+        // Format kalau datanya bentuk Array (kayak tagging rekan)
+        if (Array.isArray(oldVal)) oldVal = oldVal.length > 0 ? oldVal.join(', ') : "Kosong";
+        if (Array.isArray(newVal)) newVal = newVal.length > 0 ? newVal.join(', ') : "Kosong";
+
+        return (
+          <div key={key} className="flex flex-col md:flex-row md:items-stretch gap-2 md:gap-4 p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+            {/* Label Kolom */}
+            <div className="md:w-1/4 flex items-center bg-slate-50 px-3 py-2 rounded-lg border border-slate-100 shrink-0">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                {translateKey(key)}
+              </span>
+            </div>
+
+            {/* Value Before - After */}
+            <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-2 overflow-hidden">
+              
+              {/* Box Data Lama (Jika Update/Hapus) */}
+              {oldData && (
+                <div className="flex-1 bg-rose-50/50 border border-rose-100 px-3 py-2 rounded-lg flex flex-col justify-center min-w-0">
+                  <span className="text-[9px] uppercase font-bold text-rose-400 block mb-0.5">Data Sebelumnya:</span>
+                  <span className="text-xs text-rose-600 line-through break-all font-medium truncate">
+                    {String(oldVal ?? "Kosong / Null")}
+                  </span>
+                </div>
+              )}
+
+              {/* Panah (Muncul kalau Update) */}
+              {oldData && newData && (
+                <i className="fa-solid fa-arrow-right text-slate-300 text-[10px] shrink-0 self-center hidden sm:block"></i>
+              )}
+
+              {/* Box Data Baru (Jika Update/Create) */}
+              {newData && (
+                <div className="flex-1 bg-emerald-50/50 border border-emerald-100 px-3 py-2 rounded-lg flex flex-col justify-center min-w-0">
+                  <span className="text-[9px] uppercase font-bold text-emerald-400 block mb-0.5">Data Sesudahnya:</span>
+                  <span className="text-xs text-emerald-700 font-bold break-all truncate">
+                    {String(newVal ?? "Kosong / Null")}
+                  </span>
+                </div>
+              )}
+
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const AuditLog = () => {
   const { user, isAdmin, isSuperAdmin } = useAuth();
   const queryClient = useQueryClient();
@@ -321,29 +416,13 @@ const AuditLog = () => {
 
                       {/* Detail JSON Perubahan Data */}
                       {isExpanded && (
-                        <tr className="bg-slate-50 border-y border-slate-100">
-                          <td colSpan="5" className="px-4 sm:px-6 py-5">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {log.old_values && Object.keys(log.old_values).length > 0 && (
-                                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-2 flex items-center gap-1.5">
-                                    <i className="fa-solid fa-circle-minus" /> Data Sebelum
-                                  </p>
-                                  <pre className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-[11px] font-mono text-slate-600 overflow-x-auto leading-relaxed">
-                                    {JSON.stringify(log.old_values, null, 2)}
-                                  </pre>
-                                </div>
-                              )}
-                              {log.new_values && Object.keys(log.new_values).length > 0 && (
-                                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-2 flex items-center gap-1.5">
-                                    <i className="fa-solid fa-circle-plus" /> Data Sesudah
-                                  </p>
-                                  <pre className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-[11px] font-mono text-slate-600 overflow-x-auto leading-relaxed">
-                                    {JSON.stringify(log.new_values, null, 2)}
-                                  </pre>
-                                </div>
-                              )}
+                        <tr className="bg-slate-50/80 border-y border-slate-200 shadow-inner">
+                          <td colSpan="5" className="px-4 sm:px-6 py-6">
+                            <div className="animate-in slide-in-from-top-2 duration-300">
+                              <h4 className="text-[11px] font-black uppercase tracking-widest text-blue-500 mb-4 flex items-center gap-2 max-w-4xl mx-auto">
+                                <i className="fa-solid fa-file-invoice"></i> Rincian Perubahan Log
+                              </h4>
+                              {renderDataChanges(log.old_values, log.new_values)}
                             </div>
                           </td>
                         </tr>

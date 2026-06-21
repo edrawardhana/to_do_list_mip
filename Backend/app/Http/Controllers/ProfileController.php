@@ -185,19 +185,16 @@ class ProfileController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Hanya Superadmin yang dapat mengunduh detail user.'], 403);
         }
 
-        $validator = Validator::make($row, [
-            'full_name' => 'required|string',
-            'email' => 'required|email|unique:users,email',
-            'username' => 'required|string|unique:profiles,username',
-            'division_name' => 'required|string',
-            'role' => 'required|in:intern,admin,super_admin',
-            'internship_batch' => 'nullable|integer'
+        // Pakai $request->validate biasa, sesuaikan internship_batch jadi integer
+        $request->validate([
+            'full_name'        => 'required|string',
+            'email'            => 'required|string', 
+            'username'         => 'required|string',
+            'division_name'    => 'required|string',
+            'role'             => 'required|string',
+            'password'         => 'required|string',
+            'internship_batch' => 'nullable|integer', // 🔥 Paten angka
         ]);
-
-        if ($validator->fails()) {
-            $errors[] = "Baris ke-{$rowIndex}: " . implode(', ', $validator->errors()->all());
-            continue; 
-        }
 
         $csvContent = "full_name,email,username,division_name,role,password,internship_batch\n";
         $csvContent .= sprintf(
@@ -885,4 +882,3 @@ class ProfileController extends Controller
         ]);
     }
 }
-

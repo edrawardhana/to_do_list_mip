@@ -37,3 +37,5 @@ Artisan::command('send-mail', function () {
         $this->error('❌ Gagal mengirim email: ' . $e->getMessage());
     }
 })->purpose('Test Live Sending email via Mailtrap SDK');
+
+Schedule::command('app:cleanup-expired-tasks')->dailyAt('00:00');
