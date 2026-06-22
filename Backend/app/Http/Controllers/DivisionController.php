@@ -78,12 +78,17 @@ class DivisionController extends Controller
 
     public function store(Request $request)
     {
+        // 🔥 FIX: Validasi nama unik & penanggung jawab wajib
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:divisions,name',
+            'head' => 'required|string|max:255',
+        ], [
+            'name.unique' => 'Nama divisi ini sudah digunakan. Silakan gunakan nama lain.',
+            'head.required' => 'Penanggung jawab divisi wajib diisi.'
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400);
+            return response()->json(['message' => $validator->errors()->first()], 400);
         }
 
         $division = Division::create([
@@ -102,11 +107,24 @@ class DivisionController extends Controller
     {
         $division = Division::findOrFail($id);
 
+        // 🔥 FIX: Validasi nama unik (kecuali namanya sendiri) & penanggung jawab wajib
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255|unique:divisions,name,' . $id,
+            'head' => 'required|string|max:255',
+        ], [
+            'name.unique' => 'Nama divisi ini sudah digunakan. Silakan gunakan nama lain.',
+            'head.required' => 'Penanggung jawab divisi wajib diisi.'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => $validator->errors()->first()], 400);
+        }
+
         $division->update([
-            'name' => $request->name ?? $division->name,
+            'name' => $request->name,
             'icon' => $request->icon ?? $division->icon,
             'color' => $request->color ?? $division->color,
-            'head' => $request->head ?? $division->head,
+            'head' => $request->head,
             'description' => $request->description ?? $division->description,
             'job_descriptions' => tap($request->job_descriptions, function(&$j) use ($division) { if(is_null($j)) $j = $division->job_descriptions; })
         ]);

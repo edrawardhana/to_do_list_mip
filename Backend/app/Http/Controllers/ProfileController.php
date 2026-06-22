@@ -715,16 +715,16 @@ class ProfileController extends Controller
         $user = Auth::user();
         $file = $request->file('avatar');
 
-        // 1. Compress & Resize Image to premium 300x300 square
+        // 1. Compress & Resize Image to premium 300x300 square (Pakai read() buat v3/v4)
         $manager      = new ImageManager(new Driver());
-        $image        = $manager->read($file);
-        $image->cover(300, 300);
+        $image        = $manager->read($file->getRealPath());
+        $image->cover(800, 800);
 
-        $encodedImage = $image->encode(new JpegEncoder(quality: 80));
+        $encodedImage = $image->encode(new JpegEncoder(quality: 95));
 
-        // 2. Define Upload Path
+        // 2. Define Upload Path (Masukin ke sub-folder 'avatars')
         $filename    = 'avatar_' . $user->id . '_' . time() . '.jpg';
-        $storagePath = $filename;
+        $storagePath = 'avatars/' . $filename; 
 
         // 3. Delete Old Avatar if exists
         if ($user->avatar_url) {
@@ -734,18 +734,21 @@ class ProfileController extends Controller
             } else {
                 $baseUrl = env('SUPABASE_STORAGE_URL');
                 if ($baseUrl) {
-                    $bucket = env('SUPABASE_AVATARS_BUCKET', 'avatars');
+                    $bucket = env('SUPABASE_STORAGE_BUCKET', 'daily-tasks');
                     $oldPath = str_replace($baseUrl . '/' . $bucket . '/', '', $user->avatar_url);
-                    Storage::disk('supabase_avatars')->delete($oldPath);
+                    // 🔥 FIX: Ganti ke disk 'supabase' yang valid
+                    Storage::disk('supabase')->delete($oldPath); 
                 }
             }
         }
 
         // 4. Upload and Get URL dynamically
         if (env('SUPABASE_STORAGE_KEY')) {
-            Storage::disk('supabase_avatars')->put($storagePath, (string) $encodedImage);
-            $avatarUrl = env('SUPABASE_STORAGE_URL') . '/' . env('SUPABASE_AVATARS_BUCKET', 'avatars') . '/' . $storagePath;
+            // 🔥 FIX: Ganti ke disk 'supabase' yang valid
+            Storage::disk('supabase')->put($storagePath, (string) $encodedImage);
+            $avatarUrl = env('SUPABASE_STORAGE_URL') . '/' . env('SUPABASE_STORAGE_BUCKET', 'daily-tasks') . '/' . $storagePath;
         } else {
+            // Fallback kalau Supabase mati, lari ke Local Public
             Storage::disk('public')->put($storagePath, (string) $encodedImage);
             $avatarUrl = config('app.url') . Storage::url($storagePath);
         }

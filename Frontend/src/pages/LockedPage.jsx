@@ -9,7 +9,7 @@ const LockedPage = () => {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-6 animate-in fade-in zoom-in-95 duration-500">
-      <div className="bg-[#070e1d] w-full max-w-md rounded-[3.5rem] p-12 text-center border border-rose-500/20 shadow-2xl relative overflow-hidden">
+      <div className="bg-[#070e1d] w-full max-w-md rounded-[2.5rem] sm:rounded-[3.5rem] p-8 sm:p-12 text-center border border-white/[0.05] shadow-2xl relative overflow-hidden">
         
         {/* Glow Effect Background */}
         <div className="absolute -top-24 -left-24 w-48 h-48 bg-rose-600/20 blur-[80px] rounded-full"></div>

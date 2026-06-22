@@ -36,7 +36,7 @@ Route::prefix('auth')->group(function () {
 });
 
 // Resources terproteksi dengan JWT Laravel
-Route::middleware('auth:api')->group(function () {
+Route::middleware(['auth:api', \App\Http\Middleware\CheckAccountLock::class])->group(function () {
 
     // Exception Routes (Sakit, Izin, Tugas Luar, Swap Shift)
     Route::post('/exceptions/{id}/resend-email', [ExceptionController::class, 'resendEmail']);

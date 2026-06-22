@@ -196,10 +196,13 @@ const ManageAdmin = () => {
       message: `Terapkan status ${lockStatus ? "KUNCI" : "BUKA"} pada ${selectedIds.length} akun terpilih?`, actionText: "Ya, Terapkan",
       onConfirm: async () => {
         try {
-          await api.post(`/profiles/bulk-lock`, { ids: selectedIds, is_locked: lockStatus });
+          await api.post(`/profiles/bulk-lock`, { ids: selectedIds, lock: lockStatus });
+          
           toast.success(`Berhasil memperbarui ${selectedIds.length} akun.`);
           fetchData();
-        } catch { toast.error("Gagal menerapkan aksi massal."); }
+        } catch (err) { 
+          toast.error(err.response?.data?.message || "Gagal menerapkan aksi massal."); 
+        }
       }
     });
   };
@@ -292,7 +295,10 @@ const ManageAdmin = () => {
       const res = await api.post('/profiles/import-csv', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+      
       const imported = res.data.data?.created || [];
+      const errors = res.data.data?.errors || []; // Tangkap array error dari backend
+      
       const mappedCreds = imported.map(u => ({
         full_name: u.full_name,
         username: u.username,
@@ -300,28 +306,47 @@ const ManageAdmin = () => {
         password: u.password,
         role: u.role
       }));
-      setNewCredentials(mappedCreds);
-      setIsAddModalOpen(false);
+      
+      // Jika ada yang berhasil masuk, tampilkan modal kredensial
+      if (mappedCreds.length > 0) {
+        setNewCredentials(mappedCreds);
+      } else {
+        // Kalau 0 yang berhasil, langsung tutup modal upload
+        setIsAddModalOpen(false);
+      }
+      
       setCsvFile(null);
       fetchData();
       
-      if (res.data.data?.errors?.length > 0) {
-        toast.success(`${mappedCreds.length} akun berhasil diimpor. Ada beberapa error, cek console.`);
-        console.warn("Import errors:", res.data.data.errors);
+      // 🔥 LOGIC TOAST ERROR YANG BARU (LEBIH BAWEL)
+      if (errors.length > 0) {
+        if (mappedCreds.length > 0) {
+          // Kasus: Ada yang berhasil, tapi ada juga yang error
+          toast.error(
+            <div>
+              <strong>{mappedCreds.length} Sukses.</strong> Tapi ada error:<br/>
+              <span className="text-[11px] leading-tight block mt-1">{errors[0]}</span>
+              {errors.length > 1 && <span className="text-[10px] text-rose-300"> (+{errors.length - 1} error lain di console)</span>}
+            </div>, 
+            { duration: 8000 }
+          );
+        } else {
+          // Kasus: Gagal semua
+          toast.error(`Gagal: ${errors[0]}`, { duration: 6000 });
+        }
+        console.warn("Import errors detail:", errors); // Tetap simpan di console buat debug
       } else {
-        toast.success(`${mappedCreds.length} akun berhasil diimpor!`);
+        toast.success(`${mappedCreds.length} akun berhasil diimpor tanpa error!`);
+        setIsAddModalOpen(false);
       }
+      
     } catch (err) {
-      const errResponse = err.response?.data;
-      let errorMessage = errResponse?.message || "Gagal mengimpor file CSV/Excel.";
-      
-      if (errResponse?.errors && Array.isArray(errResponse.errors)) {
-         errorMessage = `Gagal: ${errResponse.errors[0]}`; 
-         toast.error("Ada format yang salah! Cek pesan di atas atau buka console.");
-         console.table(errResponse.errors); 
+      const backendErrors = err.response?.data?.data?.errors || [];
+      if (backendErrors.length > 0) {
+        toast.error(`Gagal: ${backendErrors[0]}`, { duration: 6000 });
+      } else {
+        toast.error(err.response?.data?.message || "Gagal mengimpor file.");
       }
-      
-      toast.error(errorMessage, { duration: 3000 }); 
     } finally {
       setIsSubmitting(false);
     }
@@ -668,29 +693,34 @@ const ManageAdmin = () => {
 
       {/* FLOATING ACTION PANEL (Bulk Actions) */}
       {selectedIds.length > 0 && createPortal(
-        <div className="fixed bottom-6 inset-x-0 mx-auto w-max z-[100] animate-in slide-in-from-bottom-10 fade-in duration-300">
-          <div className="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-6 backdrop-blur-lg">
-            <div className="flex items-center gap-3 border-r border-slate-700 pr-6">
+        <div className="fixed bottom-4 md:bottom-6 inset-x-0 mx-auto w-[95%] md:w-max z-[100] animate-in slide-in-from-bottom-10 fade-in duration-300">
+          <div className="bg-slate-900 text-white p-4 md:px-6 md:py-4 rounded-3xl md:rounded-2xl shadow-2xl border border-slate-700 flex flex-col md:flex-row items-center gap-4 md:gap-6 backdrop-blur-lg relative">
+            
+            {/* Header / Counter */}
+            <div className="flex items-center gap-3 border-b md:border-b-0 md:border-r border-slate-700 pb-3 md:pb-0 md:pr-6 w-full md:w-auto justify-center md:justify-start">
               <div className="w-8 h-8 bg-pink-500/20 text-pink-400 rounded-lg flex items-center justify-center font-black text-xs border border-pink-500/30">
                 {selectedIds.length}
               </div>
               <span className="text-sm font-bold text-slate-200">Akun Terpilih</span>
             </div>
-            <div className="flex gap-3">
-              <button onClick={() => handleBulkLock(false)} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-emerald-500/20 hover:text-emerald-400 text-slate-300 text-xs font-black uppercase tracking-widest transition-colors border border-transparent hover:border-emerald-500/30">
-                <i className="fa-solid fa-unlock mr-2" /> Buka
+
+            {/* Tombol Aksi */}
+            <div className="flex flex-wrap justify-center md:flex-nowrap gap-2 md:gap-3 w-full md:w-auto">
+              <button onClick={() => handleBulkLock(false)} className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-slate-800 hover:bg-emerald-500/20 hover:text-emerald-400 text-slate-300 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-colors border border-transparent hover:border-emerald-500/30">
+                <i className="fa-solid fa-unlock md:mr-2 block md:inline mb-1 md:mb-0" /> Buka
               </button>
-              <button onClick={() => handleBulkLock(true)} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-amber-500/20 hover:text-amber-400 text-slate-300 text-xs font-black uppercase tracking-widest transition-colors border border-transparent hover:border-amber-500/30">
-                <i className="fa-solid fa-lock mr-2" /> Kunci
+              <button onClick={() => handleBulkLock(true)} className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-slate-800 hover:bg-amber-500/20 hover:text-amber-400 text-slate-300 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-colors border border-transparent hover:border-amber-500/30">
+                <i className="fa-solid fa-lock md:mr-2 block md:inline mb-1 md:mb-0" /> Kunci
               </button>
-              <button onClick={handleBulkResetPassword} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-pink-500/20 hover:text-pink-400 text-slate-300 text-xs font-black uppercase tracking-widest transition-colors border border-transparent hover:border-pink-500/30">
-                <i className="fa-solid fa-key mr-2" /> Reset
+              <button onClick={handleBulkResetPassword} className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-slate-800 hover:bg-pink-500/20 hover:text-pink-400 text-slate-300 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-colors border border-transparent hover:border-pink-500/30">
+                <i className="fa-solid fa-key md:mr-2 block md:inline mb-1 md:mb-0" /> Reset
               </button>
-              <button onClick={handleBulkDelete} className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/20 text-xs font-black uppercase tracking-widest transition-colors ml-2">
-                <i className="fa-solid fa-trash mr-2" /> Hapus
+              <button onClick={handleBulkDelete} className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/20 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-colors md:ml-2">
+                <i className="fa-solid fa-trash md:mr-2 block md:inline mb-1 md:mb-0" /> Hapus
               </button>
             </div>
-            <button onClick={() => setSelectedIds([])} className="absolute -top-3 -right-3 w-8 h-8 bg-slate-700 text-slate-300 rounded-full border-4 border-slate-900 flex items-center justify-center hover:bg-slate-600 transition-colors shadow-lg text-xs">
+
+            <button onClick={() => setSelectedIds([])} className="absolute -top-3 -right-3 w-8 h-8 bg-slate-700 text-slate-300 rounded-full border-4 border-slate-900 flex items-center justify-center hover:bg-slate-600 transition-colors shadow-lg text-xs z-10">
               <i className="fa-solid fa-xmark" />
             </button>
           </div>
@@ -737,7 +767,7 @@ const ManageAdmin = () => {
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Nama Lengkap</label>
                     <input type="text" required value={manualForm.full_name} onChange={e => setManualForm({...manualForm, full_name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none" placeholder="Budi Santoso" />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Username</label>
                       <input type="text" required value={manualForm.username} onChange={e => setManualForm({...manualForm, username: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none" placeholder="budi123" />
@@ -747,7 +777,7 @@ const ManageAdmin = () => {
                       <input type="email" required value={manualForm.email} onChange={e => setManualForm({...manualForm, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none" placeholder="budi@example.com" />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Divisi</label>
                       <select required value={manualForm.division_id} onChange={e => setManualForm({...manualForm, division_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none appearance-none cursor-pointer">

@@ -36,15 +36,12 @@ api.interceptors.response.use(
         }
       }
 
-      // 2. 🔥 TANGANI AKUN DIKUNCI (Misal backend ngirim 423 Locked atau 403)
-      // Sesuaikan status code ini dengan yang dilempar sama backend Laravel lu pas user kena lock
       if (
         error.response.status === 423 || 
         error.response.data?.message === 'Account locked' ||
         error.response.data?.message === 'Akun Anda telah dikunci.'
       ) {
-        // Paksa refresh detik itu juga biar HardLockScreen langsung nutup layar!
-        window.location.reload();
+        window.dispatchEvent(new Event('force-lock-screen'));
       }
     }
 

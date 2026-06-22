@@ -133,6 +133,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend([
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
+        $middleware->api(append: [
+            \App\Http\Middleware\CheckAccountLock::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
