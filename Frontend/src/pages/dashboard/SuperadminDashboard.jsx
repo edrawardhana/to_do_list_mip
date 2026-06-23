@@ -14,7 +14,7 @@ import api from "../../api/axios";
 import toast from "react-hot-toast";
 
 const SuperadminDashboard = () => {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, userTheme } = useAuth();
   const queryClient = useQueryClient();
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -61,8 +61,9 @@ const SuperadminDashboard = () => {
 
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload?.length) {
+      // Need to make sure tClass is available or just hardcode border
       return (
-        <div className="bg-white border border-pink-100 px-3 py-2 rounded-xl shadow-xl">
+        <div className={`bg-white border px-3 py-2 rounded-xl shadow-xl border-slate-200`}>
           <p className="text-[10px] font-black uppercase text-pink-500 mb-1">
             {payload[0].payload.name}
           </p>
@@ -79,8 +80,11 @@ const SuperadminDashboard = () => {
   };
 
   const getRoleStyle = (role) => {
-    if (role === "super_admin" || role === "superadmin")
+    if (role === "super_admin" || role === "superadmin") {
+      if (userTheme === "admin") return "bg-blue-600 text-white shadow-blue-600/30";
+      if (userTheme === "intern") return "bg-cyan-500 text-white shadow-cyan-500/30";
       return "bg-pink-500 text-white shadow-pink-500/30";
+    }
     if (role === "admin")
       return "bg-sky-100 text-sky-700 border-sky-200";
     return "bg-slate-100 text-slate-600 border-slate-200";
@@ -133,13 +137,83 @@ const SuperadminDashboard = () => {
     );
   }
 
+  const tClass = {
+    super_admin: {
+      heroBg: "bg-gradient-to-br from-pink-300 to-rose-400 border-pink-200 shadow-pink-200/50",
+      heroSub: "bg-rose-100/30",
+      textMuted: "text-pink-100",
+      textHighlight: "text-pink-600",
+      textHighlightSecondary: "text-pink-500",
+      btnClass: "hover:bg-pink-50 text-pink-600 shadow-pink-500/20",
+      tooltipBorder: "border-pink-100",
+      serverBg: "bg-gradient-to-br from-pink-400 to-rose-500 shadow-pink-500/20 shadow-pink-500/30",
+      serverTextMain: "text-pink-50",
+      serverTextSub: "text-pink-600",
+      auditWrap: "bg-gradient-to-br from-pink-50/80 to-rose-50/80 border-pink-200",
+      auditBorder: "border-pink-200",
+      auditItem: "border-pink-100/50 hover:bg-white/40",
+      auditBadge: "text-pink-600 bg-pink-100/80 border-pink-200",
+      refreshBtn: "border-pink-200 text-pink-400 hover:bg-pink-50 hover:text-pink-600"
+    },
+    admin: {
+      heroBg: "bg-gradient-to-br from-[#162447] to-[#1a3a6c] border-blue-400/20 shadow-blue-900/30",
+      heroSub: "bg-sky-500/10",
+      textMuted: "text-blue-200/70",
+      textHighlight: "text-blue-500",
+      textHighlightSecondary: "text-blue-400",
+      btnClass: "hover:bg-blue-50/10 text-blue-300 shadow-blue-900/20",
+      tooltipBorder: "border-blue-800",
+      serverBg: "bg-gradient-to-b from-[#1a3a6c] to-[#162447] shadow-blue-900/20 shadow-blue-900/30",
+      serverTextMain: "text-blue-50",
+      serverTextSub: "text-blue-600",
+      auditWrap: "bg-[#162447]/5 border-blue-200/50",
+      auditBorder: "border-blue-200/50",
+      auditItem: "border-blue-200/20 hover:bg-blue-50/50",
+      auditBadge: "text-blue-600 bg-blue-100 border-blue-200",
+      refreshBtn: "border-blue-200/50 text-blue-400 hover:bg-blue-50/50 hover:text-blue-600"
+    },
+    intern: {
+      heroBg: "bg-gradient-to-br from-blue-600 to-cyan-500 border-cyan-400/20 shadow-cyan-500/30",
+      heroSub: "bg-cyan-200/20",
+      textMuted: "text-cyan-50/80",
+      textHighlight: "text-cyan-600",
+      textHighlightSecondary: "text-cyan-500",
+      btnClass: "hover:bg-cyan-50 text-cyan-600 shadow-cyan-500/20",
+      tooltipBorder: "border-cyan-100",
+      serverBg: "bg-gradient-to-br from-cyan-500 to-blue-500 shadow-cyan-500/20 shadow-cyan-500/30",
+      serverTextMain: "text-cyan-50",
+      serverTextSub: "text-cyan-600",
+      auditWrap: "bg-cyan-50/30 border-cyan-200",
+      auditBorder: "border-cyan-200",
+      auditItem: "border-cyan-100/50 hover:bg-cyan-50",
+      auditBadge: "text-cyan-600 bg-cyan-100/80 border-cyan-200",
+      refreshBtn: "border-cyan-200 text-cyan-400 hover:bg-cyan-50 hover:text-cyan-600"
+    }
+  }[userTheme] || {
+      heroBg: "bg-gradient-to-br from-pink-300 to-rose-400 border-pink-200 shadow-pink-200/50",
+      heroSub: "bg-rose-100/30",
+      textMuted: "text-pink-100",
+      textHighlight: "text-pink-600",
+      textHighlightSecondary: "text-pink-500",
+      btnClass: "hover:bg-pink-50 text-pink-600 shadow-pink-500/20",
+      tooltipBorder: "border-pink-100",
+      serverBg: "bg-gradient-to-br from-pink-400 to-rose-500 shadow-pink-500/20 shadow-pink-500/30",
+      serverTextMain: "text-pink-50",
+      serverTextSub: "text-pink-600",
+      auditWrap: "bg-gradient-to-br from-pink-50/80 to-rose-50/80 border-pink-200",
+      auditBorder: "border-pink-200",
+      auditItem: "border-pink-100/50 hover:bg-white/40",
+      auditBadge: "text-pink-600 bg-pink-100/80 border-pink-200",
+      refreshBtn: "border-pink-200 text-pink-400 hover:bg-pink-50 hover:text-pink-600"
+  };
+
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-12 pt-6 sm:pt-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       
       {/* ── HERO + CHART ── */}
-      <div className="bg-gradient-to-br from-pink-300 to-rose-400 rounded-[2.5rem] text-white shadow-xl shadow-pink-200/50 border border-pink-200 relative overflow-hidden group flex flex-col lg:flex-row min-h-[420px]">
+      <div className={`${tClass.heroBg} rounded-[2.5rem] text-white shadow-xl relative overflow-hidden group flex flex-col lg:flex-row min-h-[420px]`}>
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/40 rounded-full blur-[80px] pointer-events-none group-hover:bg-white/50 transition-colors duration-1000" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-rose-100/30 rounded-full blur-[80px] pointer-events-none" />
+        <div className={`absolute bottom-0 left-0 w-64 h-64 ${tClass.heroSub} rounded-full blur-[80px] pointer-events-none`} />
 
         {/* Kiri: Hero Info */}
         <div className="flex-1 p-6 sm:p-8 md:p-12 relative z-10 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-white/20">
@@ -152,13 +226,13 @@ const SuperadminDashboard = () => {
                 <span className="text-white text-[11px] font-black uppercase tracking-[0.2em] leading-none mb-1">
                   Super Admin Access Granted
                 </span>
-                <span className="text-pink-100 text-[10px] font-bold tracking-widest uppercase">
+                <span className={`${tClass.textMuted} text-[10px] font-bold tracking-widest uppercase`}>
                   {formatDate(currentTime)}
                 </span>
               </div>
             </div>
             <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-4 text-white drop-shadow-sm">
-              <span className="text-pink-600">Chi</span>ef Exe<span className="text-pink-600">cutive</span>
+              <span className={tClass.textHighlight}>Chi</span>ef Exe<span className={tClass.textHighlight}>cutive</span>
             </h1>
           </div>
 
@@ -166,7 +240,7 @@ const SuperadminDashboard = () => {
             <div className="bg-white/10 backdrop-blur-md border border-white/20 px-6 py-3.5 rounded-2xl flex items-center gap-4 shadow-sm shrink-0">
               <i className="fa-solid fa-satellite-dish text-white text-lg animate-pulse" />
               <div className="text-left">
-                <p className="text-[9px] font-black uppercase tracking-widest text-pink-100 leading-none mb-1">
+                <p className={`text-[9px] font-black uppercase tracking-widest ${tClass.textMuted} leading-none mb-1`}>
                   Server Clock (WIB)
                 </p>
                 <p className="text-xl font-black tabular-nums tracking-tight text-white leading-none">
@@ -180,7 +254,7 @@ const SuperadminDashboard = () => {
             </div>
             <Link
               to="/division-analytics"
-              className="bg-white hover:bg-pink-50 text-pink-600 px-6 py-4 rounded-2xl text-xs font-black shadow-lg shadow-pink-500/20 transition-all hover:-translate-y-1 uppercase tracking-widest flex items-center gap-2"
+              className={`bg-white px-6 py-4 rounded-2xl text-xs font-black shadow-lg transition-all hover:-translate-y-1 uppercase tracking-widest flex items-center gap-2 ${tClass.btnClass}`}
             >
               Division Analytics <i className="fa-solid fa-arrow-right" />
             </Link>
@@ -194,7 +268,7 @@ const SuperadminDashboard = () => {
               <h3 className="text-lg font-black text-white tracking-tight leading-tight flex items-center gap-2">
                 <i className="fa-solid fa-chart-simple text-white/80" /> Global Performance
               </h3>
-              <p className="text-[10px] font-bold text-pink-100 mt-1 uppercase tracking-widest">
+              <p className={`text-[10px] font-bold mt-1 uppercase tracking-widest ${tClass.textMuted}`}>
                 Tingkat penyelesaian tugas (%)
               </p>
             </div>
@@ -209,7 +283,7 @@ const SuperadminDashboard = () => {
               </div>
             ) : divisionPerformance.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center gap-2 opacity-80">
-                <i className="fa-solid fa-chart-bar text-3xl text-pink-100" />
+                <i className={`fa-solid fa-chart-bar text-3xl ${tClass.textMuted}`} />
                 <p className="text-xs text-white font-medium">Belum ada data performa</p>
               </div>
             ) : (
@@ -286,19 +360,19 @@ const SuperadminDashboard = () => {
         ))}
 
         {/* Card 4: System Health */}
-        <div className="bg-gradient-to-br from-pink-400 to-rose-500 rounded-[2rem] p-6 sm:p-7 text-white shadow-lg shadow-pink-500/20 relative overflow-hidden group hover:shadow-xl hover:shadow-pink-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col h-full">
+        <div className={`${tClass.serverBg} rounded-[2rem] p-6 sm:p-7 text-white shadow-lg relative overflow-hidden group hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col h-full`}>
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-700 pointer-events-none"><i className="fa-solid fa-heart-pulse text-8xl" /></div>
           <div className="flex justify-between items-start mb-5 relative z-10">
-            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-pink-50 mt-1">Status Server</p>
+            <p className={`text-[10px] font-black uppercase tracking-[0.15em] ${tClass.serverTextMain} mt-1`}>Status Server</p>
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md text-white flex items-center justify-center text-lg sm:text-xl shadow-inner shrink-0 group-hover:scale-110 transition-transform border border-white/30"><i className="fa-solid fa-heart-pulse animate-pulse" /></div>
           </div>
           <div className="relative z-10 flex-1">
             <h3 className="text-3xl md:text-4xl font-black mb-1 leading-tight tracking-tight drop-shadow-sm">Optimal</h3>
-            <p className="text-[11px] sm:text-[12px] font-medium text-pink-50 mb-5">Semua node berjalan lancar</p>
+            <p className={`text-[11px] sm:text-[12px] font-medium ${tClass.serverTextMain} mb-5`}>Semua node berjalan lancar</p>
           </div>
           <div className="relative z-10 mt-auto">
-            <div className="w-full flex items-center justify-center gap-2 text-[9px] sm:text-[10px] font-black text-pink-600 bg-white px-4 py-2.5 sm:py-3 rounded-xl uppercase tracking-widest shadow-sm cursor-default">All Systems Go</div>
+            <div className={`w-full flex items-center justify-center gap-2 text-[9px] sm:text-[10px] font-black ${tClass.serverTextSub} bg-white px-4 py-2.5 sm:py-3 rounded-xl uppercase tracking-widest shadow-sm cursor-default`}>All Systems Go</div>
           </div>
         </div>
       </div>
@@ -378,10 +452,10 @@ const SuperadminDashboard = () => {
         </div>
 
         {/* Global Audit Log */}
-        <div className="lg:col-span-2 bg-gradient-to-br from-pink-50/80 to-rose-50/80 rounded-[2.5rem] border border-pink-200 shadow-sm overflow-hidden flex flex-col h-full">
-          <div className="px-6 sm:px-8 py-5 border-b border-pink-200 bg-white/50 flex justify-between items-center shrink-0">
-            <h3 className="text-xs font-black text-pink-600 uppercase tracking-widest font-mono flex items-center gap-2">
-              <i className="fa-solid fa-radar text-pink-500 animate-pulse" /> Global Audit Log
+        <div className={`lg:col-span-2 ${tClass.auditWrap} rounded-[2.5rem] border shadow-sm overflow-hidden flex flex-col h-full`}>
+          <div className={`px-6 sm:px-8 py-5 border-b ${tClass.auditBorder} bg-white/50 flex justify-between items-center shrink-0`}>
+            <h3 className={`text-xs font-black ${tClass.textHighlight} uppercase tracking-widest font-mono flex items-center gap-2`}>
+              <i className={`fa-solid fa-radar ${tClass.textHighlightSecondary} animate-pulse`} /> Global Audit Log
             </h3>
             <div className="flex items-center gap-3">
               <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 border border-emerald-200 px-2 py-1 rounded uppercase tracking-widest flex items-center gap-1.5 shadow-sm">Live Feed</span>
@@ -389,7 +463,7 @@ const SuperadminDashboard = () => {
                 onClick={handleRefreshLog}
                 disabled={refreshingLog}
                 title="Refresh log"
-                className="w-8 h-8 rounded-xl bg-white border border-pink-200 text-pink-400 hover:bg-pink-100 hover:text-pink-600 transition-all flex items-center justify-center disabled:opacity-50 shadow-sm"
+                className={`w-8 h-8 rounded-xl bg-white border ${tClass.refreshBtn} transition-all flex items-center justify-center disabled:opacity-50 shadow-sm`}
               >
                 <i className={`fa-solid fa-arrows-rotate text-[11px] ${refreshingLog ? "animate-spin" : ""}`} />
               </button>
@@ -400,19 +474,19 @@ const SuperadminDashboard = () => {
             {loading ? (
               <div className="space-y-4">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex gap-4 border-b border-pink-100/50 pb-4 animate-pulse">
-                    <div className="w-20 h-6 rounded bg-pink-100 shrink-0" />
+                  <div key={i} className={`flex gap-4 border-b ${tClass.auditBorder} pb-4 animate-pulse`}>
+                    <div className="w-20 h-6 rounded bg-black/10 shrink-0" />
                     <div className="flex-1 space-y-2">
-                      <div className="flex gap-2"><div className="h-5 w-16 rounded bg-pink-200" /><div className="h-5 w-32 rounded bg-pink-100" /></div>
-                      <div className="h-3 w-3/4 rounded bg-pink-100/50" />
+                      <div className="flex gap-2"><div className="h-5 w-16 rounded bg-black/20" /><div className="h-5 w-32 rounded bg-black/10" /></div>
+                      <div className="h-3 w-3/4 rounded bg-black/5" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : auditLogs.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center gap-3 opacity-60 py-16">
-                <i className="fa-solid fa-shield-halved text-4xl text-pink-300" />
-                <p className="text-pink-500 text-sm font-medium">Belum ada aktivitas tercatat</p>
+                <i className={`fa-solid fa-shield-halved text-4xl ${tClass.textHighlightSecondary}`} />
+                <p className={`${tClass.textHighlightSecondary} text-sm font-medium`}>Belum ada aktivitas tercatat</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -422,9 +496,9 @@ const SuperadminDashboard = () => {
                   const timeStr = logDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
                   return (
-                    <div key={log.id || index} className="flex items-start gap-4 border-b border-pink-100/50 pb-4 pt-3 last:border-0 hover:bg-white/40 transition-colors px-2 rounded-xl">
-                      <div className="shrink-0 w-[85px] flex flex-col items-start">
-                        <span className="text-pink-600 text-[11px] font-black bg-pink-100/80 border border-pink-200 px-2 py-1 rounded-md mb-1.5 shadow-sm">[{dateStr}]</span>
+                    <div key={log.id || index} className={`flex items-start gap-4 border-b ${tClass.auditItem} pb-4 pt-3 last:border-0 transition-colors px-2 rounded-xl`}>
+                      <div className="shrink-0 pt-0.5">
+                        <span className={`${tClass.auditBadge} text-[11px] font-black border px-2 py-1 rounded-md mb-1.5 shadow-sm`}>[{dateStr}]</span>
                         <span className="text-slate-400 text-[10px] font-bold ml-1">{timeStr} WIB</span>
                       </div>
                       
@@ -445,8 +519,8 @@ const SuperadminDashboard = () => {
           </div>
 
           {!loading && auditLogs.length > 0 && (
-            <div className="px-6 sm:px-8 py-4 border-t border-pink-200 bg-white/50 shrink-0">
-              <Link to="/audit-log" className="text-[11px] font-black text-pink-500 hover:text-pink-600 uppercase tracking-widest flex items-center gap-2 transition-colors w-max">Lihat Semua Log <i className="fa-solid fa-arrow-right" /></Link>
+            <div className={`px-6 sm:px-8 py-4 border-t ${tClass.auditBorder} bg-white/50 shrink-0`}>
+              <Link to="/audit-log" className={`text-[11px] font-black ${tClass.textHighlightSecondary} hover:${tClass.textHighlight} uppercase tracking-widest flex items-center gap-2 transition-colors w-max`}>Lihat Semua Log <i className="fa-solid fa-arrow-right" /></Link>
             </div>
           )}
         </div>

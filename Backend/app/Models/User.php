@@ -28,6 +28,7 @@ class User extends Authenticatable implements JWTSubject
         'avatar_url',
         'signature_url',
         'stamp_url',
+        'theme_color',
         'phone_number',
         'fcm_token',
         'internship_batch', // Batch/angkatan magang

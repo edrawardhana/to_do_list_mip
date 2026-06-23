@@ -14,7 +14,7 @@ const ALWAYS_ALLOWED_PATHS = [
 const SPECIAL_PATHS = ["/audit-log", "/broadcasts"];
 
 const Sidebar = ({ mobileOpen, setMobileOpen }) => {
-  const { user, logout, isAdmin, isSuperAdmin, isIntern, isRestrictedAccess } =
+  const { user, logout, isAdmin, isSuperAdmin, isIntern, isRestrictedAccess, userTheme, updateProfile } =
     useAuth();
 
   const menuItems = useMemo(
@@ -134,7 +134,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
   };
 
   // 2. ADMIN (Full Biru Navy Tua Gelap)
-  if (isAdmin) {
+  if (userTheme === "admin") {
     theme = {
       sidebarBg: "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-r border-blue-400/20 shadow-2xl",
       logoBorder: "border-blue-400/20",
@@ -152,7 +152,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     };
   }
   // 3. SUPERADMIN (PINK PASTEL VVIP)
-  else if (isSuperAdmin) {
+  else if (userTheme === "super_admin") {
     theme = {
       sidebarBg: "bg-gradient-to-b from-pink-400 to-rose-500 border-r border-pink-500/20 shadow-2xl",
       logoBorder: "border-white/10",
@@ -166,7 +166,6 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       specialActiveBg: "bg-gradient-to-r from-white/30 to-white/0 backdrop-blur-md border border-white/10",
       specialActiveText: "text-white font-black drop-shadow-[0_2px_8px_rgba(255,255,255,0.4)]",
       specialActiveBorder: "bg-white shadow-[0_0_15px_rgba(255,255,255,1)]",
-      // MODIFIKASI: Diubah menjadi murni transparan elegan tanpa background kotak tebal bawaan lama
       logoutBtn: "text-pink-100/90 bg-transparent hover:bg-white/10 hover:text-white border border-transparent"
     };
   }
@@ -256,6 +255,27 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
             );
           })}
         </nav>
+
+        {/* COLOR PALETTE SELECTOR */}
+        <div className="px-6 pb-2">
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => updateProfile({ theme_color: "intern" })}
+              className={`w-6 h-6 rounded-full bg-cyan-400 border-2 transition-all hover:scale-110 ${userTheme === "intern" ? "border-white scale-110 shadow-[0_0_10px_rgba(34,211,238,0.8)]" : "border-white/20 scale-90"}`}
+              title="Intern Theme"
+            />
+            <button
+              onClick={() => updateProfile({ theme_color: "admin" })}
+              className={`w-6 h-6 rounded-full bg-[#162447] border-2 transition-all hover:scale-110 ${userTheme === "admin" ? "border-white scale-110 shadow-[0_0_10px_rgba(22,36,71,0.8)]" : "border-white/20 scale-90"}`}
+              title="Admin Theme"
+            />
+            <button
+              onClick={() => updateProfile({ theme_color: "super_admin" })}
+              className={`w-6 h-6 rounded-full bg-pink-400 border-2 transition-all hover:scale-110 ${userTheme === "super_admin" ? "border-white scale-110 shadow-[0_0_10px_rgba(244,114,182,0.8)]" : "border-white/20 scale-90"}`}
+              title="SuperAdmin Theme"
+            />
+          </div>
+        </div>
 
         {/* LOGOUT */}
         <div className={`p-4 shrink-0 border-t ${theme.logoutBorder}`}>

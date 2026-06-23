@@ -6,9 +6,93 @@ import toast from "react-hot-toast";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import { useQueryClient } from "@tanstack/react-query";
 
 const ManageAdmin = () => {
-  const { user, isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin, userTheme } = useAuth();
+  const queryClient = useQueryClient();
+
+  const tClass = {
+    super_admin: {
+      bgMain: "bg-gradient-to-br from-pink-300 to-rose-400 border-pink-200 shadow-pink-200/50",
+      bgSub1: "bg-white/40",
+      bgSub2: "bg-rose-100/30",
+      iconBg: "bg-white/20 border-white/40 text-white",
+      badgeText: "text-pink-50 bg-white/20 border-pink-300/30",
+      descText: "text-pink-50",
+      btnMain: "bg-white text-pink-600 hover:bg-pink-50 shadow-pink-500/30",
+      statBox: "bg-white/10 border-white/20",
+      searchIcon: "text-pink-300 group-focus-within:text-pink-500",
+      searchInput: "border-pink-100 focus:border-pink-300 focus:ring-pink-300/30 placeholder:text-pink-300",
+      selectInput: "bg-white/20 border-white/30 focus:ring-pink-400/50 hover:bg-white/30",
+      tableHeader: "bg-pink-50/50 text-pink-500 border-pink-100",
+      spinner: "text-pink-500",
+      addBtn: "bg-pink-500 hover:bg-pink-600 shadow-pink-500/30",
+      tableIcon: "bg-pink-100 text-pink-600 border-pink-200",
+      tableCheckbox: "text-pink-500 focus:ring-pink-400",
+      tableRowSelected: "bg-pink-50/50",
+      tableBadge: "text-pink-600 bg-pink-50 border-pink-200"
+    },
+    admin: {
+      bgMain: "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20 shadow-blue-900/30",
+      bgSub1: "bg-blue-500/20",
+      bgSub2: "bg-sky-500/10",
+      iconBg: "bg-white/10 border-white/20 text-white",
+      badgeText: "text-blue-200 bg-white/10 border-white/10",
+      descText: "text-blue-100/70",
+      btnMain: "bg-white text-blue-600 hover:bg-blue-50 shadow-blue-500/30",
+      statBox: "bg-white/5 border-white/10",
+      searchIcon: "text-blue-400 group-focus-within:text-blue-600",
+      searchInput: "border-blue-100 focus:border-blue-300 focus:ring-blue-300/30 placeholder:text-blue-300",
+      selectInput: "bg-white/10 border-white/20 focus:ring-blue-400/50 hover:bg-white/20",
+      tableHeader: "bg-blue-50/50 text-blue-600 border-blue-100",
+      spinner: "text-[#162447]",
+      addBtn: "bg-blue-600 hover:bg-blue-700 shadow-blue-500/30",
+      tableIcon: "bg-blue-100 text-blue-600 border-blue-200",
+      tableCheckbox: "text-blue-600 focus:ring-blue-500",
+      tableRowSelected: "bg-blue-50/50",
+      tableBadge: "text-blue-600 bg-blue-50 border-blue-200"
+    },
+    intern: {
+      bgMain: "bg-gradient-to-br from-blue-600 to-cyan-500 border-cyan-400/20 shadow-cyan-500/30",
+      bgSub1: "bg-white/20",
+      bgSub2: "bg-cyan-200/20",
+      iconBg: "bg-white/10 border-white/20 text-white",
+      badgeText: "text-cyan-50 bg-white/10 border-white/10",
+      descText: "text-cyan-50/80",
+      btnMain: "bg-white text-cyan-600 hover:bg-cyan-50 shadow-cyan-500/30",
+      statBox: "bg-white/10 border-white/20",
+      searchIcon: "text-cyan-400 group-focus-within:text-cyan-600",
+      searchInput: "border-cyan-100 focus:border-cyan-300 focus:ring-cyan-300/30 placeholder:text-cyan-300",
+      selectInput: "bg-white/10 border-white/20 focus:ring-cyan-400/50 hover:bg-white/20",
+      tableHeader: "bg-cyan-50/50 text-cyan-600 border-cyan-100",
+      spinner: "text-cyan-500",
+      addBtn: "bg-cyan-600 hover:bg-cyan-700 shadow-cyan-500/30",
+      tableIcon: "bg-cyan-100 text-cyan-600 border-cyan-200",
+      tableCheckbox: "text-cyan-500 focus:ring-cyan-400",
+      tableRowSelected: "bg-cyan-50/50",
+      tableBadge: "text-cyan-600 bg-cyan-50 border-cyan-200"
+    }
+  }[userTheme] || {
+      bgMain: "bg-gradient-to-br from-pink-300 to-rose-400 border-pink-200 shadow-pink-200/50",
+      bgSub1: "bg-white/40",
+      bgSub2: "bg-rose-100/30",
+      iconBg: "bg-white/20 border-white/40 text-white",
+      badgeText: "text-pink-50 bg-white/20 border-pink-300/30",
+      descText: "text-pink-50",
+      btnMain: "bg-white text-pink-600 hover:bg-pink-50 shadow-pink-500/30",
+      statBox: "bg-white/10 border-white/20",
+      searchIcon: "text-pink-300 group-focus-within:text-pink-500",
+      searchInput: "border-pink-100 focus:border-pink-300 focus:ring-pink-300/30 placeholder:text-pink-300",
+      selectInput: "bg-white/20 border-white/30 focus:ring-pink-400/50 hover:bg-white/30",
+      tableHeader: "bg-pink-50/50 text-pink-500 border-pink-100",
+      spinner: "text-pink-500",
+      addBtn: "bg-pink-500 hover:bg-pink-600 shadow-pink-500/30",
+      tableIcon: "bg-pink-100 text-pink-600 border-pink-200",
+      tableCheckbox: "text-pink-500 focus:ring-pink-400",
+      tableRowSelected: "bg-pink-50/50",
+      tableBadge: "text-pink-600 bg-pink-50 border-pink-200"
+  };
   
   const [users, setUsers] = useState([]);
   const [divisionsList, setDivisionsList] = useState([]);
@@ -444,34 +528,34 @@ const ManageAdmin = () => {
         {/* ================================================================= */}
         {/* HERO SECTION - PINK PASTEL VVIP THEME                             */}
         {/* ================================================================= */}
-        <div className="bg-gradient-to-br from-pink-300 to-rose-400 rounded-[2.5rem] border border-pink-200 shadow-xl relative overflow-hidden flex flex-col text-white">
-          <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/40 rounded-full blur-[80px] pointer-events-none" />
-          <div className="absolute -bottom-32 -left-32 w-72 h-72 bg-rose-100/30 rounded-full blur-[80px] pointer-events-none" />
+        <div className={`${tClass.bgMain} rounded-[2.5rem] border shadow-xl relative overflow-hidden flex flex-col text-white`}>
+          <div className={`absolute -top-32 -right-32 w-96 h-96 ${tClass.bgSub1} rounded-full blur-[80px] pointer-events-none`} />
+          <div className={`absolute -bottom-32 -left-32 w-72 h-72 ${tClass.bgSub2} rounded-full blur-[80px] pointer-events-none`} />
 
           <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col md:flex-row justify-between gap-8 border-b border-white/20">
             <div>
               <div className="flex items-center gap-3 mb-5">
-                <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/40 flex items-center justify-center shadow-inner shrink-0 backdrop-blur-sm">
+                <div className={`w-12 h-12 rounded-2xl ${tClass.iconBg} flex items-center justify-center shadow-inner shrink-0 backdrop-blur-sm`}>
                   <i className="fa-solid fa-user-shield text-xl text-white" />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-pink-50 bg-white/20 px-3 py-1.5 rounded-lg border border-white/30 backdrop-blur-sm">
+                <span className={`text-[10px] font-black uppercase tracking-[0.25em] ${tClass.badgeText} px-3 py-1.5 rounded-lg border backdrop-blur-sm`}>
                   Access & Role Management
                 </span>
               </div>
               <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight drop-shadow-sm">
                 User Center.
               </h1>
-              <p className="text-sm font-medium text-pink-50 leading-relaxed max-w-md">
+              <p className={`text-sm font-medium ${tClass.descText} leading-relaxed max-w-md`}>
                 Kelola akun pengguna, batch intern, hak akses, dan lakukan impor massal.
               </p>
               
-              <button onClick={() => setIsAddModalOpen(true)} className="mt-6 px-6 py-3.5 bg-white text-pink-600 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-pink-50 hover:scale-105 transition-all shadow-lg shadow-pink-500/30 flex items-center gap-2 w-max">
+              <button onClick={() => setIsAddModalOpen(true)} className={`mt-6 px-6 py-3.5 ${tClass.btnMain} rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg flex items-center gap-2 w-max`}>
                 <i className="fa-solid fa-user-plus" /> Tambah Pengguna
               </button>
             </div>
 
             {/* Stats Widget */}
-            <div className="w-full lg:w-80 shrink-0 bg-white/10 border border-white/20 rounded-3xl p-5 sm:p-6 backdrop-blur-md flex flex-col justify-center gap-4 shadow-lg">
+            <div className={`w-full lg:w-80 shrink-0 ${tClass.statBox} rounded-3xl p-5 sm:p-6 backdrop-blur-md flex flex-col justify-center gap-4 shadow-lg`}>
               {[
                 { label: "Interns", val: stats.interns, icon: "fa-user-graduate", cls: "text-emerald-100" },
                 { label: "Admins", val: stats.admins, icon: "fa-shield-halved", cls: "text-sky-100" },
@@ -492,9 +576,9 @@ const ManageAdmin = () => {
           {/* Toolbar Bawah */}
           <div className="relative z-10 p-5 sm:p-8 flex flex-col md:flex-row gap-3 items-center bg-black/5 backdrop-blur-sm">
             <div className="relative w-full md:w-64 group shrink-0">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm text-pink-200 group-focus-within:text-white transition-colors" />
+              <i className={`fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm transition-colors ${tClass.searchIcon}`} />
               <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Cari..."
-                className="w-full rounded-xl pl-11 pr-4 py-3 text-sm font-medium outline-none border transition-all bg-white/10 border-white/20 focus:border-white focus:ring-2 focus:ring-white/30 text-white placeholder:text-pink-100"
+                className={`w-full rounded-xl pl-11 pr-4 py-3 text-sm font-medium outline-none border transition-all bg-white/10 ${tClass.searchInput} text-white`}
               />
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full">
@@ -504,7 +588,7 @@ const ManageAdmin = () => {
                 { val: filterBatch, onChange: setFilterBatch, opts: [["semua", "Semua Batch"], ...batchesList.map(b => [b, b])] },
               ].map((sel, i) => (
                 <div key={i} className="relative flex-1 group">
-                  <select value={sel.val} onChange={e => sel.onChange(e.target.value)} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none appearance-none cursor-pointer border transition-all bg-white/10 border-white/20 text-white hover:bg-white/20 focus:ring-2 focus:ring-white/30">
+                  <select value={sel.val} onChange={e => sel.onChange(e.target.value)} className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none appearance-none cursor-pointer border transition-all ${tClass.selectInput} text-white`}>
                     {sel.opts.map(([v, l]) => <option key={v} value={v} className="text-slate-800 bg-white">{l}</option>)}
                   </select>
                   <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] pointer-events-none text-pink-200" />
@@ -526,7 +610,7 @@ const ManageAdmin = () => {
         <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-center gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center shrink-0 border border-pink-200 shadow-sm">
+              <div className={`w-8 h-8 rounded-lg ${tClass.tableIcon} flex items-center justify-center shrink-0 shadow-sm`}>
                 <i className="fa-solid fa-users-gear text-xs" />
               </div>
               <h3 className="font-black text-sm text-slate-800">Daftar Pengguna Sistem</h3>
@@ -542,7 +626,7 @@ const ManageAdmin = () => {
                 <tr>
                   <th className="px-6 py-4 w-10 text-center">
                     <input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.length === filteredUsers.filter(u => u.id !== user?.id).length && selectedIds.length > 0} 
-                      className="w-4 h-4 rounded text-pink-500 focus:ring-pink-400 border-slate-300 cursor-pointer" />
+                      className={`w-4 h-4 rounded ${tClass.tableCheckbox} border-slate-300 cursor-pointer`} />
                   </th>
                   <th className="px-6 py-4">Identitas</th>
                   <th className="px-6 py-4">Divisi & Batch</th>
@@ -561,14 +645,14 @@ const ManageAdmin = () => {
                     const badge = getRoleBadge(u.role);
                     const isSelected = selectedIds.includes(u.id);
                     return (
-                      <tr key={u.id} className={`transition-colors group hover:bg-slate-50/80 ${isSelected ? 'bg-pink-50/50' : ''}`}>
+                      <tr key={u.id} className={`transition-colors group hover:bg-slate-50/80 ${isSelected ? tClass.tableRowSelected : ''}`}>
                         <td className="px-6 py-4 text-center">
                           {u.id !== user?.id ? (
                             <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(u.id)}
-                              className="w-4 h-4 rounded text-pink-500 focus:ring-pink-400 border-slate-300 cursor-pointer" />
+                              className={`w-4 h-4 rounded ${tClass.tableCheckbox} border-slate-300 cursor-pointer`} />
                           ) : (
-                            <span className="text-[10px] font-black text-pink-600 bg-pink-50 px-2 py-1 rounded-md border border-pink-200">
-                              YOU
+                            <span className={`text-[10px] font-black ${tClass.tableBadge} px-2 py-1 rounded-md border`}>
+                              Anda
                             </span>
                           )}
                         </td>
@@ -589,8 +673,8 @@ const ManageAdmin = () => {
                               <i className="fa-solid fa-building text-slate-400 mr-1" /> {u.division}
                             </span>
                             {u.batch !== "-" && (
-                              <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest bg-pink-50 text-pink-600 border border-pink-100">
-                                BATCH: {u.batch}
+                              <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${tClass.tableBadge}`}>
+                                Batch {u.batch}
                               </span>
                             )}
                           </div>

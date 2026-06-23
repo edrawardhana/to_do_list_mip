@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 
 const DivisionAnalytics = () => {
-  const { isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin, userTheme } = useAuth();
 
   const [divisions, setDivisions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -179,29 +179,99 @@ const DivisionAnalytics = () => {
     );
   }
 
+  const tClass = {
+    super_admin: {
+      bgMain: "bg-gradient-to-br from-pink-300 to-rose-400 border-pink-200 shadow-pink-200/50",
+      bgSub1: "bg-white/40",
+      bgSub2: "bg-rose-100/30",
+      iconBg: "bg-white/20 border-white/40 text-white",
+      badgeText: "text-pink-50 bg-white/20 border-white/30",
+      descText: "text-pink-50",
+      searchWrap: "bg-black/10",
+      searchIcon: "text-pink-300 group-focus-within:text-pink-500",
+      searchInput: "border-pink-100 focus:border-pink-300 focus:ring-pink-300/30 placeholder:text-pink-300 text-slate-700",
+      addBtn: "bg-pink-500 hover:bg-pink-600 shadow-pink-500/30",
+      cardHover: "hover:border-pink-300 hover:shadow-pink-500/10",
+      cardIcon: "text-pink-500",
+      cardActionHover: "hover:text-pink-600 hover:border-pink-300 hover:bg-pink-50",
+      cardTitleHover: "group-hover:text-pink-600",
+      cardArrow: "bg-pink-50 border-pink-200 text-pink-500 group-hover:bg-pink-600 group-hover:text-white group-hover:shadow-md"
+    },
+    admin: {
+      bgMain: "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20 shadow-blue-900/30",
+      bgSub1: "bg-blue-500/20",
+      bgSub2: "bg-sky-500/10",
+      iconBg: "bg-white/10 border-white/20 text-white",
+      badgeText: "text-blue-200 bg-white/10 border-white/10",
+      descText: "text-blue-100/70",
+      searchWrap: "bg-black/10",
+      searchIcon: "text-blue-400 group-focus-within:text-blue-600",
+      searchInput: "border-blue-100 focus:border-blue-300 focus:ring-blue-300/30 placeholder:text-blue-300 text-slate-700",
+      addBtn: "bg-blue-600 hover:bg-blue-700 shadow-blue-500/30",
+      cardHover: "hover:border-blue-300 hover:shadow-blue-500/10",
+      cardIcon: "text-blue-500",
+      cardActionHover: "hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50",
+      cardTitleHover: "group-hover:text-blue-600",
+      cardArrow: "bg-blue-50 border-blue-200 text-blue-500 group-hover:bg-blue-600 group-hover:text-white group-hover:shadow-md"
+    },
+    intern: {
+      bgMain: "bg-gradient-to-br from-blue-600 to-cyan-500 border-cyan-400/20 shadow-cyan-500/30",
+      bgSub1: "bg-white/20",
+      bgSub2: "bg-cyan-200/20",
+      iconBg: "bg-white/10 border-white/20 text-white",
+      badgeText: "text-cyan-50 bg-white/10 border-white/10",
+      descText: "text-cyan-50/80",
+      searchWrap: "bg-black/10",
+      searchIcon: "text-cyan-400 group-focus-within:text-cyan-600",
+      searchInput: "border-cyan-100 focus:border-cyan-300 focus:ring-cyan-300/30 placeholder:text-cyan-300 text-slate-700",
+      addBtn: "bg-cyan-600 hover:bg-cyan-700 shadow-cyan-500/30",
+      cardHover: "hover:border-cyan-300 hover:shadow-cyan-500/10",
+      cardIcon: "text-cyan-500",
+      cardActionHover: "hover:text-cyan-600 hover:border-cyan-300 hover:bg-cyan-50",
+      cardTitleHover: "group-hover:text-cyan-600",
+      cardArrow: "bg-cyan-50 border-cyan-200 text-cyan-500 group-hover:bg-cyan-600 group-hover:text-white group-hover:shadow-md"
+    }
+  }[userTheme] || {
+      bgMain: "bg-gradient-to-br from-pink-300 to-rose-400 border-pink-200 shadow-pink-200/50",
+      bgSub1: "bg-white/40",
+      bgSub2: "bg-rose-100/30",
+      iconBg: "bg-white/20 border-white/40 text-white",
+      badgeText: "text-pink-50 bg-white/20 border-white/30",
+      descText: "text-pink-50",
+      searchWrap: "bg-black/10",
+      searchIcon: "text-pink-300 group-focus-within:text-pink-500",
+      searchInput: "border-pink-100 focus:border-pink-300 focus:ring-pink-300/30 placeholder:text-pink-300 text-slate-700",
+      addBtn: "bg-pink-500 hover:bg-pink-600 shadow-pink-500/30",
+      cardHover: "hover:border-pink-300 hover:shadow-pink-500/10",
+      cardIcon: "text-pink-500",
+      cardActionHover: "hover:text-pink-600 hover:border-pink-300 hover:bg-pink-50",
+      cardTitleHover: "group-hover:text-pink-600",
+      cardArrow: "bg-pink-50 border-pink-200 text-pink-500 group-hover:bg-pink-600 group-hover:text-white group-hover:shadow-md"
+  };
+
   return (
     <>
       <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 sm:pt-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
 
         {/* HERO SECTION */}
-        <div className="bg-white rounded-[2.5rem] border border-pink-100 shadow-xl relative overflow-hidden flex flex-col text-slate-800">
-          <div className="bg-gradient-to-br from-pink-300 to-rose-400 relative z-10 p-6 sm:p-8 md:p-10 flex flex-col lg:flex-row justify-between gap-8 border-b border-pink-200 text-white overflow-hidden shadow-sm">
-            <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/40 rounded-full blur-[80px] pointer-events-none" />
-            <div className="absolute -bottom-32 -left-32 w-72 h-72 bg-rose-100/30 rounded-full blur-[80px] pointer-events-none" />
+        <div className={`${tClass.bgMain} rounded-[2.5rem] border shadow-xl relative overflow-hidden flex flex-col text-white`}>
+          <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col lg:flex-row justify-between gap-8 border-b border-white/20 overflow-hidden">
+            <div className={`absolute -top-32 -right-32 w-96 h-96 ${tClass.bgSub1} rounded-full blur-[80px] pointer-events-none`} />
+            <div className={`absolute -bottom-32 -left-32 w-72 h-72 ${tClass.bgSub2} rounded-full blur-[80px] pointer-events-none`} />
 
             <div className="lg:max-w-xl relative z-10">
               <div className="flex items-center gap-3 mb-5">
-                <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/40 flex items-center justify-center text-white shadow-inner shrink-0 backdrop-blur-sm">
+                <div className={`w-12 h-12 rounded-2xl ${tClass.iconBg} flex items-center justify-center shadow-inner shrink-0 backdrop-blur-sm`}>
                   <i className="fa-solid fa-chart-line text-xl" />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-pink-50 bg-white/20 px-3 py-1.5 rounded-lg border border-white/30 backdrop-blur-sm">
+                <span className={`text-[10px] font-black uppercase tracking-[0.25em] ${tClass.badgeText} px-3 py-1.5 rounded-lg border backdrop-blur-sm`}>
                   Global Performance Monitoring
                 </span>
               </div>
               <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight drop-shadow-sm">
                 Global Analytics.
               </h1>
-              <p className="text-sm font-medium text-pink-50 leading-relaxed">
+              <p className={`text-sm font-medium ${tClass.descText} leading-relaxed`}>
                 Pantau performa operasional, persebaran pengguna, dan leaderboard tiap divisi secara komprehensif.
               </p>
             </div>
@@ -226,18 +296,18 @@ const DivisionAnalytics = () => {
             </div>
           </div>
 
-          <div className="relative z-10 p-5 sm:p-8 flex flex-col sm:flex-row justify-between items-center gap-4 bg-pink-50/50">
+          <div className="relative z-10 p-5 sm:p-8 flex flex-col sm:flex-row justify-between items-center gap-4 bg-black/5 backdrop-blur-sm">
             <div className="relative w-full sm:w-80 group">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-pink-300 group-focus-within:text-pink-500 transition-colors" />
+              <i className={`fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 ${tClass.searchIcon} transition-colors`} />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari divisi atau admin..."
-                className="w-full rounded-xl pl-11 pr-4 py-3 text-sm font-bold outline-none border bg-white border-pink-100 focus:border-pink-300 focus:ring-2 focus:ring-pink-300/30 text-slate-700 placeholder:text-pink-300 transition-all shadow-sm"
+                className={`w-full rounded-xl pl-11 pr-4 py-3 text-sm font-bold outline-none border transition-all bg-white/10 ${tClass.searchInput} text-white`}
               />
             </div>
-            <button onClick={handleOpenAddForm} className="w-full sm:w-auto px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-black transition-all flex items-center justify-center gap-3 shadow-lg shadow-pink-500/30 active:scale-95">
+            <button onClick={handleOpenAddForm} className={`w-full sm:w-auto px-6 py-3 ${tClass.addBtn} text-white rounded-xl text-sm font-black transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95`}>
               <i className="fa-solid fa-plus" /> Tambah Divisi
             </button>
           </div>
@@ -276,13 +346,13 @@ const DivisionAnalytics = () => {
           {!loading && filteredDivisions.map((div) => {
             const badgeClass = getBadgeColors(div.color);
             return (
-              <div key={div.id} onClick={() => setSelectedDivision(div)} className="rounded-[2rem] border p-6 sm:p-8 shadow-sm hover:shadow-xl transition-all duration-300 group relative overflow-hidden flex flex-col cursor-pointer bg-white border-slate-200 hover:border-pink-300 hover:shadow-pink-500/10">
+              <div key={div.id} onClick={() => setSelectedDivision(div)} className={`rounded-[2rem] border p-6 sm:p-8 shadow-sm hover:shadow-xl transition-all duration-300 group relative overflow-hidden flex flex-col cursor-pointer bg-white border-slate-200 ${tClass.cardHover}`}>
                 <div className="absolute -right-6 -bottom-6 opacity-[0.03] group-hover:scale-110 transition-transform duration-500 pointer-events-none hidden sm:block">
-                  <i className={`fa-solid ${div.icon} text-[10rem] sm:text-[12rem] text-pink-500`} />
+                  <i className={`fa-solid ${div.icon} text-[10rem] sm:text-[12rem] ${tClass.cardIcon}`} />
                 </div>
 
                 <div className="absolute top-4 sm:top-6 right-4 sm:right-6 flex items-center gap-1.5 sm:gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenEditForm(div); }} className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shadow-sm border transition-colors bg-white/90 backdrop-blur-md text-slate-400 border-slate-200 hover:text-pink-600 hover:border-pink-300 hover:bg-pink-50">
+                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenEditForm(div); }} className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shadow-sm border transition-colors bg-white/90 backdrop-blur-md text-slate-400 border-slate-200 ${tClass.cardActionHover}`}>
                     <i className="fa-solid fa-pen-to-square text-xs sm:text-sm" />
                   </button>
                   <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(div.id, div.name, div.internCount); }} className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shadow-sm border transition-colors bg-white/90 backdrop-blur-md text-slate-400 border-slate-200 hover:text-rose-500 hover:border-rose-200 hover:bg-rose-50">
@@ -300,7 +370,7 @@ const DivisionAnalytics = () => {
                   </div>
                 </div>
 
-                <h3 className="text-xl sm:text-2xl font-black mb-1.5 sm:mb-2 transition-colors relative z-10 text-slate-800 group-hover:text-pink-600">{div.name}</h3>
+                <h3 className={`text-xl sm:text-2xl font-black mb-1.5 sm:mb-2 transition-colors relative z-10 text-slate-800 ${tClass.cardTitleHover}`}>{div.name}</h3>
 
                 <p className="text-xs sm:text-[14px] font-medium leading-relaxed mb-5 sm:mb-6 line-clamp-2 relative z-10 text-slate-500">
                   {div.description}
@@ -330,7 +400,7 @@ const DivisionAnalytics = () => {
                     <i className="fa-solid fa-users text-[10px] sm:text-xs text-slate-400" />
                     <span className="text-[10px] sm:text-xs font-black text-slate-600">{div.internCount} Anggota</span>
                   </div>
-                  <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full transition-colors border bg-pink-50 border-pink-200 text-pink-500 group-hover:bg-pink-600 group-hover:text-white group-hover:shadow-md">
+                  <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full transition-colors border ${tClass.cardArrow}`}>
                     <i className="fa-solid fa-arrow-right text-xs sm:text-sm" />
                   </div>
                 </div>

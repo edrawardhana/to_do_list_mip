@@ -141,15 +141,18 @@ const MainLayout = () => {
   }
 
   // ================= TEMA BACKGROUND UTAMA UNTUK BACKGROUND NYATU =================
-  let bgClass =
-    "bg-gradient-to-tr from-sky-100/40 via-slate-50 to-indigo-50/30 text-slate-900";
+  let bgClass = "bg-gradient-to-tr from-sky-100/40 via-slate-50 to-indigo-50/30 text-slate-900";
+  let glowClass = "bg-sky-400/10";
 
-  if (isSuperAdmin) {
-    bgClass =
-      "bg-gradient-to-tr from-pink-50 via-white to-rose-50 text-slate-900";
-  } else if (isAdmin) {
-    bgClass =
-      "bg-gradient-to-tr from-blue-100/30 via-slate-50 to-slate-100 text-slate-900";
+  if (userTheme === "super_admin") {
+    bgClass = "bg-gradient-to-tr from-pink-50 via-white to-rose-50 text-slate-900";
+    glowClass = "bg-pink-400/10";
+  } else if (userTheme === "admin") {
+    bgClass = "bg-gradient-to-tr from-slate-50 via-blue-50/30 to-slate-100 text-slate-900";
+    glowClass = "bg-blue-400/10";
+  } else if (userTheme === "intern") {
+    bgClass = "bg-gradient-to-tr from-slate-50 via-cyan-50/20 to-blue-50/20 text-slate-900";
+    glowClass = "bg-cyan-400/10";
   }
 
   return (
@@ -158,7 +161,7 @@ const MainLayout = () => {
       className={`fixed inset-0 w-full h-full flex font-sans overflow-hidden select-none ${bgClass}`}
     >
       {/* Efek Ambient Glow Halus di Background */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50rem] h-[50rem] rounded-full bg-sky-400/10 blur-[120px] pointer-events-none z-0"></div>
+      <div className={`absolute top-[-10%] left-[-10%] w-[50rem] h-[50rem] rounded-full ${glowClass} blur-[120px] pointer-events-none z-0`}></div>
 
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       

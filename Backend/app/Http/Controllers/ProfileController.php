@@ -447,13 +447,14 @@ class ProfileController extends Controller
             'phone_number'     => 'sometimes|string|max:20',
             'avatar_url'       => 'sometimes|string',
             'internship_batch' => 'sometimes|nullable|string|max:100',
+            'theme_color'      => 'sometimes|nullable|string|max:50',
             'is_locked'        => $authUser->role !== 'intern' ? 'sometimes|boolean' : '',
             'is_verified'      => $authUser->role !== 'intern' ? 'sometimes|boolean' : '',
             'role'             => $roleValidation,
             'division_id'      => $authUser->role === 'super_admin' ? 'sometimes|uuid|exists:divisions,id' : ''
         ]);
 
-        $dataToUpdate = $request->only(['nickname', 'full_name', 'username', 'phone_number', 'avatar_url', 'internship_batch']);
+        $dataToUpdate = $request->only(['nickname', 'full_name', 'username', 'phone_number', 'avatar_url', 'internship_batch', 'theme_color']);
 
         // Only Admins can update these security fields
         if ($authUser->role !== 'intern') {
@@ -734,19 +735,19 @@ class ProfileController extends Controller
             } else {
                 $baseUrl = env('SUPABASE_STORAGE_URL');
                 if ($baseUrl) {
-                    $bucket = env('SUPABASE_STORAGE_BUCKET', 'daily-tasks');
+                    $bucket = env('SUPABASE_AVATARS_BUCKET', 'avatars');
                     $oldPath = str_replace($baseUrl . '/' . $bucket . '/', '', $user->avatar_url);
-                    // 🔥 FIX: Ganti ke disk 'supabase' yang valid
-                    Storage::disk('supabase')->delete($oldPath); 
+                    // 🔥 FIX: Ganti ke disk 'supabase_avatars' yang valid
+                    Storage::disk('supabase_avatars')->delete($oldPath); 
                 }
             }
         }
 
         // 4. Upload and Get URL dynamically
         if (env('SUPABASE_STORAGE_KEY')) {
-            // 🔥 FIX: Ganti ke disk 'supabase' yang valid
-            Storage::disk('supabase')->put($storagePath, (string) $encodedImage);
-            $avatarUrl = env('SUPABASE_STORAGE_URL') . '/' . env('SUPABASE_STORAGE_BUCKET', 'daily-tasks') . '/' . $storagePath;
+            // 🔥 FIX: Ganti ke disk 'supabase_avatars' yang valid
+            Storage::disk('supabase_avatars')->put($storagePath, (string) $encodedImage);
+            $avatarUrl = env('SUPABASE_STORAGE_URL') . '/' . env('SUPABASE_AVATARS_BUCKET', 'avatars') . '/' . $storagePath;
         } else {
             // Fallback kalau Supabase mati, lari ke Local Public
             Storage::disk('public')->put($storagePath, (string) $encodedImage);
@@ -794,20 +795,25 @@ class ProfileController extends Controller
             if (str_contains($user->signature_url, '/storage/')) {
                 $oldPath = str_replace('/storage/', '', parse_url($user->signature_url, PHP_URL_PATH));
                 Storage::disk('public')->delete($oldPath);
-            } else {
+            } elseif (str_starts_with($user->signature_url, 'http')) {
+                // Hapus URL lama yang masih ada di avatars bucket
                 $baseUrl = env('SUPABASE_STORAGE_URL');
                 if ($baseUrl) {
                     $bucket = env('SUPABASE_AVATARS_BUCKET', 'avatars');
                     $oldPath = str_replace($baseUrl . '/' . $bucket . '/', '', $user->signature_url);
                     Storage::disk('supabase_avatars')->delete($oldPath);
                 }
+            } else {
+                // Format aman (path relatif di evidences bucket)
+                Storage::disk('supabase')->delete($user->signature_url);
             }
         }
 
         // Upload and Get URL dynamically
         if (env('SUPABASE_STORAGE_KEY')) {
-            Storage::disk('supabase_avatars')->put($storagePath, (string) $encodedImage);
-            $signatureUrl = env('SUPABASE_STORAGE_URL') . '/' . env('SUPABASE_AVATARS_BUCKET', 'avatars') . '/' . $storagePath;
+            Storage::disk('supabase')->put($storagePath, (string) $encodedImage);
+            // Simpan path relatif saja agar aman
+            $signatureUrl = $storagePath;
         } else {
             Storage::disk('public')->put($storagePath, (string) $encodedImage);
             $signatureUrl = config('app.url') . Storage::url($storagePath);
@@ -857,20 +863,22 @@ class ProfileController extends Controller
             if (str_contains($user->stamp_url, '/storage/')) {
                 $oldPath = str_replace('/storage/', '', parse_url($user->stamp_url, PHP_URL_PATH));
                 Storage::disk('public')->delete($oldPath);
-            } else {
+            } elseif (str_starts_with($user->stamp_url, 'http')) {
                 $baseUrl = env('SUPABASE_STORAGE_URL');
                 if ($baseUrl) {
                     $bucket = env('SUPABASE_AVATARS_BUCKET', 'avatars');
                     $oldPath = str_replace($baseUrl . '/' . $bucket . '/', '', $user->stamp_url);
                     Storage::disk('supabase_avatars')->delete($oldPath);
                 }
+            } else {
+                Storage::disk('supabase')->delete($user->stamp_url);
             }
         }
 
         // Upload and Get URL dynamically
         if (env('SUPABASE_STORAGE_KEY')) {
-            Storage::disk('supabase_avatars')->put($storagePath, (string) $encodedImage);
-            $stampUrl = env('SUPABASE_STORAGE_URL') . '/' . env('SUPABASE_AVATARS_BUCKET', 'avatars') . '/' . $storagePath;
+            Storage::disk('supabase')->put($storagePath, (string) $encodedImage);
+            $stampUrl = $storagePath;
         } else {
             Storage::disk('public')->put($storagePath, (string) $encodedImage);
             $stampUrl = config('app.url') . Storage::url($storagePath);
@@ -883,5 +891,31 @@ class ProfileController extends Controller
             'message'   => 'Stempel berhasil diperbarui!',
             'stamp_url' => $user->stamp_url,
         ]);
+    }
+
+    /**
+     * GET /api/profiles/secure-image
+     * Fetch private image for signatures and stamps
+     */
+    public function secureImage(Request $request)
+    {
+        $path = $request->query('path');
+        if (!$path) return response()->json(['message' => 'Path required'], 400);
+
+        if (!str_starts_with($path, 'signatures/') && !str_starts_with($path, 'stamps/')) {
+            return response()->json(['message' => 'Unauthorized path'], 403);
+        }
+
+        if (env('SUPABASE_STORAGE_KEY')) {
+            if (!Storage::disk('supabase')->exists($path)) {
+                return response()->json(['message' => 'File not found'], 404);
+            }
+            return Storage::disk('supabase')->response($path);
+        }
+
+        if (!Storage::disk('public')->exists($path)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+        return Storage::disk('public')->response($path);
     }
 }

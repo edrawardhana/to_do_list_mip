@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 
 const ManageAccountIntern = () => {
-  const { user, isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin, userTheme } = useAuth();
   const queryClient = useQueryClient(); // Mesin pembersih cache
 
   const canViewAll = isSuperAdmin;
@@ -266,36 +266,84 @@ const ManageAccountIntern = () => {
     });
   };
 
+  const tClass = {
+    super_admin: {
+      bgMain: "bg-gradient-to-br from-pink-300 to-rose-400 border-pink-300 shadow-pink-200/50",
+      bgSub1: "bg-white/40",
+      bgSub2: "bg-rose-100/30",
+      iconBg: "bg-white/20 border-white/40 text-white",
+      badgeText: "text-pink-50 bg-white/20 border-pink-200",
+      descText: "text-pink-50",
+      statBox: "bg-white/10 border-white/20",
+      searchIcon: "text-pink-200 group-focus-within:text-white",
+      searchInput: "bg-white/10 border-white/30 placeholder:text-pink-200/70 focus:border-white focus:ring-pink-400/50",
+      selectInput: "bg-white/10 border-white/30 hover:bg-white/20 focus:ring-2 focus:ring-pink-400/50"
+    },
+    admin: {
+      bgMain: "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20 shadow-2xl",
+      bgSub1: "bg-blue-500/20",
+      bgSub2: "bg-sky-500/10",
+      iconBg: "bg-white/10 border-white/20 text-white",
+      badgeText: "text-blue-200 bg-white/10 border-white/10",
+      descText: "text-blue-100/70",
+      statBox: "bg-white/5 border-white/10",
+      searchIcon: "text-blue-300/50 group-focus-within:text-blue-200",
+      searchInput: "bg-white/5 border-white/10 placeholder:text-blue-300/50 focus:border-white/30 focus:ring-blue-400/50",
+      selectInput: "bg-white/5 border-white/10 hover:bg-white/10 focus:ring-2 focus:ring-blue-400/50"
+    },
+    intern: {
+      bgMain: "bg-gradient-to-br from-blue-600 to-cyan-500 border-cyan-400/20 shadow-cyan-500/30",
+      bgSub1: "bg-white/20",
+      bgSub2: "bg-cyan-200/20",
+      iconBg: "bg-white/10 border-white/20 text-white",
+      badgeText: "text-cyan-50 bg-white/10 border-white/10",
+      descText: "text-cyan-50/80",
+      statBox: "bg-white/10 border-white/20",
+      searchIcon: "text-cyan-100/50 group-focus-within:text-white",
+      searchInput: "bg-white/10 border-white/30 placeholder:text-cyan-200/70 focus:border-white focus:ring-cyan-400/50",
+      selectInput: "bg-white/10 border-white/30 hover:bg-white/20 focus:ring-2 focus:ring-cyan-400/50"
+    }
+  }[userTheme] || {
+      bgMain: "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20 shadow-2xl",
+      bgSub1: "bg-blue-500/20",
+      bgSub2: "bg-sky-500/10",
+      iconBg: "bg-white/10 border-white/20 text-white",
+      badgeText: "text-blue-200 bg-white/10 border-white/10",
+      descText: "text-blue-100/70",
+      statBox: "bg-white/5 border-white/10",
+      searchIcon: "text-blue-300/50 group-focus-within:text-blue-200",
+      searchInput: "bg-white/5 border-white/10 placeholder:text-blue-300/50 focus:border-white/30 focus:ring-blue-400/50",
+      selectInput: "bg-white/5 border-white/10 hover:bg-white/10 focus:ring-2 focus:ring-blue-400/50"
+  };
+
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 sm:pt-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       
       {/* HERO SECTION & FILTER */}
-      <div className={`rounded-[2.5rem] border shadow-2xl relative overflow-hidden flex flex-col text-white mb-6 transition-all duration-500 ${
-        isSuperAdmin ? "bg-gradient-to-br from-pink-300 to-rose-400 border-pink-300 shadow-pink-200/50" : "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20 shadow-2xl"
-      }`}>
-        <div className={`absolute -top-32 -right-32 w-96 h-96 rounded-full blur-[100px] pointer-events-none ${isSuperAdmin ? "bg-white/40" : "bg-blue-500/20"}`} />
-        <div className={`absolute -bottom-32 -left-32 w-72 h-72 rounded-full blur-[100px] pointer-events-none ${isSuperAdmin ? "bg-rose-100/30" : "bg-sky-500/10"}`} />
+      <div className={`rounded-[2.5rem] border shadow-2xl relative overflow-hidden flex flex-col text-white mb-6 transition-all duration-500 ${tClass.bgMain}`}>
+        <div className={`absolute -top-32 -right-32 w-96 h-96 rounded-full blur-[100px] pointer-events-none ${tClass.bgSub1}`} />
+        <div className={`absolute -bottom-32 -left-32 w-72 h-72 rounded-full blur-[100px] pointer-events-none ${tClass.bgSub2}`} />
 
         <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col lg:flex-row justify-between gap-8 border-b border-white/10">
           <div className="lg:max-w-xl">
             <div className="flex items-center gap-3 mb-5">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner shrink-0 border backdrop-blur-sm ${isSuperAdmin ? "bg-white/20 border-white/40 text-white" : "bg-white/10 border-white/20 text-white"}`}>
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner shrink-0 border backdrop-blur-sm ${tClass.iconBg}`}>
                 <i className="fa-solid fa-users-gear text-xl" />
               </div>
-              <span className={`text-[10px] font-black uppercase tracking-[0.25em] px-3 py-1.5 rounded-lg border ${isSuperAdmin ? "text-pink-50 bg-white/20 border-pink-200" : "text-blue-200 bg-white/10 border-white/10"}`}>
+              <span className={`text-[10px] font-black uppercase tracking-[0.25em] px-3 py-1.5 rounded-lg border ${tClass.badgeText}`}>
                 Manage Intern
               </span>
             </div>
             <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight">Kelola Akun Intern.</h1>
-            <p className={`text-sm font-medium leading-relaxed ${isSuperAdmin ? "text-pink-50" : "text-blue-100/70"}`}>Verifikasi dan kelola batch intern divisi {canViewAll ? "seluruh perusahaan" : myDivision}.</p>
+            <p className={`text-sm font-medium leading-relaxed ${tClass.descText}`}>Verifikasi dan kelola batch intern divisi {canViewAll ? "seluruh perusahaan" : myDivision}.</p>
           </div>
 
           <div className="flex gap-3 sm:gap-4 shrink-0 mt-4 lg:mt-0">
-            <div className={`border rounded-3xl p-5 sm:p-6 backdrop-blur-md flex flex-col justify-center items-center gap-1 shadow-lg min-w-[120px] ${isSuperAdmin ? "bg-white/10 border-white/20" : "bg-white/5 border-white/10"}`}>
+            <div className={`border rounded-3xl p-5 sm:p-6 backdrop-blur-md flex flex-col justify-center items-center gap-1 shadow-lg min-w-[120px] ${tClass.statBox}`}>
               <p className="text-3xl font-black text-white leading-none">{stats.pending}</p>
               <p className="text-[10px] font-bold text-amber-300 uppercase tracking-widest mt-2">Pending ACC</p>
             </div>
-            <div className={`border rounded-3xl p-5 sm:p-6 backdrop-blur-md flex flex-col justify-center items-center gap-1 shadow-lg min-w-[120px] ${isSuperAdmin ? "bg-white/10 border-white/20" : "bg-white/5 border-white/10"}`}>
+            <div className={`border rounded-3xl p-5 sm:p-6 backdrop-blur-md flex flex-col justify-center items-center gap-1 shadow-lg min-w-[120px] ${tClass.statBox}`}>
               <p className="text-3xl font-black text-white leading-none">{verifiedInterns.length}</p>
               <p className="text-[10px] font-bold text-emerald-300 uppercase tracking-widest mt-2">Aktif</p>
             </div>
@@ -305,14 +353,14 @@ const ManageAccountIntern = () => {
         <div className="p-6 sm:p-8 relative z-10 bg-black/10">
           <div className="flex flex-col md:flex-row gap-4 items-center w-full">
             <div className="relative w-full md:w-72 shrink-0 group">
-              <i className={`fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm transition-colors ${isSuperAdmin ? "text-pink-200 group-focus-within:text-white" : "text-blue-300/50 group-focus-within:text-blue-200"}`} />
-              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari nama intern..." className={`w-full rounded-xl pl-11 pr-4 py-3 text-sm font-bold outline-none border transition-all backdrop-blur-sm text-white focus:ring-2 ${isSuperAdmin ? "bg-white/10 border-white/30 placeholder:text-pink-200/70 focus:border-white focus:ring-pink-400/50" : "bg-white/5 border-white/10 placeholder:text-blue-300/50 focus:border-white/30 focus:ring-blue-400/50"}`} />
+              <i className={`fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm transition-colors ${tClass.searchIcon}`} />
+              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari nama intern..." className={`w-full rounded-xl pl-11 pr-4 py-3 text-sm font-bold outline-none border transition-all backdrop-blur-sm text-white focus:ring-2 ${tClass.searchInput}`} />
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full">
               {canViewAll && (
                 <div className="relative flex-1 group">
-                  <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)} className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none appearance-none cursor-pointer border transition-all backdrop-blur-sm text-white ${isSuperAdmin ? "bg-white/10 border-white/30 hover:bg-white/20 focus:ring-2 focus:ring-pink-400/50" : "bg-white/5 border-white/10 hover:bg-white/10 focus:ring-2 focus:ring-blue-400/50"}`}>
+                  <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)} className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none appearance-none cursor-pointer border transition-all backdrop-blur-sm text-white ${tClass.selectInput}`}>
                     <option value="Semua" className="text-slate-800">Semua Divisi</option>
                     {divisionsList.map((d) => <option key={d} value={d} className="text-slate-800 bg-white">{d}</option>)}
                   </select>
@@ -321,7 +369,7 @@ const ManageAccountIntern = () => {
               )}
               
               <div className="relative flex-1 group">
-                <select value={filterBatch} onChange={(e) => setFilterBatch(e.target.value)} className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none appearance-none cursor-pointer border transition-all backdrop-blur-sm text-white ${isSuperAdmin ? "bg-white/10 border-white/30 hover:bg-white/20 focus:ring-2 focus:ring-pink-400/50" : "bg-white/5 border-white/10 hover:bg-white/10 focus:ring-2 focus:ring-blue-400/50"}`}>
+                <select value={filterBatch} onChange={(e) => setFilterBatch(e.target.value)} className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none appearance-none cursor-pointer border transition-all backdrop-blur-sm text-white ${tClass.selectInput}`}>
                   <option value="semua" className="text-slate-800 bg-white">Semua Batch</option>
                   {batchesList.map((b) => <option key={b} value={b} className="text-slate-800 bg-white">{b}</option>)}
                 </select>

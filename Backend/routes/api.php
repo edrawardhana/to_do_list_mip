@@ -63,6 +63,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\CheckAccountLock::class])->g
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
 
     // Employee/Profile Management
+    Route::get('/profiles/secure-image', [ProfileController::class, 'secureImage']);
     Route::post('/profiles/avatar', [ProfileController::class, 'uploadAvatar']);
     Route::post('/profiles/signature', [ProfileController::class, 'uploadSignature']);
     Route::post('/profiles/stamp', [ProfileController::class, 'uploadStamp']);

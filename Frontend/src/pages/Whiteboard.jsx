@@ -39,7 +39,7 @@ const getIconByType = (type) => {
 };
 
 const Whitebook = () => {
-  const { user, isAdmin, isSuperAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin, userTheme } = useAuth();
   const queryClient = useQueryClient();
 
   const canEdit = isAdmin && !isSuperAdmin;
@@ -48,8 +48,8 @@ const Whitebook = () => {
   
   const myDivision = user?.division?.name || user?.division_name || "IT Support";
 
-  const isPinkTheme = isSuperAdmin;           
-  const isDarkBlueTheme = isAdmin && !isSuperAdmin; 
+  const isPinkTheme = userTheme === "super_admin";           
+  const isDarkBlueTheme = userTheme === "admin"; 
 
   const [selectedDiv, setSelectedDiv] = useState(canViewAll ? "IT Support" : myDivision);
   const [activeDocId, setActiveDocId] = useState(null);
@@ -274,9 +274,12 @@ const Whitebook = () => {
       {canViewAll && (
         <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap gap-2 items-center mb-6">
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2 mr-4">Filter Divisi:</span>
-          {["IT Support", "Marketing", "Public Relation", "Design", "Administration", "Media & Production"].map((div) => (
-            <button key={div} onClick={() => setSelectedDiv(div)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedDiv === div ? "bg-pink-500 text-white border-pink-500 shadow-md shadow-pink-500/20" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}>{div}</button>
-          ))}
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setSelectedDiv("semua")} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedDiv === "semua" ? (isPinkTheme ? "bg-pink-500 text-white border-pink-500 shadow-md shadow-pink-500/20" : isDarkBlueTheme ? "bg-blue-800 text-white border-blue-800 shadow-md shadow-blue-800/20" : "bg-cyan-600 text-white border-cyan-600 shadow-md shadow-cyan-500/20") : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}>Semua Divisi</button>
+            {["IT Support", "Marketing", "Public Relation", "Design", "Administration", "Media & Production"].map(div => (
+              <button key={div} onClick={() => setSelectedDiv(div)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedDiv === div ? (isPinkTheme ? "bg-pink-500 text-white border-pink-500 shadow-md shadow-pink-500/20" : isDarkBlueTheme ? "bg-blue-800 text-white border-blue-800 shadow-md shadow-blue-800/20" : "bg-cyan-600 text-white border-cyan-600 shadow-md shadow-cyan-500/20") : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}>{div}</button>
+            ))}
+          </div>
         </div>
       )}
 

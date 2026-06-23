@@ -10,6 +10,49 @@ const Settings = () => {
   const [signatureLoading, setSignatureLoading] = useState(false);
   const [stampLoading, setStampLoading] = useState(false);
 
+  // Secure Image States
+  const [signaturePreviewData, setSignaturePreviewData] = useState(null);
+  const [stampPreviewData, setStampPreviewData] = useState(null);
+
+  useEffect(() => {
+    let signatureUrlToRevoke = null;
+    let stampUrlToRevoke = null;
+
+    const fetchSecureImage = async (path, setter) => {
+      if (!path) {
+        setter(null);
+        return;
+      }
+      if (path.startsWith("http")) {
+        setter(path);
+      } else {
+        try {
+          const res = await api.get(`/profiles/secure-image?path=${encodeURIComponent(path)}`, {
+            responseType: "blob",
+          });
+          const objectUrl = URL.createObjectURL(res.data);
+          setter(objectUrl);
+          return objectUrl;
+        } catch (err) {
+          console.error("Failed to load secure image", err);
+        }
+      }
+    };
+
+    fetchSecureImage(user?.signature_url, setSignaturePreviewData).then(url => {
+      if (url) signatureUrlToRevoke = url;
+    });
+
+    fetchSecureImage(user?.stamp_url, setStampPreviewData).then(url => {
+      if (url) stampUrlToRevoke = url;
+    });
+
+    return () => {
+      if (signatureUrlToRevoke) URL.revokeObjectURL(signatureUrlToRevoke);
+      if (stampUrlToRevoke) URL.revokeObjectURL(stampUrlToRevoke);
+    };
+  }, [user?.signature_url, user?.stamp_url]);
+
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -187,8 +230,8 @@ const Settings = () => {
             </div>
             <div className="flex flex-col md:flex-row items-center gap-6 p-6 bg-slate-50 border border-slate-100 rounded-3xl">
               <div className="w-40 h-24 bg-white border border-slate-200 rounded-xl overflow-hidden flex items-center justify-center shadow-inner">
-                {user?.signature_url ? (
-                  <img src={user.signature_url} alt="Signature" className="max-h-full max-w-full object-contain" />
+                {signaturePreviewData ? (
+                  <img src={signaturePreviewData} alt="Signature" className="max-h-full max-w-full object-contain" />
                 ) : (
                   <span className="text-slate-300 font-bold text-xs uppercase italic">Belum diunggah</span>
                 )}
@@ -213,8 +256,8 @@ const Settings = () => {
               </div>
               <div className="flex flex-col md:flex-row items-center gap-6 p-6 bg-slate-50 border border-slate-100 rounded-3xl">
                 <div className="w-40 h-24 bg-white border border-slate-200 rounded-xl overflow-hidden flex items-center justify-center shadow-inner">
-                  {user?.stamp_url ? (
-                    <img src={user.stamp_url} alt="Stamp" className="max-h-full max-w-full object-contain" />
+                  {stampPreviewData ? (
+                    <img src={stampPreviewData} alt="Stamp" className="max-h-full max-w-full object-contain" />
                   ) : (
                     <span className="text-slate-300 font-bold text-xs uppercase italic">Belum diunggah</span>
                   )}

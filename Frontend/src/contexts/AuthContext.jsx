@@ -125,6 +125,8 @@ export const AuthProvider = ({ children }) => {
     // is_locked tetap dipakai untuk blokir total (misal di luar jam kerja via cron)
     const isLockedStatus = isIntern && Boolean(user?.is_locked);
 
+    const userTheme = user?.theme_color || role || "intern";
+
     return {
       user,
       setUser,
@@ -144,6 +146,7 @@ export const AuthProvider = ({ children }) => {
       isOnLeave,
       isOffToday,
       isRestrictedAccess,
+      userTheme,
     };
   }, [user, loading, todayShift, shiftLoading]);
 

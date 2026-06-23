@@ -5,7 +5,7 @@ import api from "../../api/axios";
 import toast from "react-hot-toast";
 
 const TopNav = ({ onToggleSidebar }) => {
-  const { user, updateProfile, setUser } = useAuth();
+  const { user, updateProfile, setUser, userTheme } = useAuth();
   const location = useLocation();
 
   const [now, setNow] = useState(new Date());
@@ -29,6 +29,49 @@ const TopNav = ({ onToggleSidebar }) => {
   // Loading states untuk TTD & Stempel
   const [signatureLoading, setSignatureLoading] = useState(false);
   const [stampLoading, setStampLoading] = useState(false);
+
+  // Secure Image States
+  const [signaturePreviewData, setSignaturePreviewData] = useState(null);
+  const [stampPreviewData, setStampPreviewData] = useState(null);
+
+  useEffect(() => {
+    let signatureUrlToRevoke = null;
+    let stampUrlToRevoke = null;
+
+    const fetchSecureImage = async (path, setter) => {
+      if (!path) {
+        setter(null);
+        return;
+      }
+      if (path.startsWith("http")) {
+        setter(path);
+      } else {
+        try {
+          const res = await api.get(`/profiles/secure-image?path=${encodeURIComponent(path)}`, {
+            responseType: "blob",
+          });
+          const objectUrl = URL.createObjectURL(res.data);
+          setter(objectUrl);
+          return objectUrl;
+        } catch (err) {
+          console.error("Failed to load secure image", err);
+        }
+      }
+    };
+
+    fetchSecureImage(user?.signature_url, setSignaturePreviewData).then(url => {
+      if (url) signatureUrlToRevoke = url;
+    });
+
+    fetchSecureImage(user?.stamp_url, setStampPreviewData).then(url => {
+      if (url) stampUrlToRevoke = url;
+    });
+
+    return () => {
+      if (signatureUrlToRevoke) URL.revokeObjectURL(signatureUrlToRevoke);
+      if (stampUrlToRevoke) URL.revokeObjectURL(stampUrlToRevoke);
+    };
+  }, [user?.signature_url, user?.stamp_url]);
 
   useEffect(() => {
     if (user) {
@@ -355,7 +398,7 @@ const TopNav = ({ onToggleSidebar }) => {
   let fileBtnStyle = "file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100";
   let saveBtnStyle = "bg-blue-500 hover:bg-blue-400 text-white shadow-blue-500/20";
 
-  if (isAdmin) {
+  if (userTheme === "admin") {
     navTheme = "bg-gradient-to-r from-[#162447] to-[#1a3a6c] border-b border-blue-400/20 backdrop-blur-xl text-white shadow-xl shadow-blue-900/30";
     dividerColor = "border-blue-400/20";
     textColorMain = "text-white";
@@ -374,7 +417,7 @@ const TopNav = ({ onToggleSidebar }) => {
     modalTextMuted = "text-blue-200/60";
     fileBtnStyle = "file:bg-white/10 file:text-blue-100 hover:file:bg-white/20";
     saveBtnStyle = "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20";
-  } else if (isSuperAdmin) {
+  } else if (userTheme === "super_admin") {
     navTheme = "bg-gradient-to-r from-pink-400 to-rose-500 border-b border-pink-300/30 text-white shadow-xl shadow-pink-500/20";
     dividerColor = "border-pink-300/40";
     textColorMain = "text-white";
@@ -514,11 +557,18 @@ const TopNav = ({ onToggleSidebar }) => {
             </div>
             <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm ring-2 ring-white/20 shrink-0">
               {user?.avatar_url ? (
-                <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                <img 
+                  src={user.avatar_url} 
+                  alt="avatar" 
+                  className="w-full h-full object-cover" 
+                  onError={(e) => { e.target.onerror = null; e.target.src = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/toDoList/MCC-Logo.png`; }}
+                />
               ) : (
-                <div className={`w-full h-full flex items-center justify-center text-white text-sm font-bold ${avatarFallbackBg}`}>
-                  {user?.nickname?.charAt(0) || "U"}
-                </div>
+                <img 
+                  src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/toDoList/MCC-Logo.png`} 
+                  alt="MCC Logo" 
+                  className="w-full h-full object-contain p-1 bg-white" 
+                />
               )}
             </div>
           </div>
@@ -532,11 +582,18 @@ const TopNav = ({ onToggleSidebar }) => {
                 <div className="relative w-20 h-20 shrink-0">
                   <div className={`w-full h-full rounded-full overflow-hidden shadow-lg border-2 ${isAdmin ? "border-blue-500/50" : "border-white/50"}`}>
                     {avatarPreview ? (
-                      <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+                      <img 
+                        src={avatarPreview} 
+                        alt="avatar" 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                        onError={(e) => { e.target.onerror = null; e.target.src = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/toDoList/MCC-Logo.png`; }}
+                      />
                     ) : (
-                      <div className={`w-full h-full flex items-center justify-center text-white text-2xl font-bold ${avatarFallbackBg}`}>
-                        {user?.nickname?.charAt(0) || "U"}
-                      </div>
+                      <img 
+                        src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/toDoList/MCC-Logo.png`} 
+                        alt="MCC Logo" 
+                        className="w-full h-full object-contain p-2 bg-white group-hover:scale-105 transition-transform" 
+                      />
                     )}
                   </div>
                   <label className="absolute bottom-0 right-0 w-6 h-6 bg-slate-800 border-2 border-white rounded-full flex items-center justify-center text-[10px] cursor-pointer text-white hover:bg-slate-700 transition-colors">
@@ -573,7 +630,7 @@ const TopNav = ({ onToggleSidebar }) => {
                   <label className={`block text-[10px] font-bold uppercase mb-1.5 ml-1 ${modalTextMuted}`}>Username (Login ID)</label>
                   <div className="relative">
                     <i className={`fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-xs ${iconColor} opacity-40`}></i>
-                    <input type="text" value={username} disabled className="w-full bg-slate-100/60 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-400 font-medium cursor-not-allowed" title="Hubungi Admin untuk mengubah Username" />
+                    <input type="text" value={username} disabled className={`w-full ${inputBg} border ${inputBorder} opacity-60 rounded-xl pl-9 pr-4 py-2.5 text-sm ${modalTextMain} font-medium cursor-not-allowed`} title="Hubungi Admin untuk mengubah Username" />
                   </div>
                 </div>
 
@@ -583,10 +640,10 @@ const TopNav = ({ onToggleSidebar }) => {
                     <label className={`block text-[10px] font-bold uppercase mb-0.5 ml-1 ${modalTextMuted}`}>Update Tanda Tangan (TTD)</label>
                     <p className="text-[9px] text-sky-500 font-medium mb-2 ml-1">* Format wajib PNG Transparan (Maks 2MB)</p>
                     <input type="file" accept="image/png" disabled={signatureLoading} onChange={handleSignatureChange} className={`w-full text-xs opacity-90 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 ${fileBtnStyle} file:font-semibold rounded-xl border ${inputBorder} ${inputBg} transition-all`} />
-                    {user?.signature_url && (
-                      <div className="mt-2 p-1.5 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-between">
-                        <span className="text-[9px] text-slate-400">TTD Terpasang:</span>
-                        <a href={user.signature_url} target="_blank" rel="noreferrer" className="text-[9px] text-blue-500 hover:underline font-bold">Lihat File</a>
+                    {signaturePreviewData && (
+                      <div className="mt-2 p-2 bg-slate-50 border border-slate-100 rounded-lg flex flex-col items-center">
+                        <span className="text-[9px] text-slate-400 self-start mb-1">Preview TTD:</span>
+                        <img src={signaturePreviewData} alt="TTD Preview" className="max-h-20 object-contain drop-shadow-sm" />
                       </div>
                     )}
                   </div>
@@ -598,10 +655,10 @@ const TopNav = ({ onToggleSidebar }) => {
                     <label className={`block text-[10px] font-bold uppercase mb-0.5 ml-1 ${modalTextMuted}`}>Update Stempel Resmi Divisi</label>
                     <p className="text-[9px] text-amber-500 font-medium mb-2 ml-1">* Khusus Admin. Format PNG Transparan (Maks 2MB)</p>
                     <input type="file" accept="image/png" disabled={stampLoading} onChange={handleStampChange} className={`w-full text-xs opacity-90 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 ${fileBtnStyle} file:font-semibold rounded-xl border ${inputBorder} ${inputBg} transition-all`} />
-                    {user?.stamp_url && (
-                      <div className="mt-2 p-1.5 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-between">
-                        <span className="text-[9px] text-slate-400">Stempel Terpasang:</span>
-                        <a href={user.stamp_url} target="_blank" rel="noreferrer" className="text-[9px] text-blue-500 hover:underline font-bold">Lihat File</a>
+                    {stampPreviewData && (
+                      <div className="mt-2 p-2 bg-slate-50 border border-slate-100 rounded-lg flex flex-col items-center">
+                        <span className="text-[9px] text-slate-400 self-start mb-1">Preview Stempel:</span>
+                        <img src={stampPreviewData} alt="Stempel Preview" className="max-h-20 object-contain drop-shadow-sm" />
                       </div>
                     )}
                   </div>

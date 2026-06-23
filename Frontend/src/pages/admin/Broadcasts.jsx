@@ -5,15 +5,64 @@ import api from "../../api/axios";
 import toast from "react-hot-toast";
 
 const Broadcasts = () => {
-  const { user, isAdmin, isSuperAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin, userTheme } = useAuth();
   const queryClient = useQueryClient(); // Alat tempur auto-sync data
   const myDivision = user?.division?.name || user?.division_name || "IT Support";
 
   // ==========================================
   // LOGIC WARNA TEMA DINAMIS
   // ==========================================
-  const isPinkTheme = isSuperAdmin;
-  const isDarkBlueTheme = isAdmin && !isSuperAdmin;
+  const isPinkTheme = userTheme === "super_admin";
+  
+  const theme = {
+    super_admin: {
+      primary: "pink-500",
+      primaryHover: "pink-600",
+      primaryRing: "focus:ring-pink-500/20",
+      checkbox: "text-pink-500 focus:ring-pink-400",
+      text: "text-pink-500",
+      borderHover: "hover:border-pink-200",
+      bgSub: "bg-pink-50",
+      borderSub: "border-pink-100",
+      textSub: "text-pink-600",
+      btnClass: "bg-pink-500 hover:bg-pink-600 shadow-pink-500/20"
+    },
+    admin: {
+      primary: "blue-600",
+      primaryHover: "blue-700",
+      primaryRing: "focus:ring-blue-500/20",
+      checkbox: "text-blue-600 focus:ring-blue-500",
+      text: "text-blue-600",
+      borderHover: "hover:border-blue-200",
+      bgSub: "bg-blue-50",
+      borderSub: "border-blue-100",
+      textSub: "text-blue-600",
+      btnClass: "bg-[#162447] hover:bg-[#1a3a6c] shadow-[#162447]/30"
+    },
+    intern: {
+      primary: "cyan-500",
+      primaryHover: "cyan-600",
+      primaryRing: "focus:ring-cyan-500/20",
+      checkbox: "text-cyan-500 focus:ring-cyan-400",
+      text: "text-cyan-500",
+      borderHover: "hover:border-cyan-200",
+      bgSub: "bg-cyan-50",
+      borderSub: "border-cyan-100",
+      textSub: "text-cyan-600",
+      btnClass: "bg-cyan-600 hover:bg-cyan-700 shadow-cyan-500/20"
+    }
+  }[userTheme] || {
+    primary: "pink-500",
+    primaryHover: "pink-600",
+    primaryRing: "focus:ring-pink-500/20",
+    checkbox: "text-pink-500 focus:ring-pink-400",
+    text: "text-pink-500",
+    borderHover: "hover:border-pink-200",
+    bgSub: "bg-pink-50",
+    borderSub: "border-pink-100",
+    textSub: "text-pink-600",
+    btnClass: "bg-pink-500 hover:bg-pink-600 shadow-pink-500/20"
+  };
 
   // Form States (Tetap dipertahankan karena urusan input form lokal)
   const [title, setTitle] = useState("");
@@ -135,19 +184,19 @@ const Broadcasts = () => {
         {/* KOLOM KIRI: INPUT BROADCAST FORM */}
         <div className="lg:col-span-5 bg-white rounded-[2rem] border border-slate-200 p-5 sm:p-8 shadow-sm">
           <h3 className="text-base font-black text-slate-800 mb-6 border-b border-slate-100 pb-4 flex items-center gap-2">
-            <i className="fa-solid fa-paper-plane text-pink-500" /> Buat Broadcast Baru
+            <i className={`fa-solid fa-paper-plane text-${theme.primary}`} /> Buat Broadcast Baru
           </h3>
 
           <form onSubmit={handleSendBroadcast} className="space-y-5">
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Judul Pengumuman</label>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Misal: Info Maintenance Server MCC" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-pink-500/20 transition-all" />
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Misal: Info Maintenance Server MCC" className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 ${theme.primaryRing} transition-all`} />
             </div>
 
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Target Penerima</label>
               <div className="relative">
-                <select value={targetType} onChange={(e) => setTargetType(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-pink-500/20 outline-none transition-all appearance-none cursor-pointer">
+                <select value={targetType} onChange={(e) => setTargetType(e.target.value)} className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-700 focus:ring-2 ${theme.primaryRing} outline-none transition-all appearance-none cursor-pointer`}>
                   {isPinkTheme && <option value="global">Global (Semua Divisi & Semua Orang)</option>}
                   {isPinkTheme && <option value="division">Spesifik Divisi tertentu</option>}
                   <option value={isPinkTheme ? "intern" : "division_locked"}>{isPinkTheme ? "Semua Anak Magang (Intern Global)" : `Internal Divisi (${myDivision})`}</option>
@@ -164,7 +213,7 @@ const Broadcasts = () => {
                 <div className="space-y-2">
                   {allDivisions.map(d => (
                     <label key={d.id} className="flex items-center gap-3 text-xs font-bold text-slate-700 cursor-pointer">
-                      <input type="checkbox" checked={selectedTargets.includes(d.id)} onChange={() => handleToggleTarget(d.id)} className="rounded text-pink-500 focus:ring-pink-400" /> {d.name}
+                      <input type="checkbox" checked={selectedTargets.includes(d.id)} onChange={() => handleToggleTarget(d.id)} className={`rounded ${theme.checkbox}`} /> {d.name}
                     </label>
                   ))}
                 </div>
@@ -179,7 +228,7 @@ const Broadcasts = () => {
                     .filter(i => isPinkTheme || i.division_id === user?.division_id || i.division_name === myDivision)
                     .map(i => (
                       <label key={i.id} className="flex items-center gap-3 text-xs font-bold text-slate-700 cursor-pointer">
-                        <input type="checkbox" checked={selectedTargets.includes(i.id)} onChange={() => handleToggleTarget(i.id)} className="rounded text-pink-500 focus:ring-pink-400" /> {i.full_name || i.name} ({i.division?.name || i.division_name || 'Intern'})
+                        <input type="checkbox" checked={selectedTargets.includes(i.id)} onChange={() => handleToggleTarget(i.id)} className={`rounded ${theme.checkbox}`} /> {i.full_name || i.name} ({i.division?.name || i.division_name || 'Intern'})
                       </label>
                     ))}
                 </div>
@@ -188,12 +237,10 @@ const Broadcasts = () => {
 
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Isi Pesan Broadcast</label>
-              <textarea value={message} onChange={(e) => setMessage(e.target.value)} required rows="5" placeholder="Tulis instruksi atau pengumuman Anda di sini secara lugas..." className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-medium text-slate-700 outline-none resize-none focus:ring-2 focus:ring-pink-500/20 transition-all" />
+              <textarea value={message} onChange={(e) => setMessage(e.target.value)} required rows="5" placeholder="Tulis instruksi atau pengumuman Anda di sini secara lugas..." className={`w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-medium text-slate-700 outline-none resize-none focus:ring-2 ${theme.primaryRing} transition-all`} />
             </div>
 
-            <button type="submit" disabled={isSubmitting || loading} className={`w-full py-4 text-white rounded-xl text-sm font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${
-              isPinkTheme ? "bg-pink-500 hover:bg-pink-600 shadow-pink-500/20" : "bg-[#162447] hover:bg-[#1a3a6c] shadow-[#162447]/30"
-            }`}>
+            <button type="submit" disabled={isSubmitting || loading} className={`w-full py-4 text-white rounded-xl text-sm font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${theme.btnClass}`}>
               {isSubmitting ? <i className="fa-solid fa-circle-notch fa-spin" /> : <i className="fa-solid fa-bullhorn" />}
               {isSubmitting ? "Mengirim Pesan..." : "Luncurkan Broadcast"}
             </button>
@@ -211,7 +258,7 @@ const Broadcasts = () => {
           <div className="p-4 sm:p-6 flex-1 overflow-y-auto custom-scrollbar">
             <div className="space-y-4">
               {loading ? (
-                <div className="text-center py-12"><i className="fa-solid fa-spinner fa-spin text-2xl text-pink-500" /></div>
+                <div className="text-center py-12"><i className={`fa-solid fa-spinner fa-spin text-2xl text-${theme.primary}`} /></div>
               ) : history.length === 0 ? (
                 <div className="text-center py-16 opacity-50">
                   <i className="fa-solid fa-folder-open text-4xl text-slate-300 mb-3 block" />
@@ -219,7 +266,7 @@ const Broadcasts = () => {
                 </div>
               ) : (
                 history.map((log, idx) => (
-                  <div key={log.id || idx} className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-pink-200 transition-colors flex flex-col min-h-[140px]">
+                  <div key={log.id || idx} className={`bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm ${theme.borderHover} transition-colors flex flex-col min-h-[140px]`}>
                     <div className="flex justify-between items-start gap-3 border-b border-slate-100 pb-3 mb-3">
                       <div>
                         <h4 className="font-black text-slate-800 text-[14px] leading-tight mb-1">{log.title}</h4>
@@ -231,9 +278,7 @@ const Broadcasts = () => {
                     <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-100">
                       <div className="flex items-center gap-2">
                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Target:</span>
-                        <span className={`text-[9px] font-black px-2.5 py-1 rounded-md border truncate max-w-[120px] ${
-                          isPinkTheme ? "text-pink-600 bg-pink-50 border-pink-100" : "text-[#162447] bg-[#162447]/5 border-[#162447]/10"
-                        }`}>{log.target || 'Global'}</span>
+                        <span className={`text-[9px] font-black px-2.5 py-1 rounded-md border truncate max-w-[120px] text-${theme.textSub} bg-${theme.bgSub} border-${theme.borderSub}`}>{log.target || 'Global'}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black border border-white bg-slate-100 text-slate-600">{(log.sender || 'A').charAt(0).toUpperCase()}</div>

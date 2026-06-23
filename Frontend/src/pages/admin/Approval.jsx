@@ -9,11 +9,24 @@ const PAGE_SIZE = 6;
 
 // ── Pagination Tetap Sama ────────────────────────────────────────────────
 const Pagination = ({ page, totalPages, onChange }) => {
-  const { isSuperAdmin } = useAuth();
+  const { userTheme } = useAuth();
   if (totalPages <= 1) return null;
+
+  const btnClass = userTheme === "super_admin" 
+    ? "border-pink-200 bg-pink-500/5 text-pink-600 hover:bg-pink-500/10" 
+    : userTheme === "admin"
+      ? "border-blue-900/20 bg-[#162447]/5 text-blue-900 hover:bg-[#162447]/10"
+      : "border-cyan-500/20 bg-cyan-500/5 text-cyan-600 hover:bg-cyan-500/10";
+      
+  const activeBtnClass = userTheme === "super_admin"
+    ? "bg-pink-500 text-white border-pink-500 shadow-pink-500/20"
+    : userTheme === "admin"
+      ? "bg-[#162447] text-white border-[#162447] shadow-[#162447]/20"
+      : "bg-cyan-500 text-white border-cyan-500 shadow-cyan-500/20";
+
   return (
     <div className="flex items-center justify-center gap-1.5 mt-8">
-      <button onClick={() => onChange(page - 1)} disabled={page === 1} className={`w-9 h-9 rounded-xl border flex items-center justify-center disabled:opacity-30 transition-all shadow-sm ${isSuperAdmin ? "border-pink-200 bg-pink-500/5 text-pink-600 hover:bg-pink-500/10" : "border-blue-900/20 bg-[#162447]/5 text-blue-900 hover:bg-[#162447]/10"}`}>
+      <button onClick={() => onChange(page - 1)} disabled={page === 1} className={`w-9 h-9 rounded-xl border flex items-center justify-center disabled:opacity-30 transition-all shadow-sm ${btnClass}`}>
         <i className="fa-solid fa-chevron-left text-xs" />
       </button>
 
@@ -25,13 +38,13 @@ const Pagination = ({ page, totalPages, onChange }) => {
           return null;
         }
         return (
-          <button key={p} onClick={() => onChange(p)} className={`w-9 h-9 rounded-xl text-sm font-bold border transition-all shadow-sm ${p === page ? (isSuperAdmin ? "bg-pink-500 text-white border-pink-500 shadow-pink-500/20 scale-105" : "bg-[#162447] text-white border-[#162447] shadow-[#162447]/20 scale-105") : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"}`}>
+          <button key={p} onClick={() => onChange(p)} className={`w-9 h-9 rounded-xl text-sm font-bold border transition-all shadow-sm ${p === page ? `${activeBtnClass} scale-105` : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"}`}>
             {p}
           </button>
         );
       })}
 
-      <button onClick={() => onChange(page + 1)} disabled={page === totalPages} className={`w-9 h-9 rounded-xl border flex items-center justify-center disabled:opacity-30 transition-all shadow-sm ${isSuperAdmin ? "border-pink-200 bg-pink-500/5 text-pink-600 hover:bg-pink-500/10" : "border-blue-900/20 bg-[#162447]/5 text-blue-900 hover:bg-[#162447]/10"}`}>
+      <button onClick={() => onChange(page + 1)} disabled={page === totalPages} className={`w-9 h-9 rounded-xl border flex items-center justify-center disabled:opacity-30 transition-all shadow-sm ${btnClass}`}>
         <i className="fa-solid fa-chevron-right text-xs" />
       </button>
     </div>
@@ -39,7 +52,7 @@ const Pagination = ({ page, totalPages, onChange }) => {
 };
 
 const Approval = () => {
-  const { user, isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin, userTheme } = useAuth();
   const queryClient = useQueryClient(); // ✅ Alat tempur auto-refresh data
 
   const [activeTab, setActiveTab] = useState(isSuperAdmin ? "leaves" : "tasks");
@@ -244,16 +257,58 @@ const Approval = () => {
     { id: "history", label: "Riwayat Izin", icon: "fa-clock-rotate-left", count: approvedLeaves.length },
   ];
 
+  const tClass = {
+    super_admin: {
+      bgMain: "bg-gradient-to-br from-pink-400 to-rose-500 border-pink-300/30 shadow-pink-500/20",
+      bgSub1: "bg-white/30",
+      bgSub2: "bg-rose-200/20",
+      badgeText: "text-pink-100 bg-white/10 border-white/10",
+      descText: "text-pink-50/80",
+      searchIcon: "text-pink-100/50 group-focus-within:text-white",
+      spinner: "text-pink-500",
+      icon: "text-pink-500",
+      resendBtn: "bg-pink-500 hover:bg-pink-600 text-white shadow-md shadow-pink-500/20 border-pink-500 active:scale-95"
+    },
+    admin: {
+      bgMain: "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20 shadow-blue-900/30",
+      bgSub1: "bg-blue-500/20",
+      bgSub2: "bg-sky-500/10",
+      badgeText: "text-blue-200 bg-white/10 border-white/10",
+      descText: "text-blue-100/70",
+      searchIcon: "text-blue-300/50 group-focus-within:text-blue-200",
+      spinner: "text-blue-500",
+      icon: "text-blue-500",
+      resendBtn: "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 border-blue-600 active:scale-95"
+    },
+    intern: {
+      bgMain: "bg-gradient-to-br from-blue-600 to-cyan-500 border-cyan-400/20 shadow-cyan-500/30",
+      bgSub1: "bg-white/20",
+      bgSub2: "bg-cyan-200/20",
+      badgeText: "text-cyan-50 bg-white/10 border-white/10",
+      descText: "text-cyan-50/80",
+      searchIcon: "text-cyan-100/50 group-focus-within:text-white",
+      spinner: "text-cyan-500",
+      icon: "text-cyan-500",
+      resendBtn: "bg-cyan-600 hover:bg-cyan-700 text-white shadow-md shadow-cyan-500/20 border-cyan-600 active:scale-95"
+    }
+  }[userTheme] || {
+      bgMain: "bg-gradient-to-br from-blue-600 to-cyan-500 border-cyan-400/20 shadow-cyan-500/30",
+      bgSub1: "bg-white/20",
+      bgSub2: "bg-cyan-200/20",
+      badgeText: "text-cyan-50 bg-white/10 border-white/10",
+      descText: "text-cyan-50/80",
+      searchIcon: "text-cyan-100/50 group-focus-within:text-white",
+      spinner: "text-cyan-500",
+      icon: "text-cyan-500",
+      resendBtn: "bg-cyan-600 hover:bg-cyan-700 text-white shadow-md shadow-cyan-500/20 border-cyan-600 active:scale-95"
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-2 max-w-7xl mx-auto">
       {/* ── HEADER ───────────────────────────────────────────────────────── */}
-      <div className={`rounded-[2.5rem] border shadow-2xl relative overflow-hidden flex flex-col text-white mb-6 transition-all duration-500 ${
-        isSuperAdmin
-          ? "bg-gradient-to-br from-pink-400 to-rose-500 border-pink-300/30 shadow-pink-500/20"
-          : "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20"
-      }`}>
-        <div className={`absolute -top-32 -right-32 w-96 h-96 rounded-full blur-[100px] pointer-events-none ${isSuperAdmin ? "bg-white/30" : "bg-blue-500/20"}`} />
-        <div className={`absolute -bottom-32 -left-32 w-72 h-72 rounded-full blur-[100px] pointer-events-none ${isSuperAdmin ? "bg-rose-200/20" : "bg-sky-500/10"}`} />
+      <div className={`rounded-[2.5rem] border shadow-2xl relative overflow-hidden flex flex-col text-white mb-6 transition-all duration-500 ${tClass.bgMain}`}>
+        <div className={`absolute -top-32 -right-32 w-96 h-96 rounded-full blur-[100px] pointer-events-none ${tClass.bgSub1}`} />
+        <div className={`absolute -bottom-32 -left-32 w-72 h-72 rounded-full blur-[100px] pointer-events-none ${tClass.bgSub2}`} />
           {/* Content Top */}
         <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-white/10">
           <div className="lg:max-w-xl">
@@ -261,9 +316,7 @@ const Approval = () => {
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner shrink-0 border backdrop-blur-sm bg-white/10 border-white/20 text-white">
                 <i className="fa-solid fa-clipboard-check text-xl" />
               </div>
-              <span className={`text-[10px] font-black uppercase tracking-[0.25em] px-3 py-1.5 rounded-lg border ${
-                isSuperAdmin ? "text-pink-100 bg-white/10 border-white/10" : "text-blue-200 bg-white/10 border-white/10"
-              }`}>
+              <span className={`text-[10px] font-black uppercase tracking-[0.25em] px-3 py-1.5 rounded-lg border ${tClass.badgeText}`}>
                 Approval Center
               </span>
             </div>
@@ -271,7 +324,7 @@ const Approval = () => {
             <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight">
               Validasi & ACC.
             </h1>
-            <p className={`text-sm font-medium leading-relaxed ${isSuperAdmin ? "text-pink-50/80" : "text-blue-100/70"}`}>
+            <p className={`text-sm font-medium leading-relaxed ${tClass.descText}`}>
               Kelola antrean tugas dan pengajuan izin anak divisi dengan cepat.
             </p>
           </div>
@@ -301,9 +354,11 @@ const Approval = () => {
                     onClick={() => setActiveTab(tab.id)}
                     className={`px-5 py-3 rounded-2xl text-[13px] font-bold transition-all flex items-center gap-2 shrink-0 border ${
                       isActive
-                        ? isSuperAdmin
+                        ? userTheme === "super_admin"
                           ? "bg-white text-pink-600 border-white shadow-lg"
-                          : "bg-white text-[#162447] border-white shadow-lg"
+                          : userTheme === "admin"
+                            ? "bg-white text-[#162447] border-white shadow-lg"
+                            : "bg-white text-cyan-600 border-white shadow-lg"
                         : "bg-white/5 text-white/70 hover:bg-white/10 border-white/10"
                     }`}
                   >
@@ -311,9 +366,11 @@ const Approval = () => {
                     {tab.count > 0 && (
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ml-1 ${
                         isActive
-                          ? isSuperAdmin
+                          ? userTheme === "super_admin"
                             ? "bg-pink-100 text-pink-600"
-                            : "bg-blue-100 text-[#162447]"
+                            : userTheme === "admin"
+                              ? "bg-blue-100 text-[#162447]"
+                              : "bg-cyan-100 text-cyan-600"
                           : "bg-rose-500 text-white"
                       }`}>
                         {tab.count}
@@ -326,9 +383,7 @@ const Approval = () => {
 
             {/* Search Input */}
             <div className="relative w-full md:w-72 shrink-0 group">
-              <i className={`fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm transition-colors ${
-                isSuperAdmin ? "text-pink-100/50 group-focus-within:text-white" : "text-blue-300/50 group-focus-within:text-white"
-              }`} />
+              <i className={`fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-sm transition-colors ${tClass.searchIcon}`} />
               <input
                 type="text"
                 placeholder={activeTab === "tasks" ? "Cari intern atau tugas…" : (activeTab === "leaves" ? "Cari intern…" : "Cari riwayat izin…")}
@@ -695,7 +750,8 @@ const Approval = () => {
                               <img
                                 src={leave.proof}
                                 alt="Bukti"
-                                className="w-full h-full object-cover opacity-80 group-hover/img:opacity-100 transition-opacity"
+                                onError={(e) => { e.target.onerror = null; e.target.src = import.meta.env.VITE_SUPABASE_URL + "/storage/v1/object/public/toDoList/MCC-Logo.png"; }}
+                                className="w-full h-full object-cover opacity-80 group-hover/img:opacity-100 transition-opacity bg-white"
                               />
                               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
                                 <i className="fa-solid fa-magnifying-glass-plus text-white text-xl" />
@@ -760,13 +816,13 @@ const Approval = () => {
       {activeTab === "history" && (
         <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-6 sm:p-8">
           <h3 className="text-[#1b254b] font-black text-lg mb-6 flex items-center gap-2">
-            <i className={`fa-solid fa-clock-rotate-left ${isSuperAdmin ? "text-pink-500" : "text-[#162447]"}`} />
+            <i className={`fa-solid fa-clock-rotate-left ${tClass.icon}`} />
             Riwayat Surat Izin (Disetujui)
           </h3>
 
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <i className={`fa-solid fa-spinner fa-spin text-3xl ${isSuperAdmin ? "text-pink-500" : "text-[#162447]"}`} />
+              <i className={`fa-solid fa-spinner fa-spin text-3xl ${tClass.spinner}`} />
               <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Memuat riwayat...</p>
             </div>
           ) : pagedHistory.length === 0 ? (
@@ -833,7 +889,8 @@ const Approval = () => {
                               <img
                                 src={leave.proof}
                                 alt="Bukti"
-                                className="w-full h-full object-cover opacity-80 group-hover/img:opacity-100 transition-opacity"
+                                onError={(e) => { e.target.onerror = null; e.target.src = import.meta.env.VITE_SUPABASE_URL + "/storage/v1/object/public/toDoList/MCC-Logo.png"; }}
+                                className="w-full h-full object-cover opacity-80 group-hover/img:opacity-100 transition-opacity bg-white"
                               />
                               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
                                 <i className="fa-solid fa-magnifying-glass-plus text-white text-xl" />
@@ -853,9 +910,7 @@ const Approval = () => {
                             className={`w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border flex items-center justify-center gap-2 ${
                               resendingId === leave.id
                                 ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
-                                : isSuperAdmin
-                                  ? "bg-pink-500 hover:bg-pink-600 text-white shadow-md shadow-pink-500/20 border-pink-500 active:scale-95"
-                                  : "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 border-blue-600 active:scale-95"
+                                : tClass.resendBtn
                             }`}
                           >
                             {resendingId === leave.id ? (

@@ -100,11 +100,11 @@ const renderDataChanges = (oldData, newData) => {
 };
 
 const AuditLog = () => {
-  const { user, isAdmin, isSuperAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin, userTheme } = useAuth();
   const queryClient = useQueryClient();
   
-  const isPinkTheme = isSuperAdmin;
-  const isDarkBlueTheme = isAdmin && !isSuperAdmin;
+  const isPinkTheme = userTheme === "super_admin";
+  const isDarkBlueTheme = userTheme === "admin";
 
   // ── STATE FILTER & PAGINATION CRUCIAL ──
   const [page, setPage] = useState(1);
