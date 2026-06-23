@@ -52,7 +52,7 @@ const HardLockScreen = ({ onLogout }) => {
 };
 
 const MainLayout = () => {
-  const { user, isAdmin, isSuperAdmin, logout } = useAuth();
+  const { user, isAdmin, isSuperAdmin, logout, userTheme } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const [realtimeLock, setRealtimeLock] = useState(false);
