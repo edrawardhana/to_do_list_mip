@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Auth;
 class AuditLogController extends Controller
 {
     /**
-     * Get system audit logs
+     * Get system audit logs with pagination and filters
      */
     public function index(Request $request)
     {
@@ -20,27 +20,44 @@ class AuditLogController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Anda tidak berhak mengakses log sistem.'], 403);
         }
 
-        $query = AuditLog::with(['actor', 'target']);
+        $query = AuditLog::with(['actor:id,full_name,role', 'target:id,full_name']);
 
         if ($user->role === 'admin') {
-            // Admin can only see logs where the actor belongs to their division
             $query->whereHas('actor', function ($q) use ($user) {
                 $q->where('division_id', $user->division_id);
             });
         }
-        // super_admin sees everything
 
-        // Filter opsional berdasarkan tipe aksi (misal: ?action=Proses Absen)
-        if ($request->has('action')) {
+        // Filter by action keyword
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('action', 'like', "%{$search}%")
+                  ->orWhereHas('actor', fn($a) => $a->where('full_name', 'like', "%{$search}%"))
+                  ->orWhereHas('target', fn($t) => $t->where('full_name', 'like', "%{$search}%"));
+            });
+        }
+
+        // Filter by date (YYYY-MM-DD)
+        if ($request->filled('date')) {
+            $query->whereDate('created_at', $request->date);
+        }
+
+        // Filter by action type
+        if ($request->filled('action')) {
             $query->where('action', $request->action);
         }
 
-        // Sort by newest
-        $logs = $query->orderBy('created_at', 'desc')->get();
+        $perPage = 15;
+        $logs = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         return response()->json([
-            'status' => 'success',
-            'data' => $logs
+            'status'      => 'success',
+            'data'        => $logs->items(),
+            'total'       => $logs->total(),
+            'per_page'    => $logs->perPage(),
+            'current_page'=> $logs->currentPage(),
+            'last_page'   => $logs->lastPage(),
         ]);
     }
 }

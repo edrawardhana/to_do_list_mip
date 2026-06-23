@@ -15,11 +15,16 @@ class Division extends Model
     protected $fillable = [
         'name',
         'description',
+        'icon',
+        'color',
+        'head',
+        'job_descriptions',
         'created_at',
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
+        'job_descriptions' => 'array',
     ];
 
     public function profiles()

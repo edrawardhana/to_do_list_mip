@@ -2,9 +2,118 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Taruh di bawah sini brok */
+@layer utilities {
+  /* Untuk Chrome, Edge, Safari */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(56, 189, 248, 0.5); /* Warna hover sky-400 */
+  }
+
+  /* Untuk Firefox (Biar tetep tipis dan elegan) */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  }
+}
+
+/* Splash Screen Styles */
+#splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  transition:
+    opacity 1.5s ease,
+    transform 1.5s ease;
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Sembunyikan scrollbar saat splash screen aktif */
 body {
+  overflow: hidden;
   background-color: #f8fafc;
   color: #334155;
   margin: 0;
   min-height: 100vh;
+}
+
+/* Exit animation untuk splash screen */
+#splash-screen.splash-exit {
+  opacity: 0;
+  transform: scale(1.1);
+}
+
+/* Styling konten splash screen */
+.splash-content {
+  text-align: center;
+  animation: fadeInUp 0.8s ease;
+}
+
+/* Animasi fade in up */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading spinner untuk splash screen */
+.splash-loader {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border-top-color: #38bdf8;
+  animation: spin 1s ease-in-out infinite;
+  margin: 20px auto 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Title styling untuk splash */
+.splash-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 1rem;
+  background: linear-gradient(135deg, #38bdf8, #818cf8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Optional: Responsif untuk mobile */
+@media (max-width: 640px) {
+  .splash-title {
+    font-size: 1.25rem;
+  }
+
+  .splash-loader {
+    width: 36px;
+    height: 36px;
+  }
 }

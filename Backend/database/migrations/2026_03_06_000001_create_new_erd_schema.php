@@ -42,7 +42,7 @@ return new class extends Migration
             $table->foreignUuid('division_id')->constrained('divisions')->cascadeOnDelete();
             $table->string('full_name');
             $table->string('email')->unique();
-            $table->enum('role', ['user', 'admin', 'super_admin', 'developer']);
+            $table->enum('role', ['intern', 'admin', 'super_admin', 'developer']);
             $table->enum('shift', ['pagi', 'middle', 'siang']);
             $table->boolean('is_locked')->default(false);
         });
@@ -66,15 +66,21 @@ return new class extends Migration
         // 6. Create daily_tasks
         Schema::create('daily_tasks', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('user_id')->constrained('profiles')->cascadeOnDelete();
+            $table->foreignUuid('uploader_id')->constrained('profiles')->cascadeOnDelete();
             $table->foreignUuid('division_id')->constrained('divisions')->cascadeOnDelete();
-            $table->foreignUuid('task_template_id')->constrained('task_templates')->cascadeOnDelete();
-            $table->string('task_name');
-            $table->string('evidence_url')->nullable();
-            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-            $table->uuid('first_uploader_id')->nullable();
-            $table->foreign('first_uploader_id')->references('id')->on('profiles')->nullOnDelete();
-            $table->timestampTz('created_at')->useCurrent();
+            $table->foreignUuid('template_id')->constrained('task_templates')->cascadeOnDelete();
+            $table->date('task_date');
+            $table->text('description')->nullable();
+            $table->enum('status', ['pending', 'approved', 'rejected', 'revision'])->default('pending');
+            $table->text('evidence_url')->nullable();
+            $table->timestampTz('captured_at')->nullable();
+            $table->json('confirmed_participants')->nullable();
+            $table->foreignUuid('evaluated_by')->nullable()->constrained('profiles')->nullOnDelete();
+            $table->text('reject_reason')->nullable();
+            $table->boolean('is_archived')->default(false);
+            $table->text('assign_note')->nullable(); // Note dari admin saat assign task
+            $table->foreignUuid('assigned_by')->nullable()->constrained('profiles')->nullOnDelete(); // Admin yang assign
+            $table->timestampsTz();
         });
 
         // 7. Create attendance_schedules
@@ -88,15 +94,13 @@ return new class extends Migration
             $table->boolean('is_approved')->default(false); // ERD says Default: TRUE for Libur. We'll handle this in logic or default false here.
         });
 
-        // 8. Create audit_logs (Aligned with supabase_schema_init.sql)
+        // 8. Create audit_logs
         Schema::create('audit_logs', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('admin_id')->constrained('profiles')->cascadeOnDelete();
-            $table->string('actor_role');
-            $table->text('action');
-            $table->jsonb('old_values')->nullable();
-            $table->jsonb('new_values')->nullable();
-            $table->foreignUuid('target_user_id')->nullable()->constrained('profiles')->nullOnDelete();
+            $table->foreignUuid('actor_id')->constrained('profiles')->cascadeOnDelete();
+            $table->uuid('target_id'); // Can be any entity ID, not strictly constrained to one table
+            $table->string('action_type');
+            $table->text('details');
             $table->timestampTz('created_at')->useCurrent();
         });
     }

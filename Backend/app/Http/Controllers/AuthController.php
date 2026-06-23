@@ -16,24 +16,28 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'full_name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:profiles,email',
-            'password' => 'required|string|min:6|confirmed',
+            'full_name'   => 'required|string|max:255',
+            'username'    => 'nullable|string|max:100|unique:profiles,username',
+            'email'       => 'required|string|email|max:255|unique:profiles,email',
+            'division_id' => 'required|uuid|exists:divisions,id',
+            'password'    => 'required|string|min:6|confirmed',
         ]);
 
         $user = User::create([
-            'full_name' => $request->full_name,
-            'email' => $request->email,
+            'full_name'     => $request->full_name,
+            'username'      => $request->username,
+            'email'         => $request->email,
+            'division_id'   => $request->division_id,
             'password_hash' => Hash::make($request->password),
-            'role' => 'intern', // Default role ERD v3
-            'is_verified' => false,
-            'is_locked' => false,
+            'role'          => 'intern',
+            'is_verified'   => false,
+            'is_locked'     => false,
         ]);
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'Registrasi berhasil. Silakan tunggu persetujuan Admin/HR.',
-            'data' => $user
+            'status'  => 'success',
+            'message' => 'Registrasi berhasil. Silakan tunggu persetujuan Admin divisi kamu.',
+            'data'    => $user
         ], 201);
     }
 
@@ -107,6 +111,39 @@ class AuthController extends Controller
     public function refresh()
     {
         return $this->respondWithToken(Auth::refresh());
+    }
+
+    /**
+     * Change password for first-time login or normal settings
+     */
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required|string',
+            'new_password'     => 'required|string|min:6|confirmed',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        // Pastikan password saat ini cocok
+        if (!Hash::check($request->current_password, $user->password_hash)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Password saat ini salah.'
+            ], 422);
+        }
+
+        // Update password dan matikan paksaan ganti password
+        $user->update([
+            'password_hash'         => Hash::make($request->new_password),
+            'needs_password_change' => false,
+        ]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Password berhasil diubah.'
+        ]);
     }
 
     /**

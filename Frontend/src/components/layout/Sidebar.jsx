@@ -1,188 +1,291 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import LogoWhite from "../../assets/images/logowhite1.png";
+
+const ALWAYS_ALLOWED_PATHS = [
+  "/dashboard",
+  "/my-schedule",
+  "/leave-request",
+  "/settings",
+];
+
+// Path yang mendapat styling khusus "special" per role
+const SPECIAL_PATHS = ["/audit-log", "/broadcasts"];
 
 const Sidebar = ({ mobileOpen, setMobileOpen }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin, isSuperAdmin, isIntern, isRestrictedAccess, userTheme, updateProfile } =
+    useAuth();
 
   const menuItems = useMemo(
     () => [
       {
-        path: "/dashboard", // Disamakan dengan rute dashboard di App.jsx
+        path: "/dashboard",
         label: "Dashboard",
         icon: "fa-chart-pie",
         roles: ["intern", "admin", "superadmin"],
       },
-      {
-        path: "/manage-admin",
-        label: "Manage Admin",
-        icon: "fa-user-gear",
-        roles: ["superadmin"], // Hanya Superadmin
-      },
-      {
-        path: "/manage-intern", // Menu baru untuk Manage Intern
-        label: "Manage Intern",
-        icon: "fa-user-gear",
-        roles: ["admin"], // Bisa diakses admin dan superadmin
-      },
-      {
-        path: "/broadcasts",
-        label: "Broadcast",
-        icon: "fa-tower-broadcast",
-        roles: ["superadmin"],
-      },
+
+      // INTERN
       {
         path: "/tasks",
-        label: "Daily Activitation",
+        label: "Daily Task",
+        icon: "fa-calendar-day",
+        roles: ["intern"],
+      },
+      {
+        path: "/my-schedule",
+        label: "Jadwal Shift",
+        icon: "fa-calendar-week",
+        roles: ["intern"],
+      },
+      {
+        path: "/leave-request",
+        label: "Leave Request",
+        icon: "fa-envelope-open-text",
+        roles: ["intern"],
+      },
+
+      // ADMIN OPERASIONAL
+      {
+        path: "/tasks",
+        label: "Daily Activation",
         icon: "fa-list-check",
         roles: ["admin"],
       },
       {
-        path: "/attendance",
-        label: "Presensi & Izin",
-        icon: "fa-calendar-check",
-        roles: ["intern"],
+        path: "/approval",
+        label: "Approval Center",
+        icon: "fa-check-to-slot",
+        roles: ["admin", "superadmin"],
+      },
+      {
+        path: "/manage-intern",
+        label: "Manage Intern",
+        icon: "fa-users-gear",
+        roles: ["admin"],
+      },
+      {
+        path: "/schedule-calendar",
+        label: "Schedule Calendar",
+        icon: "fa-calendar-days",
+        roles: ["admin"],
+      },
+
+      // MANAJEMEN AKUN (Superadmin)
+      {
+        path: "/manage-admin",
+        label: "Manage Akun",
+        icon: "fa-user-gear",
+        roles: ["superadmin"],
+      },
+      {
+        path: "/division-analytics",
+        label: "System Analytics",
+        icon: "fa-chart-line",
+        roles: ["superadmin"],
+      },
+      {
+        path: "/audit-log",
+        label: "Audit Log",
+        icon: "fa-clipboard-list",
+        roles: ["admin", "superadmin"],
+      },
+
+      // LAIN-LAIN
+      {
+        path: "/broadcasts",
+        label: "Broadcast",
+        icon: "fa-tower-broadcast",
+        roles: ["admin", "superadmin"],
       },
       {
         path: "/whitebook",
         label: "Whitebook",
-        icon: "fa-calendar-check",
-        roles: ["intern", "admin"],
-      },
-      {
-        path: "/reports",
-        label: "Reports",
-        icon: "fa-file-lines",
+        icon: "fa-book-open",
         roles: ["intern", "admin", "superadmin"],
-      },
-      {
-        path: "/approval",
-        label: "Approval",
-        icon: "fa-solid fa-check-to-slot",
-        roles: ["admin"], // Sesuai desain untuk Admin
       },
     ],
     [],
   );
 
-  // 2. Fungsi Mapping: Menyesuaikan role dari Supabase
   const filteredMenu = useMemo(() => {
-    // Ambil role mentah dari database
-    const rawRole = user?.role?.toLowerCase().trim() || "";
-
-    let mappedRole = "";
-
-    // Logika Mapping sesuai permintaan kamu:
-    if (rawRole === "super_admin") {
-      // Untuk DashboardSuperAdmin
-      mappedRole = "superadmin";
-    } else if (rawRole === "admin") {
-      // Untuk Admin
-      mappedRole = "admin";
-    } else if (rawRole === "intern") {
-      // Untuk DashboardIntern
-      mappedRole = "intern";
-    }
-
-    // Memastikan menu yang muncul hanya yang diizinkan untuk role tersebut
-    return menuItems.filter((item) => item.roles.includes(mappedRole));
+    const rawRole = user?.role?.toLowerCase().replace(/_|\s/g, "") || "";
+    return menuItems.filter((item) => item.roles.includes(rawRole));
   }, [user, menuItems]);
 
-  function getInitials(name) {
-    if (!name) return "??";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .substring(0, 2)
-      .toUpperCase();
+  // ================= TEMA WARNA SIDEBAR =================
+
+  // 1. DEFAULT: INTERN (Full Biru Muda Terang)
+  let theme = {
+    sidebarBg: "bg-gradient-to-br from-blue-600 to-cyan-500 border-r border-white/10 shadow-xl",
+    logoBorder: "border-white/10",
+    logoutBorder: "border-white/10",
+    navNormal: "text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200 border border-transparent",
+    navActiveBg: "bg-gradient-to-r from-white/25 to-white/0 backdrop-blur-sm border border-white/10", 
+    navActiveText: "text-white font-bold tracking-wide drop-shadow-[0_2px_8px_rgba(255,255,255,0.4)]",
+    navActiveBorder: "bg-white shadow-[0_0_15px_rgba(255,255,255,1)]",
+    isDarkLogo: false,
+    specialNormal: null,
+    specialActiveBg: null,
+    specialActiveText: null,
+    specialActiveBorder: null,
+    logoutBtn: "text-white/80 hover:bg-white/10 hover:text-white border border-transparent"
+  };
+
+  // 2. ADMIN (Full Biru Navy Tua Gelap)
+  if (userTheme === "admin") {
+    theme = {
+      sidebarBg: "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-r border-blue-400/20 shadow-2xl",
+      logoBorder: "border-blue-400/20",
+      logoutBorder: "border-blue-400/20",
+      navNormal: "text-blue-200/60 hover:text-white hover:bg-white/10 transition-all duration-300 border border-transparent",
+      navActiveBg: "bg-gradient-to-r from-blue-500/30 to-blue-500/0 backdrop-blur-md border border-blue-400/20",
+      navActiveText: "text-white font-bold tracking-wide drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]",
+      navActiveBorder: "bg-blue-400 shadow-[0_0_15px_rgba(96,165,250,0.8)]",
+      isDarkLogo: false,
+      specialNormal: "text-blue-100/70 hover:text-white hover:bg-white/10 transition-all duration-300 border border-transparent",
+      specialActiveBg: "bg-gradient-to-r from-blue-400/30 to-blue-400/0 backdrop-blur-md border border-blue-300/30",
+      specialActiveText: "text-white font-bold tracking-wide drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]",
+      specialActiveBorder: "bg-blue-300 shadow-[0_0_15px_rgba(147,197,253,0.8)]",
+      logoutBtn: "text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 border border-transparent"
+    };
+  }
+  // 3. SUPERADMIN (PINK PASTEL VVIP)
+  else if (userTheme === "super_admin") {
+    theme = {
+      sidebarBg: "bg-gradient-to-b from-pink-400 to-rose-500 border-r border-pink-500/20 shadow-2xl",
+      logoBorder: "border-white/10",
+      logoutBorder: "border-white/10",
+      navNormal: "text-pink-100/80 hover:bg-white/10 hover:text-white transition-all duration-300 border border-transparent",
+      navActiveBg: "bg-gradient-to-r from-white/30 to-white/0 backdrop-blur-sm border border-white/10",
+      navActiveText: "text-white font-bold tracking-wide drop-shadow-[0_2px_8px_rgba(255,255,255,0.4)]",
+      navActiveBorder: "bg-white shadow-[0_0_15px_rgba(255,255,255,1)]",
+      isDarkLogo: false,
+      specialNormal: "text-pink-100 hover:text-white hover:bg-white/10 transition-all duration-300 border border-transparent",
+      specialActiveBg: "bg-gradient-to-r from-white/30 to-white/0 backdrop-blur-md border border-white/10",
+      specialActiveText: "text-white font-black drop-shadow-[0_2px_8px_rgba(255,255,255,0.4)]",
+      specialActiveBorder: "bg-white shadow-[0_0_15px_rgba(255,255,255,1)]",
+      logoutBtn: "text-pink-100/90 bg-transparent hover:bg-white/10 hover:text-white border border-transparent"
+    };
   }
 
   return (
     <>
-      {/* Mobile overlay - Z-Index diperkuat agar menutup konten */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/60 z-[60] lg:hidden backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 bg-black/50 z-[60] lg:hidden backdrop-blur-sm transition-opacity"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       <aside
-        className={`
-          fixed lg:sticky top-0 left-0 h-screen z-[100]
-          w-[260px] flex-shrink-0 flex flex-col
-          bg-[#070e1d] border-r border-white/[0.05]
-          transition-all duration-300 ease-in-out
-          ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-        `}
+        className={`fixed lg:sticky top-0 left-0 h-screen z-[100] w-[260px] flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out ${theme.sidebarBg} ${mobileOpen ? "translate-x-0 shadow-2xl shadow-sky-900/20" : "-translate-x-full lg:translate-x-0"}`}
       >
-        {/* Logo Section */}
-        <div className="p-6 border-b border-white/[0.05]">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-sky-500/20">
-              <i className="fa-solid fa-bolt-lightning text-white text-sm"></i>
-            </div>
-            <span className="text-lg font-bold text-white tracking-tight">
-              Mip<span className="text-sky-400">Activity</span>
-            </span>
+        {/* LOGO */}
+        <div
+          className={`h-28 flex items-center justify-center shrink-0 border-b ${theme.logoBorder} px-6 py-4`}
+        >
+          <img
+            src={LogoWhite}
+            alt="Logo Malang Creative Center"
+            className={`h-20 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300 ${theme.isDarkLogo ? "invert-[0.8] brightness-50" : ""}`}
+          />
+        </div>
+
+        {/* MENU LIST */}
+        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto custom-scrollbar">
+          {filteredMenu.map((item) => {
+            const isItemRestricted =
+              isIntern &&
+              isRestrictedAccess &&
+              !ALWAYS_ALLOWED_PATHS.includes(item.path);
+
+            const isSpecial =
+              SPECIAL_PATHS.includes(item.path) && theme.specialNormal !== null;
+
+            if (isItemRestricted) {
+              return (
+                <div
+                  key={item.path + "-restricted"}
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm opacity-30 cursor-not-allowed select-none ${theme.isDarkLogo ? "text-sky-900/40" : "text-slate-400"}`}
+                  title="Tidak tersedia — tidak ada jadwal hari ini"
+                >
+                  <i className={`fa-solid ${item.icon} w-5 text-center text-[15px]`}></i>
+                  <span className="font-medium tracking-wide">
+                    {item.label}
+                  </span>
+                  <i className="fa-solid fa-lock text-[10px] ml-auto opacity-60"></i>
+                </div>
+              );
+            }
+
+            const resolvedNormal = isSpecial ? theme.specialNormal : theme.navNormal;
+            const resolvedActiveBg = isSpecial ? theme.specialActiveBg : theme.navActiveBg;
+            const resolvedActiveText = isSpecial ? theme.specialActiveText : theme.navActiveText;
+            const resolvedActiveBorder = isSpecial ? theme.specialActiveBorder : theme.navActiveBorder;
+
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.path === "/dashboard"}
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm group relative ${
+                    isActive ? `${resolvedActiveBg} ${resolvedActiveText}` : resolvedNormal
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div 
+                      className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-300 ease-out ${
+                        isActive ? `h-5 opacity-100 ${resolvedActiveBorder}` : "h-0 opacity-0 bg-transparent"
+                      }`}
+                    ></div>
+                    
+                    <i className={`fa-solid ${item.icon} w-5 text-center text-[15px] transition-transform duration-300 ${isActive ? "opacity-100 scale-110" : "opacity-70 group-hover:opacity-100 group-hover:scale-110"}`}></i>
+                    <span className="font-medium tracking-wide">
+                      {item.label}
+                    </span>
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
+        </nav>
+
+        {/* COLOR PALETTE SELECTOR */}
+        <div className="px-6 pb-2">
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => updateProfile({ theme_color: "intern" })}
+              className={`w-6 h-6 rounded-full bg-cyan-400 border-2 transition-all hover:scale-110 ${userTheme === "intern" ? "border-white scale-110 shadow-[0_0_10px_rgba(34,211,238,0.8)]" : "border-white/20 scale-90"}`}
+              title="Intern Theme"
+            />
+            <button
+              onClick={() => updateProfile({ theme_color: "admin" })}
+              className={`w-6 h-6 rounded-full bg-[#162447] border-2 transition-all hover:scale-110 ${userTheme === "admin" ? "border-white scale-110 shadow-[0_0_10px_rgba(22,36,71,0.8)]" : "border-white/20 scale-90"}`}
+              title="Admin Theme"
+            />
+            <button
+              onClick={() => updateProfile({ theme_color: "super_admin" })}
+              className={`w-6 h-6 rounded-full bg-pink-400 border-2 transition-all hover:scale-110 ${userTheme === "super_admin" ? "border-white scale-110 shadow-[0_0_10px_rgba(244,114,182,0.8)]" : "border-white/20 scale-90"}`}
+              title="SuperAdmin Theme"
+            />
           </div>
         </div>
 
-        {/* Navigation Section */}
-        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
-          <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 opacity-50">
-            Main Menu
-          </p>
-
-          {filteredMenu.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              // Gunakan end hanya untuk root agar tidak bentrok dengan sub-path
-              end={item.path === "/dashboard"}
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group
-                ${
-                  isActive
-                    ? "bg-sky-500/10 text-sky-400 ring-1 ring-sky-500/20"
-                    : "text-slate-400 hover:bg-white/[0.03] hover:text-slate-200"
-                }`
-              }
-            >
-              <i
-                className={`fa-solid ${item.icon} w-5 text-center text-sm transition-transform group-hover:scale-110`}
-              ></i>
-              <span className="text-sm font-semibold">{item.label}</span>
-            </NavLink>
-          ))}
-        </nav>
-
-        {/* Profile Section */}
-        <div className="p-4 border-t border-white/[0.05] bg-[#050a15]">
-          <div className="bg-white/[0.02] rounded-2xl p-4 border border-white/[0.05]">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 text-xs font-bold">
-                {getInitials(user?.full_name)}
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-white truncate">
-                  {user?.full_name || "User Name"}
-                </p>
-                <p className="text-[9px] text-sky-400/80 font-bold truncate uppercase tracking-tighter">
-                  {user?.role?.replace("_", " ")}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={logout}
-              className="w-full py-2.5 rounded-xl bg-rose-500/10 text-rose-500 text-[11px] font-black hover:bg-rose-500 hover:text-white transition-all duration-300 flex items-center justify-center gap-2 border border-rose-500/20"
-            >
-              <i className="fa-solid fa-power-off text-[10px]"></i>
-              KELUAR APLIKASI
-            </button>
-          </div>
+        {/* LOGOUT */}
+        <div className={`p-4 shrink-0 border-t ${theme.logoutBorder}`}>
+          <button
+            onClick={logout}
+            className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${theme.logoutBtn}`}
+          >
+            <i className="fa-solid fa-power-off"></i>
+            Sign Out
+          </button>
         </div>
       </aside>
     </>

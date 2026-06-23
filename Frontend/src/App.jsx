@@ -1,136 +1,151 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
-import PrivateRoute from "./components/PrivateRoute";
-import AdminRoute from "./components/AdminRoute";
-import MainLayout from "./components/layout/MainLayout";
 import { Toaster } from "react-hot-toast";
 
-// Pages
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Tasks from "./pages/Tasks";
-import Attendance from "./pages/Attendance";
-import Dashboard from "./pages/Dashboard";
-import Broadcasts from "./pages/Broadcasts";
-import Divisions from "./pages/Divisions";
-import Users from "./pages/Users";
-import AuditLog from "./pages/AuditLog";
-import ManageAdmin from "./pages/admin/ManageAdmin";
-import ManageAccountIntern from "./pages/admin/ManageAccountIntern"; // Import halaman Manage Account Intern
-import Reports from "./pages/Reports";
-import Whitebook from "./pages/Whitebook";
+// Layout & Guard
+import MainLayout from "./components/layout/MainLayout";
+import ProtectedRoute from "./components/guards/ProtectedRoute";
+import SelectiveLockGuard from "./components/guards/SelectiveLockGuard";
+
+// Pages - Public
+import Login from "./pages/auth/Login";
+import ChangePasswordForce from "./pages/auth/ChangePasswordForce";
+
+// Pages - Universal (Semua Role)
+import Dashboard from "./pages/dashboard/Dashboard";
+import Whiteboard from "./pages/Whiteboard"
+import Settings from "./pages/Settings";
 import LockedPage from "./pages/LockedPage";
+
+// Pages - Unified Task (Gerbang Utama)
+import Tasks from "./pages/Tasks";
+
+// Pages - Khusus Intern
+import LeaveRequest from "./pages/intern/LeaveRequest";
+import InternLogbook from "./pages/intern/InternLogbook";
+import MySchedule from "./pages/intern/MySchedule";
+
+// Pages - Manajerial (Admin & Up)
+import Approval from "./pages/admin/Approval";
+import ManageAccountIntern from "./pages/admin/ManageAccountIntern";
+import ManageSchedules from "./pages/admin/ManageSchedules";
+import ManageSchedulesCalendar from "./pages/admin/ManageSchedulesCalendar";
+import Broadcasts from "./pages/admin/Broadcasts";
+
+// Pages - VVIP (Superadmin & Up)
+import ManageAdmin from "./pages/superadmin/ManageAdmin";
+import DivisionAnalytics from "./pages/superadmin/DivisionAnalytics";
+// 👇 IMPORT KOMPONEN CONFIG
+import AuditLog from './pages/developer/AuditLog';
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Toaster
-          position="top-right"
-          reverseOrder={false}
-          toastOptions={{
-            style: {
-              borderRadius: "16px",
-              background: "#1b254b",
-              color: "#fff",
-              fontSize: "14px",
-              fontWeight: "bold",
-            },
-          }}
-        />
+        <Toaster position="top-right" />
 
         <Routes>
-          {/* 1. RUTE PUBLIK */}
+          {/* RUTE PUBLIK */}
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/change-password-force" element={
+            <ProtectedRoute>
+              <ChangePasswordForce />
+            </ProtectedRoute>
+          } />
+          {/* Registrasi publik ditutup — akun dibuat oleh Superadmin */}
 
-          {/* 2. RUTE TERPROTEKSI (MainLayout & Sub-routes) */}
-          <Route
-            element={
-              <PrivateRoute>
-                <MainLayout />
-              </PrivateRoute>
-            }
-          >
-            {/* Navigasi Root & Dashboard (Bisa diakses SEMUA Role) */}
+          {/* RUTE TERPROTEKSI */}
+          <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+            {/* --- JALUR KEBAL GEMBOK (selalu bisa diakses intern) --- */}
+            <Route path="leave-request" element={<LeaveRequest />} />
+            <Route path="forbidden" element={<LockedPage />} />
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="my-schedule" element={
+              <ProtectedRoute roles={["intern"]}>
+                <MySchedule />
+              </ProtectedRoute>
+            } />
 
-            {/* Rute Reports (Bisa diakses SEMUA Role - Intern untuk ajukan laporan, Admin untuk lihat) */}
-            <Route path="reports" element={<Reports />} />
+            {/* --- JALUR TERGEMBOK (dibatasi saat OFF/cuti) --- */}
+            <Route element={<SelectiveLockGuard />}>
 
-            {/* Halaman Locked (Harus bisa diakses Intern saat mereka nyasar) */}
-            <Route path="locked" element={<LockedPage />} />
+              {/* Multi-Role (Tugas) */}
+              <Route path="tasks" element={
+                <ProtectedRoute roles={["intern", "admin", "superadmin", "developer"]}>
+                  <Tasks />
+                </ProtectedRoute>
+              } />
 
-            {/* --- RUTE KHUSUS INTERN (ROLE: USER) --- */}
-            <Route path="tasks" element={<Tasks />} />
-            <Route path="attendance" element={<Attendance />} />
-            <Route path="whitebook" element={<Whitebook />} />
-
-            {/* --- RUTE KHUSUS ADMIN & SUPER_ADMIN SAJA --- */}
-            <Route
-              path="broadcasts"
-              element={
-                <AdminRoute>
-                  <Broadcasts />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="divisions"
-              element={
-                <AdminRoute>
-                  <Divisions />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="users"
-              element={
-                <AdminRoute>
-                  <Users />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="audit-log"
-              element={
-                <AdminRoute>
-                  <AuditLog />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="manage-admin"
-              element={
-                <AdminRoute>
-                  <ManageAdmin />
-                </AdminRoute>
-              }
-            />
-            {/* Route untuk Manage Account Intern - Hanya untuk Admin & Super Admin */}
-            <Route
-              path="manage-intern"
-              element={
-                <AdminRoute>
+              {/* Khusus Intern: Kerjakan Tugas */}
+              <Route path="logbook" element={
+                <ProtectedRoute roles={["intern"]}>
+                  <InternLogbook />
+                </ProtectedRoute>
+              } />
+              <Route path="whitebook" element={
+                <ProtectedRoute roles={["intern", "admin", "superadmin"]}>
+                  <Whiteboard />
+                </ProtectedRoute>
+              } />
+              {/* Manajerial */}
+              <Route path="approval" element={
+                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
+                  <Approval />
+                </ProtectedRoute>
+              } />
+              <Route path="manage-intern" element={
+                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
                   <ManageAccountIntern />
-                </AdminRoute>
-              }
-            />
-            {/* Rute Approval hanya untuk Admin */}
-            <Route
-              path="approval"
-              element={
-                <AdminRoute>
-                  <Dashboard />
-                </AdminRoute>
-              }
-            />
+                </ProtectedRoute>
+              } />
+              <Route path="manage-schedules" element={
+                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
+                  <ManageSchedules />
+                </ProtectedRoute>
+              } />
+              <Route path="schedule-calendar" element={
+                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
+                  <ManageSchedulesCalendar />
+                </ProtectedRoute>
+              } />
+              <Route path="broadcasts" element={
+                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
+                  <Broadcasts />
+                </ProtectedRoute>
+              } />
+
+              {/* VVIP & Analytics */}
+              <Route path="manage-admin" element={
+                <ProtectedRoute roles={["superadmin", "developer"]}>
+                  <ManageAdmin />
+                </ProtectedRoute>
+              } />
+
+              <Route path="division-analytics" element={
+                <ProtectedRoute roles={["superadmin", "developer"]}>
+                  <DivisionAnalytics />
+                </ProtectedRoute>
+              } />
+
+              {/* 👇 INI YANG KETINGGALAN: RUTE KHUSUS DEVELOPER */}
+
+              <Route path="audit-log" element={
+                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
+                  <AuditLog />
+                </ProtectedRoute>
+              } />
+
+            </Route>
           </Route>
 
-          {/* 3. CATCH-ALL */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+
       </AuthProvider>
     </BrowserRouter>
   );

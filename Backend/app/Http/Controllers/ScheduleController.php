@@ -17,17 +17,17 @@ class ScheduleController extends Controller
     {
         $user = Auth::user();
         
-        $query = Schedule::with('user');
+        $query = Schedule::with(['user:id,full_name,division_id,role']);
 
         if ($user->role === 'intern') {
-            // Intern sees their own schedules
             $query->where('user_id', $user->id);
         } elseif ($user->role === 'admin') {
-            // Admin sees their division's schedules
             $query->whereHas('user', function($q) use ($user) {
-                $q->where('division_id', $user->division_id);
+                $q->where('division_id', $user->division_id)
+                  ->whereNull('deleted_at');
             });
         }
+        // superadmin sees all
 
         if ($request->has('date')) {
             $query->whereDate('shift_date', $request->date);
@@ -37,7 +37,7 @@ class ScheduleController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $schedules
+            'data'   => $schedules,
         ]);
     }
 
@@ -55,7 +55,7 @@ class ScheduleController extends Controller
         $request->validate([
             'user_id' => 'required|uuid|exists:profiles,id',
             'shift_date' => 'required|date',
-            'shift_type' => 'required|in:morning,afternoon,full'
+            'shift_type' => 'required|in:morning,middle,afternoon,off,paid_day'
         ]);
 
         $intern = User::findOrFail($request->user_id);
@@ -115,7 +115,7 @@ class ScheduleController extends Controller
 
         $request->validate([
             'shift_date' => 'sometimes|date',
-            'shift_type' => 'sometimes|in:morning,afternoon,full'
+            'shift_type' => 'sometimes|in:morning,middle,afternoon,off,paid_day'
         ]);
 
         $schedule->update($request->only(['shift_date', 'shift_type']));

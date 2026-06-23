@@ -1,152 +1,154 @@
-// contexts/AuthContext.jsx
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
-import axios from "axios";
+import api from "../api/axios";
 
 const AuthContext = createContext();
-
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [todayShift, setTodayShift] = useState(null);      // null = belum load, false = tidak ada jadwal, object = ada jadwal
+  const [shiftLoading, setShiftLoading] = useState(false);
 
-  // 1. Helper status role & lock (Berdasarkan data user terbaru)
-  const isAdmin = user?.role === "admin";
-  const isSuperAdmin = user?.role === "super_admin";
-  const isIntern = user?.role === "intern";
-  const isAnyAdmin = isAdmin || isSuperAdmin;
+  useEffect(() => {
+    const token = localStorage.getItem("jwt_token");
+    let savedUser = localStorage.getItem("user_data");
+    
+    if (token && savedUser && token !== "undefined" && savedUser !== "undefined" && savedUser !== "null") {
+      savedUser = JSON.parse(savedUser);
+      setUser(savedUser);
+    } else {
+      localStorage.removeItem("jwt_token");
+      localStorage.removeItem("user_data");
+    }
+    setLoading(false);
+  }, []);
 
-  // Menambahkan pengecekan is_locked (mendukung format boolean atau integer 0/1)
-  const isLocked = Boolean(user?.is_locked);
+  // Fetch jadwal hari ini setelah user tersedia dan role-nya intern
+  useEffect(() => {
+    const role = user?.role?.toLowerCase().replace(/_|\s/g, "") || "";
+    const isIntern = role === "intern";
 
-  const fetchUser = async (token) => {
-    try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/auth/me`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+    if (!user || !isIntern) {
+      setTodayShift(null);
+      setShiftLoading(false); // non-intern: tidak perlu fetch
+      return;
+    }
 
-      // Unwrap data: memastikan mengambil objek user terlepas dari nesting API
-      const userData =
-        response.data.data || response.data.user || response.data;
-      setUser(userData);
-      return userData;
-    } catch (error) {
-      console.error("Gagal mengambil data user:", error);
-      // Jika token expired atau invalid, bersihkan session
-      if (error.response?.status === 401) {
-        localStorage.removeItem("token");
-        setUser(null);
+    const fetchTodayShift = async () => {
+      setShiftLoading(true);
+      try {
+        const today = new Date();
+        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const response = await api.get("/schedules");
+        const allSchedules = response.data.data || [];
+        const todayEntry = allSchedules.find(s => {
+          const d = s.shift_date ? s.shift_date.substring(0, 10) : "";
+          return d === dateStr;
+        });
+        setTodayShift(todayEntry || false); // false = tidak ada jadwal hari ini
+      } catch {
+        setTodayShift(null); // error → jangan blokir akses
+      } finally {
+        setShiftLoading(false);
       }
-      return null;
+    };
+
+    fetchTodayShift();
+  }, [user]);
+
+  const login = (token, userData) => {
+    localStorage.setItem("jwt_token", token);
+    localStorage.setItem("user_data", JSON.stringify(userData));
+    setUser(userData);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("jwt_token");
+    localStorage.removeItem("user_data");
+    setUser(null);
+    window.location.href = "/login";
+  };
+
+  const register = async (username, division_id, email, password) => {
+    setLoading(true);
+    try {
+      const response = await api.post('/auth/register', { username, division_id, email, password });
+      const resData = response.data?.data || response.data;
+      if (resData.access_token || resData.token) {
+        login(resData.access_token || resData.token, resData.user || resData.profile);
+      }
+      return { success: true };
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || Object.values(error.response?.data || {}).flat().join(" ") || "Gagal mendaftar.";
+      return { success: false, error: errorMsg };
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    fetchUser(token);
-  }, []);
-
-  const login = async (email, password) => {
+  const updateProfile = async (newData) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/auth/login`,
-        { email, password },
-        { headers: { Accept: "application/json" } },
-      );
-
-      const token =
-        response.data.authorization?.token ||
-        response.data.token ||
-        response.data.access_token;
-
-      if (!token) {
-        setLoading(false);
-        return { success: false, error: "Token tidak ditemukan" };
-      }
-
-      localStorage.setItem("token", token);
-      const userData = await fetchUser(token);
-
-      return {
-        success: true,
-        role: userData?.role,
-        isLocked: Boolean(userData?.is_locked), // Kembalikan status lock saat login
-      };
-    } catch (err) {
+      const response = await api.put(`/profiles/${user.id}`, newData);
+      const updatedUser = { ...user, ...newData, ...(response.data?.user || response.data?.data || {}) };
+      setUser(updatedUser);
+      localStorage.setItem("user_data", JSON.stringify(updatedUser));
+      return { success: true, message: "Profil diperbarui!" };
+    } catch (error) {
+      console.error(error);
+      const errorMsg = error.response?.data?.message || "Gagal update profil.";
+      return { success: false, message: errorMsg };
+    } finally {
       setLoading(false);
-      return {
-        success: false,
-        error:
-          err.response?.data?.error ||
-          err.response?.data?.message ||
-          "Login gagal",
-      };
     }
   };
 
-  const register = async (username, divisionId, email, password) => {
-    try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/auth/register`,
-        {
-          username,
-          full_name: username,
-          division_id: divisionId,
-          email,
-          password,
-          password_confirmation: password,
-          role: "intern",
-        },
-        { headers: { Accept: "application/json" } },
-      );
+  const value = useMemo(() => {
+    const role = user?.role || "";
+    const isIntern     = role === "intern";
+    const isAdmin      = role === "admin";
+    const isSuperAdmin = role === "super_admin";
+    const isAnyAdmin   = isAdmin || isSuperAdmin;
 
-      return {
-        success: true,
-        user: response.data.user,
-        message: response.data.message,
-      };
-    } catch (err) {
-      const data = err.response?.data;
-      let errorMessage =
-        typeof data === "object"
-          ? Object.values(data).flat().join(" ")
-          : data || "Pendaftaran gagal";
-      return { success: false, error: errorMessage };
-    }
-  };
+    // Status shift hari ini untuk intern:
+    //   null  → masih loading / error (jangan blokir)
+    //   false → tidak ada jadwal (OFF)
+    //   obj   → ada jadwal (morning / afternoon / full/cuti)
+    const hasShiftToday   = isIntern ? (todayShift !== false && todayShift !== null) : true;
+    const isOnLeave       = isIntern ? (todayShift !== null && todayShift !== false && todayShift.shift_type === "full") : false;
+    const isOffToday      = isIntern ? (todayShift === false) : false;
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-    setLoading(false);
-  };
+    // Akses terbatas: intern yang OFF atau cuti hanya boleh dashboard, jadwal, leave-request
+    const isRestrictedAccess = isIntern && (isOffToday || isOnLeave);
 
-  // 2. Masukkan isLocked ke dalam value Provider
-  const value = useMemo(
-    () => ({
+    // is_locked tetap dipakai untuk blokir total (misal di luar jam kerja via cron)
+    const isLockedStatus = isIntern && Boolean(user?.is_locked);
+
+    const userTheme = user?.theme_color || role || "intern";
+
+    return {
       user,
+      setUser,
       loading,
+      shiftLoading,
+      todayShift,
       login,
       register,
       logout,
+      updateProfile,
+      isIntern,
       isAdmin,
       isSuperAdmin,
-      isIntern,
       isAnyAdmin,
-      isLocked, // Expose status kunci akun ke seluruh aplikasi
-    }),
-    [user, loading],
-  );
+      isLocked: isLockedStatus,
+      hasShiftToday,
+      isOnLeave,
+      isOffToday,
+      isRestrictedAccess,
+      userTheme,
+    };
+  }, [user, loading, todayShift, shiftLoading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

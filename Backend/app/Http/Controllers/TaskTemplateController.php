@@ -42,15 +42,21 @@ class TaskTemplateController extends Controller
         }
 
         $request->validate([
-            'title' => 'required|string',
-            'description' => 'nullable|string',
-            'division_id' => $user->role === 'super_admin' ? 'required|uuid|exists:divisions,id' : 'nullable|uuid|exists:divisions,id'
+            'title'         => 'required|string',
+            'description'   => 'nullable|string',
+            'division_id'   => $user->role === 'super_admin' ? 'required|uuid|exists:divisions,id' : 'nullable|uuid|exists:divisions,id',
+            'start_time'    => ['nullable', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+            'end_time'      => ['nullable', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+            'reminder_time' => ['nullable', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
         ]);
 
         $template = TaskTemplate::create([
-            'division_id' => $user->role === 'super_admin' ? $request->division_id : $user->division_id,
-            'title' => $request->title,
-            'description' => $request->description,
+            'division_id'   => $user->role === 'super_admin' ? $request->division_id : $user->division_id,
+            'title'         => $request->title,
+            'description'   => $request->description,
+            'start_time'    => $request->start_time    ?? '08:00',
+            'end_time'      => $request->end_time      ?? '15:00',
+            'reminder_time' => $request->reminder_time ?? '14:30',
         ]);
 
         AuditLog::record($user->id, $user->role, 'Buat Template Tugas', $template->toArray());
@@ -80,13 +86,19 @@ class TaskTemplateController extends Controller
         }
 
         $request->validate([
-            'title' => 'required|string',
-            'description' => 'nullable|string',
+            'title'         => 'required|string',
+            'description'   => 'nullable|string',
+            'start_time'    => ['nullable', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+            'end_time'      => ['nullable', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+            'reminder_time' => ['nullable', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
         ]);
 
         $template->update([
-            'title' => $request->title,
-            'description' => $request->description,
+            'title'         => $request->title,
+            'description'   => $request->description,
+            'start_time'    => $request->start_time    ?? $template->start_time,
+            'end_time'      => $request->end_time      ?? $template->end_time,
+            'reminder_time' => $request->reminder_time ?? $template->reminder_time,
         ]);
 
         return response()->json([
