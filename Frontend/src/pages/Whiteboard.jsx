@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom"; 
 import { useAuth } from "../contexts/AuthContext"; 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,6 +56,20 @@ const Whitebook = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobileHeroOpen, setIsMobileHeroOpen] = useState(false);
+
+  const viewerRef = useRef(null);
+
+  const handleToggleSidebar = () => {
+    const willClose = isSidebarOpen; 
+    setIsSidebarOpen(!isSidebarOpen);
+    
+    if (willClose) {
+      setTimeout(() => {
+        viewerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 300);
+    }
+  };
   
   const [formData, setFormData] = useState({
     id: null,
@@ -336,36 +350,57 @@ const Whitebook = () => {
     <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 sm:pt-8 px-4 sm:px-6 lg:px-8 max-w-[1600px] mx-auto">
       
       {/* HERO SECTION */}
-      <div className={`rounded-[2.5rem] border shadow-2xl relative overflow-hidden flex flex-col text-white mb-6 transition-all duration-500 ${
+      <div className={`rounded-[2rem] md:rounded-[2.5rem] border shadow-xl md:shadow-2xl relative overflow-hidden flex flex-col text-white mb-6 md:mb-8 transition-all duration-500 ${
         isPinkTheme ? "bg-gradient-to-br from-pink-300 to-rose-400 border-pink-300 shadow-pink-200/50" : 
-        isDarkBlueTheme ? "bg-gradient-to-b from-[#0b1437] to-[#162447] border-blue-800/40" : 
-        "bg-gradient-to-br from-sky-400 to-blue-500 border-sky-300 shadow-sky-300/50"
+        isIntern ? "bg-gradient-to-br from-cyan-500 to-blue-500 border-cyan-400 shadow-cyan-500/30" : 
+        "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20"
       }`}>
         <div className={`absolute -top-32 -right-32 w-96 h-96 rounded-full blur-[100px] pointer-events-none ${isPinkTheme ? "bg-white/40" : "bg-blue-500/20"}`} />
-        <div className={`absolute -bottom-32 -left-32 w-72 h-72 rounded-full blur-[100px] pointer-events-none ${isPinkTheme ? "bg-rose-100/30" : "bg-sky-200/30"}`} />
+        <div className={`absolute -bottom-32 -left-32 w-72 h-72 rounded-full blur-[100px] pointer-events-none ${isPinkTheme ? "bg-rose-100/30" : "bg-sky-500/10"}`} />
 
-        <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-white/10">
-          <div className="lg:max-w-xl">
-            <div className="flex items-center gap-3 mb-5">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner shrink-0 border backdrop-blur-sm ${isPinkTheme ? "bg-white/20 border-white/40 text-white" : isDarkBlueTheme ? "bg-white/10 border-white/20 text-white" : "bg-white/20 border-white/30 text-white"}`}>
-                <i className="fa-solid fa-book-bookmark text-xl" />
-              </div>
-              <span className={`text-[10px] font-black uppercase tracking-[0.25em] px-3 py-1.5 rounded-lg border ${isPinkTheme ? "text-pink-50 bg-white/20 border-pink-200" : isDarkBlueTheme ? "text-blue-200 bg-white/10 border-white/10" : "text-white bg-white/20 border-white/30 drop-shadow-sm"}`}>
-                Knowledge Base
-              </span>
+        {/* Header Khusus HP (Selalu Tampil) */}
+        <div className="md:hidden flex items-center justify-between p-5 relative z-20 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-inner shrink-0 border backdrop-blur-sm ${isPinkTheme ? "bg-white/20 border-white/40" : "bg-white/10 border-white/20"}`}>
+              <i className="fa-solid fa-book-open text-sm" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight">Whitebook.</h1>
-            <p className={`text-sm font-medium leading-relaxed ${isPinkTheme ? "text-pink-50" : isDarkBlueTheme ? "text-blue-100/70" : "text-sky-50/90"}`}>
-              Pusat SOP dan panduan kerja divisi. Standar ini akan dipelajari otomatis oleh AI untuk penilaian Logbook.
-            </p>
+            <h1 className="text-xl font-black tracking-tighter">WHITEBOOK</h1>
           </div>
-
-          <button
-            onClick={() => queryClient.invalidateQueries(["whitebooksData"])}
-            className="flex items-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all shadow-lg active:scale-95 shrink-0 mt-4 sm:mt-0 bg-white/10 hover:bg-white/20 border-white/20 text-white"
+          <button 
+            onClick={() => setIsMobileHeroOpen(!isMobileHeroOpen)}
+            className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center transition-all active:scale-95"
           >
-            <i className="fa-solid fa-arrows-rotate" /> Sync Whitebook
+            <i className={`fa-solid fa-chevron-down text-sm transition-transform duration-300 ${isMobileHeroOpen ? "rotate-180" : ""}`}></i>
           </button>
+        </div>
+
+        {/* Konten Hero (Animasi Buka-Tutup di HP, Selalu Buka di Desktop) */}
+        <div className={`relative z-10 transition-all duration-500 ease-in-out overflow-hidden md:max-h-[500px] ${
+          isMobileHeroOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0 md:max-h-[500px] md:opacity-100"
+        }`}>
+          <div className="p-5 pt-2 md:p-8 md:pt-10 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/10">
+            <div className="lg:max-w-xl">
+              <div className="hidden md:flex items-center gap-3 mb-5">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner shrink-0 border backdrop-blur-sm ${isPinkTheme ? "bg-white/20 border-white/40" : "bg-white/10 border-white/20"}`}>
+                  <i className="fa-solid fa-book-open text-xl" />
+                </div>
+                <span className={`text-[10px] font-black uppercase tracking-[0.25em] px-3 py-1.5 rounded-lg border ${isPinkTheme ? "text-pink-50 bg-white/20 border-pink-200" : "text-blue-200 bg-white/10 border-white/10"}`}>
+                  Pusat Panduan
+                </span>
+              </div>
+              <h1 className="hidden md:block text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight">Whitebook.</h1>
+              <p className={`text-xs md:text-sm font-medium leading-relaxed ${isPinkTheme ? "text-pink-50" : "text-blue-100/70"}`}>
+                Baca, pahami, dan patuhi seluruh Standar Operasional Prosedur (SOP) dari divisi <b>{myDivision}</b>. Fitur interaktif Macrecen AI tersedia untuk membedah prosedur rumit.
+              </p>
+            </div>
+            
+            {/* Tombol Buat Baru (Hanya Admin) */}
+            {canEdit && (
+              <button onClick={() => handleOpenForm()} className={`flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest border transition-all shadow-lg active:scale-95 shrink-0 w-full md:w-auto ${isPinkTheme ? "bg-white text-pink-600 hover:bg-pink-50 border-white" : "bg-blue-600 hover:bg-blue-700 border-blue-500 text-white"}`}>
+                <i className="fa-solid fa-plus" /> Tambah SOP
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -397,13 +432,13 @@ const Whitebook = () => {
       )}
 
       {/* CORE LAYOUT GRID */}
-      <div className="flex flex-col lg:flex-row items-start gap-6 md:gap-8 w-full transition-all duration-500 ease-in-out">
+      <div className="flex flex-col lg:flex-row items-start gap-4 md:gap-6 lg:gap-8 w-full transition-all duration-500 ease-in-out">
 
         {/* SIDEBAR LEFT */}
-        <div className={`bg-white border border-slate-200 rounded-[2rem] shadow-sm flex flex-col max-h-[750px] transition-all duration-500 ease-in-out origin-left shrink-0 ${
+        <div className={`bg-white border border-slate-200 rounded-[2rem] shadow-sm flex flex-col transition-all duration-500 ease-in-out origin-top lg:origin-left shrink-0 overflow-hidden ${
           isSidebarOpen 
-            ? "w-full lg:w-[32%] opacity-100 scale-100" 
-            : "w-0 opacity-0 scale-95 overflow-hidden !border-0 !p-0 !m-0 !gap-0" // Paksa hilangin ruang kalau ditutup
+            ? "max-h-[800px] lg:max-h-[750px] opacity-100 w-full lg:w-[32%] mb-2 lg:mb-0 scale-100" 
+            : "max-h-0 lg:max-h-[750px] opacity-0 w-full lg:w-0 scale-95 lg:scale-95 !border-0 !p-0 !m-0 !gap-0" // Kunci pemusnah whitespace di HP!
         }`}>
           <div className="p-5 border-b border-slate-100 bg-slate-50/50">
             <div className="relative">
@@ -474,7 +509,7 @@ const Whitebook = () => {
         </div>
     
         {/* KOLOM KANAN: VIEWER & AREA PANEL INTERAKTIF AI */}
-        <div className={`bg-white border border-slate-200 rounded-[2rem] shadow-sm flex flex-col h-[750px] relative transition-all duration-500 ease-in-out overflow-hidden ${
+        <div ref={viewerRef} className={`bg-white border border-slate-200 rounded-[2rem] shadow-sm flex flex-col h-[750px] relative transition-all duration-500 ease-in-out overflow-hidden ${
           isSidebarOpen ? "w-full lg:w-[68%]" : "w-full"
         }`}>
           {activeDoc ? (
@@ -486,7 +521,7 @@ const Whitebook = () => {
 
                   {/* TOMBOL TOGGLE SIDEBAR */}
                   <button 
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+                    onClick={handleToggleSidebar} 
                     className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white hover:bg-blue-50 text-slate-600 hover:text-blue-600 flex items-center justify-center shrink-0 transition-all border border-slate-200 shadow-sm active:scale-95"
                     title={isSidebarOpen ? "Tutup Daftar SOP" : "Buka Daftar SOP"}
                   >
@@ -533,91 +568,87 @@ const Whitebook = () => {
               </div>
 
               {/* 🔥 WRAPPER UTAMA BIAR TEKS, AI, DAN MEDIA PREVIEW BERJAJAR RAPI KE BAWAH */}
-             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/20 p-4 md:p-6 space-y-6 w-full">
+             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/20 p-3 md:p-6 space-y-4 md:space-y-6 w-full">
                 
                 {/* 📝 SEKSI 1: KETERANGAN TEKS SOP */}
                 {(activeDoc.content || activeDoc.description) && (
-                  <div className={`bg-white p-5 md:p-8 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300 ${activeDoc.file_url?.includes("/text-only") ? "flex-1" : ""}`}>
-                    <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-1.5 select-none border-b border-slate-100 pb-3">
+                  <div className={`bg-white p-4 md:p-8 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300`}>
+                    <h4 className="text-[10px] md:text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 md:mb-4 flex items-center gap-1.5 select-none border-b border-slate-100 pb-2 md:pb-3">
                       <i className="fa-solid fa-align-left text-blue-500"></i> {activeDoc.file_url?.includes("/text-only") ? "Isi Dokumen Artikel" : "Detail Keterangan SOP"}
                     </h4>
-                    <p className="text-sm md:text-[15px] text-slate-700 font-medium leading-relaxed whitespace-pre-wrap">
+                    <p className="text-xs md:text-[15px] text-slate-700 font-medium leading-relaxed whitespace-pre-wrap">
                       {activeDoc.content || activeDoc.description}
                     </p>
                   </div>
                 )}
 
-                {/* 📄 SEKSI 3: MEDIA PREVIEW DISPLAY IFRAME */}
+                {/* 📄 SEKSI 2: MEDIA PREVIEW DISPLAY IFRAME */}
                 <div className="w-full">
                   {activeDoc.type === "image" && (
                     <img src={activeDoc.file_url} alt={activeDoc.title} className="max-w-full h-auto rounded-xl border border-slate-200 shadow-sm mx-auto" />
                   )}
                   
                   {activeDoc.type === "pdf" && (
-                    <iframe src={activeDoc.file_url} className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-xl border border-slate-200 shadow-sm bg-white"></iframe>
+                    <iframe src={activeDoc.file_url} className="w-full h-[250px] sm:h-[400px] md:h-[600px] rounded-xl border border-slate-200 shadow-sm bg-white"></iframe>
                   )}
 
                   {/* Render YouTube / G-Drive */}
                   {activeDoc.type === "link" && isEmbeddable(activeDoc.file_url) && (
-                    <div className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-black">
+                    <div className="w-full h-[200px] sm:h-[400px] md:h-[600px] rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-black">
                       <iframe src={getEmbedUrl(activeDoc.file_url)} className="w-full h-full border-0" allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
                     </div>
                   )}
 
                   {/* Fallback kalau link-nya bukan YouTube/G-Drive (misal link web biasa) */}
                   {(!activeDoc.type || (activeDoc.type === "link" && !isEmbeddable(activeDoc.file_url))) && !activeDoc.file_url?.includes("/text-only") && (
-                    <div className="text-center py-12 md:py-16 max-w-sm mx-auto animate-in fade-in zoom-in-95 bg-white border border-slate-200 rounded-2xl shadow-sm mt-4">
-                      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-200 shadow-inner">
-                        <i className="fa-solid fa-arrow-up-right-from-square text-2xl text-blue-400"></i>
+                    <div className="text-center py-8 md:py-16 max-w-sm mx-auto animate-in fade-in zoom-in-95 bg-white border border-slate-200 rounded-2xl shadow-sm mt-2 md:mt-4">
+                      <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4 border border-slate-200 shadow-inner">
+                        <i className="fa-solid fa-arrow-up-right-from-square text-xl md:text-2xl text-blue-400"></i>
                       </div>
-                      <h3 className="text-base font-black text-slate-800 mb-2">Tautan Web Eksternal</h3>
-                      <p className="mb-5 text-xs font-medium text-slate-500 px-4">Dokumen dialihkan ke layanan eksternal.</p>
-                      <a href={activeDoc.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md transition-all">
-                        Buka Dokumen Sekarang <i className="fa-solid fa-arrow-right"></i>
+                      <h3 className="text-sm md:text-base font-black text-slate-800 mb-1 md:mb-2">Tautan Web Eksternal</h3>
+                      <p className="mb-4 md:mb-5 text-[10px] md:text-xs font-medium text-slate-500 px-4">Dokumen dialihkan ke layanan eksternal.</p>
+                      <a href={activeDoc.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 md:px-6 md:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[11px] md:text-xs font-black shadow-md transition-all">
+                        Buka Dokumen <i className="fa-solid fa-arrow-right"></i>
                       </a>
                     </div>
                   )}
                 </div>
 
-                {/* 🤖 SEKSI 2: FITUR AI (KHUSUS INTERN) */}
+                {/* 🤖 SEKSI 3: FITUR AI (KHUSUS INTERN) */}
                 {isIntern && (
-                  <div className="flex flex-col gap-6 items-stretch">
+                  <div className="flex flex-col gap-4 md:gap-6 items-stretch pt-2 md:pt-4 border-t border-slate-200/60">
                     
                     {/* FITUR 1: ACTIONABLE CHECKLIST (SISTEM HISTORY / APPEND) */}
-                    <div className="bg-white border border-slate-200 rounded-[2rem] p-6 sm:p-8 shadow-sm flex flex-col relative overflow-hidden">
+                    <div className="bg-white border border-slate-200 rounded-2xl md:rounded-[2rem] p-4 md:p-8 shadow-sm flex flex-col relative overflow-hidden">
                       <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl pointer-events-none"></div>
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-5 flex gap-3 shadow-sm relative z-10 animate-in fade-in">
-                        <i className="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 text-sm shrink-0"></i>
-                        <div className="text-[10px] md:text-[11px] text-amber-800 font-medium leading-relaxed">
-                          <strong className="block text-amber-900 mb-1 tracking-wide">⚠️ Syarat & Ketentuan Generate AI</strong>
-                          Hasil analisis AI akan tersimpan otomatis di riwayat tab ini. Maksimal perombakan SOP adalah <b>3 Versi</b>. Tombol akan dikunci permanen jika batas versi telah penuh.
+                      
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 md:p-3.5 mb-4 md:mb-5 flex gap-2 md:gap-3 shadow-sm relative z-10 animate-in fade-in">
+                        <i className="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 text-xs md:text-sm shrink-0"></i>
+                        <div className="text-[9px] md:text-[11px] text-amber-800 font-medium leading-relaxed">
+                          <strong className="block text-amber-900 mb-0.5 md:mb-1 tracking-wide">⚠️ Aturan AI</strong>
+                          Maksimal perombakan SOP <b>3 Versi</b>. Tersimpan otomatis di perangkat ini.
                         </div>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 relative z-10">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 md:gap-4 mb-4 md:mb-6 relative z-10">
                         <div>
-                          <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2 mb-1"><i className="fa-solid fa-list-check text-blue-500 text-lg" /> Actionable Checklist</h3>
-                          <p className="text-xs text-slate-500 font-medium">Ekstrak prosedur rumit ini menjadi barisan tugas praktis.</p>
+                          <h3 className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2 mb-0.5 md:mb-1"><i className="fa-solid fa-list-check text-blue-500 text-base md:text-lg" /> AI Checklist</h3>
+                          <p className="text-[10px] md:text-xs text-slate-500 font-medium">Ekstrak prosedur jadi tugas praktis.</p>
                         </div>
-
+                        
                         <button 
                           onClick={handleGenerateBreakdown} 
                           disabled={isGenerating || checklistLogs.length >= 3} 
-                          className={`px-5 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 shadow-md shrink-0 
+                          className={`px-4 py-2.5 md:px-5 md:py-3 text-[10px] md:text-xs font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 shadow-md shrink-0 w-full sm:w-auto
                             ${checklistLogs.length >= 3 
                               ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300' 
                               : 'bg-[#0b1437] hover:bg-blue-700 text-white disabled:opacity-50'}`}
                         >
-                          {isGenerating 
-                            ? <><i className="fa-solid fa-spinner fa-spin" /> Menganalisis...</> 
-                            : checklistLogs.length >= 3 
-                              ? <><i className="fa-solid fa-lock text-slate-400" /> Limit 3 Versi Penuh</>
-                              : <><i className="fa-solid fa-wand-magic-sparkles text-amber-400" /> Generate Checklist</>
-                          }
+                          {isGenerating ? <><i className="fa-solid fa-spinner fa-spin" /> Proses...</> : checklistLogs.length >= 3 ? <><i className="fa-solid fa-lock" /> Limit Penuh</> : <><i className="fa-solid fa-wand-magic-sparkles text-amber-400" /> Generate</>}
                         </button>
                       </div>
 
-                      <div className="flex-1 overflow-y-auto max-h-[350px] custom-scrollbar space-y-4 relative z-10 pr-2">
+                      <div className="flex-1 overflow-y-auto max-h-[200px] md:max-h-[350px] custom-scrollbar space-y-3 md:space-y-4 relative z-10 pr-1 md:pr-2">
                         {checklistLogs && checklistLogs.length > 0 ? (
                           checklistLogs.map((log, logIndex) => (
                             <div key={log.id} className="flex flex-col bg-slate-50/80 p-5 rounded-2xl border border-slate-200 hover:border-blue-300 hover:shadow-sm transition-all animate-in fade-in slide-in-from-bottom-2 relative">
@@ -655,42 +686,42 @@ const Whitebook = () => {
                     </div>
 
                     {/* FITUR 2: CHAT ASSISTANT (LIMIT 5 TOKEN) */}
-                    <div className="bg-gradient-to-br from-indigo-50/80 to-white border border-indigo-100 rounded-[2rem] p-4 sm:p-8 shadow-sm flex flex-col relative overflow-hidden w-full max-w-full">
-                      <div className="mb-5 px-1">
-                        <h3 className="text-sm font-black uppercase tracking-wider text-indigo-900 flex items-center gap-2 mb-1"><i className="fa-solid fa-robot text-indigo-500 text-lg" /> Tanya Macrecen AI</h3>
-                        <p className="text-xs text-indigo-900/60 font-medium">Bingung sama isi panduan? Tanyain aja ke asisten pinter ini.</p>
+                    <div className="bg-gradient-to-br from-indigo-50/80 to-white border border-indigo-100 rounded-2xl md:rounded-[2rem] p-4 md:p-8 shadow-sm flex flex-col relative overflow-hidden w-full max-w-full">
+                      <div className="mb-3 md:mb-5 px-1">
+                        <h3 className="text-xs md:text-sm font-black uppercase tracking-wider text-indigo-900 flex items-center gap-2 mb-0.5 md:mb-1"><i className="fa-solid fa-robot text-indigo-500 text-base md:text-lg" /> Tanya Macrecen AI</h3>
+                        <p className="text-[10px] md:text-xs text-indigo-900/60 font-medium">Bingung? Tanyain aja langsung.</p>
                       </div>
                       
-                      <div className="flex-1 min-h-[120px] bg-white p-4 sm:p-5 rounded-2xl border border-indigo-100/60 shadow-inner text-sm text-slate-700 font-medium mb-5 w-full break-words">
+                      <div className="flex-1 min-h-[80px] md:min-h-[120px] bg-white p-3 md:p-5 rounded-xl md:rounded-2xl border border-indigo-100/60 shadow-inner text-xs md:text-sm text-slate-700 font-medium mb-3 md:mb-5 w-full break-words">
                         {answer ? (
                           <div className="animate-in fade-in slide-in-from-bottom-1 w-full max-w-full">
-                            <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-700 text-[9px] font-black uppercase tracking-widest rounded-lg mb-3">Jawaban Macrecen AI:</span>
-                            <p className="leading-relaxed whitespace-pre-wrap word-break break-words w-full">{answer}</p>
+                            <span className="inline-block px-2 py-1 md:px-3 md:py-1 bg-indigo-100 text-indigo-700 text-[8px] md:text-[9px] font-black uppercase tracking-widest rounded-lg mb-2 md:mb-3">Jawaban AI:</span>
+                            <p className="leading-relaxed whitespace-pre-wrap break-words w-full">{answer}</p>
                           </div>
                         ) : (
                           <div className="h-full flex flex-col items-center justify-center text-center opacity-50 px-2">
-                            <i className="fa-regular fa-comments text-3xl text-indigo-300 mb-2"></i>
-                            <p className="text-xs text-indigo-900 font-bold">Belum ada obrolan.</p>
+                            <i className="fa-regular fa-comments text-2xl md:text-3xl text-indigo-300 mb-1 md:mb-2"></i>
+                            <p className="text-[10px] md:text-xs text-indigo-900 font-bold">Belum ada obrolan.</p>
                           </div>
                         )}
                       </div>
 
                       <form onSubmit={handleAskAI} className="flex flex-col w-full shrink-0">
-                        <div className="flex gap-2 sm:gap-3 w-full">
+                        <div className="flex gap-2 w-full">
                           <input 
                             type="text" 
                             value={question} 
                             onChange={(e) => setQuestion(e.target.value)} 
-                            placeholder={aiToken === 0 ? "Limit harian habis..." : "Contoh: Jika server down dadakan?"} 
-                            className={`flex-1 min-w-0 bg-white border border-slate-200 rounded-xl px-3 sm:px-4 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-slate-700 outline-none shadow-sm transition-all ${aiToken === 0 ? "bg-slate-100 cursor-not-allowed opacity-60" : "focus:ring-2 focus:ring-indigo-500/30"}`} 
+                            placeholder={aiToken === 0 ? "Limit abis..." : "Contoh: Jika server down?"} 
+                            className={`flex-1 min-w-0 bg-white border border-slate-200 rounded-xl px-3 py-2.5 md:py-3.5 text-[11px] md:text-sm font-bold text-slate-700 outline-none shadow-sm transition-all ${aiToken === 0 ? "bg-slate-100 cursor-not-allowed opacity-60" : "focus:ring-2 focus:ring-indigo-500/30"}`} 
                             disabled={isAsking || aiToken === 0} 
                           />
                           <button 
                             type="submit" 
                             disabled={isAsking || !question.trim() || aiToken === 0} 
-                            className="px-4 sm:px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                            className="px-3 md:px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] md:text-sm font-black flex items-center justify-center gap-2 transition-all shadow-lg disabled:opacity-40 shrink-0 w-12 md:w-auto"
                           >
-                            {isAsking ? <i className="fa-solid fa-ellipsis fa-fade text-lg" /> : <><i className="fa-solid fa-paper-plane" /> <span className="hidden sm:inline">Kirim</span></>}
+                            {isAsking ? <i className="fa-solid fa-ellipsis fa-fade" /> : <><i className="fa-solid fa-paper-plane" /> <span className="hidden md:inline">Kirim</span></>}
                           </button>
                         </div>
                         

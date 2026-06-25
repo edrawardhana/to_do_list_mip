@@ -71,6 +71,7 @@ const InternTasks = () => {
   const [search, setSearch] = useState("");
   const [selectedTask, setSelectedTask] = useState(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isMobileHeroOpen, setIsMobileHeroOpen] = useState(false);
 
   /* ── TANSTACK QUERY: Auto Fetch & Cache ── */
   const { data: tasks = [], isLoading: loading } = useQuery({
@@ -196,52 +197,76 @@ const InternTasks = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-8 px-1 max-w-5xl mx-auto">
+    <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-4 md:pt-8 px-2 md:px-4 max-w-5xl mx-auto">
       {/* HERO SECTION */}
-      <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-6 sm:p-8 md:p-10 rounded-[2.5rem] text-white shadow-lg border border-blue-400 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-[1.5rem] md:rounded-[2.5rem] text-white shadow-lg border border-blue-400 relative overflow-hidden transition-all duration-500">
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-20 -left-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-8">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 backdrop-blur-sm text-white rounded-2xl flex items-center justify-center shadow-lg border border-white/30 shrink-0">
-                <i className="fa-solid fa-clipboard-check text-lg sm:text-xl" />
-              </div>
-              <div><span className="text-sky-50 text-[10px] font-black uppercase tracking-widest">Logbook Harian</span></div>
+        <div className="absolute -bottom-20 -left-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none hidden md:block" />
+
+        <div className="md:hidden flex items-center justify-between p-4 relative z-20 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-white/20 backdrop-blur-sm text-white rounded-xl flex items-center justify-center shadow-lg border border-white/30 shrink-0">
+              <i className="fa-solid fa-clipboard-check text-xs" />
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-2 sm:mb-3 text-white">Daily Tasks</h1>
-            <p className="text-xs sm:text-[13px] md:text-sm text-blue-50/90 font-medium border-l-[3px] border-white/50 pl-3 sm:pl-4 max-w-lg leading-relaxed mb-6 sm:mb-8">
-              Selesaikan tugas dan lampirkan bukti. Pantau progress harianmu dan cek riwayat di tab sebelah kanan.
-            </p>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              {[{ id: "todo", label: "Tugas Aktif", icon: "fa-list-check", count: tasks.filter((t) => t.status !== "completed").length }, { id: "history", label: "Riwayat Tugas", icon: "fa-clock-rotate-left", count: tasks.length }].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-xs sm:text-sm font-bold transition-all duration-300 border backdrop-blur-md ${
-                    activeTab === tab.id ? "bg-white text-blue-600 border-white shadow-xl scale-105" : "bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/30"
-                  }`}
-                >
-                  <i className={`fa-solid ${tab.icon}`} />
-                  {tab.label}
-                  {tab.count > 0 && <span className={`text-[9px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded-full transition-colors ${activeTab === tab.id ? "bg-blue-100 text-blue-600" : "bg-white/20 text-white"}`}>{tab.count}</span>}
-                </button>
-              ))}
-            </div>
+            <h1 className="text-lg font-black tracking-tighter text-white">DAILY TASKS</h1>
           </div>
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 p-5 sm:p-7 rounded-3xl w-full lg:w-[300px] shrink-0 shadow-xl transition-all duration-300 hover:bg-white/15">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <p className="text-[10px] font-bold text-blue-50 uppercase tracking-widest mb-0.5">Progress Hari Ini</p>
-                <p className="text-xs font-medium text-white/70">{loading ? "…" : totalTasks} tugas hari ini</p>
+          <button 
+            type="button"
+            onClick={() => setIsMobileHeroOpen(!isMobileHeroOpen)}
+            className="w-8 h-8 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center transition-all active:scale-95"
+          >
+            <i className={`fa-solid fa-chevron-down text-sm transition-transform duration-300 ${isMobileHeroOpen ? "rotate-180" : ""}`} />
+          </button>
+        </div>
+        
+        <div className={`relative z-10 transition-all duration-500 ease-in-out overflow-hidden md:max-h-[600px] ${
+          isMobileHeroOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0 md:max-h-[600px] md:opacity-100"
+        }`}>
+          <div className="p-4 pt-3 sm:p-8 md:p-10 flex flex-col lg:flex-row lg:items-end justify-between gap-5 md:gap-8">
+            <div className="flex-1">
+              <div className="hidden md:flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 backdrop-blur-sm text-white rounded-2xl flex items-center justify-center shadow-lg border border-white/30 shrink-0">
+                  <i className="fa-solid fa-clipboard-check text-lg sm:text-xl" />
+                </div>
+                <div><span className="text-sky-50 text-[10px] font-black uppercase tracking-widest">Logbook Harian</span></div>
               </div>
-              <i className="fa-solid fa-chart-pie text-white/80 text-lg" />
+              <h1 className="hidden md:block text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-2 sm:mb-3 text-white">Daily Tasks</h1>
+              <p className="text-[11px] sm:text-[13px] md:text-sm text-blue-50/90 font-medium border-l-[2px] md:border-l-[3px] border-white/50 pl-2.5 sm:pl-4 max-w-lg leading-relaxed mb-4 sm:mb-8">
+                Selesaikan tugas dan lampirkan bukti. Pantau progress harianmu.
+              </p>
+              
+              {/* Tab Navigation dikecilin di HP */}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                {[{ id: "todo", label: "Tugas Aktif", icon: "fa-list-check", count: tasks.filter((t) => t.status !== "completed").length }, { id: "history", label: "Riwayat", icon: "fa-clock-rotate-left", count: tasks.length }].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-1.5 md:gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-xl md:rounded-2xl text-[10px] sm:text-sm font-bold transition-all duration-300 border backdrop-blur-md flex-1 sm:flex-none justify-center ${
+                      activeTab === tab.id ? "bg-white text-blue-600 border-white shadow-xl scale-[1.02] md:scale-105" : "bg-white/10 text-white border-white/20 hover:bg-white/20"
+                    }`}
+                  >
+                    <i className={`fa-solid ${tab.icon}`} />
+                    {tab.label}
+                    {tab.count > 0 && <span className={`text-[8px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded-full transition-colors ${activeTab === tab.id ? "bg-blue-100 text-blue-600" : "bg-white/20 text-white"}`}>{tab.count}</span>}
+                  </button>
+                ))}
+              </div>
             </div>
-            <h3 className="text-4xl sm:text-5xl font-black text-white leading-none tracking-tighter mb-3">{loading ? 0 : progressPct}%</h3>
-            <div className="w-full h-2.5 bg-black/20 rounded-full overflow-hidden border border-white/10 shadow-inner">
-              <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${progressPct}%` }} />
+
+            {/* 🔥 FIX 3: Progress Card digepengin di HP */}
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 sm:p-7 rounded-2xl md:rounded-3xl w-full lg:w-[300px] shrink-0 shadow-xl transition-all duration-300">
+              <div className="flex justify-between items-start mb-2 md:mb-3">
+                <div>
+                  <p className="text-[9px] md:text-[10px] font-bold text-blue-50 uppercase tracking-widest mb-0.5">Progress Hari Ini</p>
+                  <p className="text-[10px] md:text-xs font-medium text-white/70">{loading ? "…" : totalTasks} tugas hari ini</p>
+                </div>
+                <i className="fa-solid fa-chart-pie text-white/80 text-sm md:text-lg" />
+              </div>
+              <h3 className="text-3xl sm:text-4xl md:text-5xl font-black text-white leading-none tracking-tighter mb-2 md:mb-3">{loading ? 0 : progressPct}%</h3>
+              <div className="w-full h-2 md:h-2.5 bg-black/20 rounded-full overflow-hidden border border-white/10 shadow-inner">
+                <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${progressPct}%` }} />
+              </div>
             </div>
-            <p className="text-[10px] sm:text-[11px] font-medium text-white/60 mt-3 text-right"><span className="font-bold text-white">{loading ? "…" : completedCount}</span> dari {loading ? "…" : totalTasks} selesai</p>
           </div>
         </div>
       </div>

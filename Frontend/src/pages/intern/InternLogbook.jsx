@@ -33,6 +33,7 @@ const fmt = (b) =>
     : (b / 1048576).toFixed(1) + " MB";
 const isImg = (u = "") => /\.(jpe?g|png|gif|webp|bmp|svg)(\?.*)?$/i.test(u);
 
+
 /* ── Pagination Component ─────────────────────────────────────────────────── */
 const Pager = ({ page, total, onChange }) => {
   if (total <= 1) return null;
@@ -90,6 +91,8 @@ const InternLogbook = () => {
   const [description, setDescription] = useState("");
   const [chosenFile, setChosenFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+
+  const [isMobileHeroOpen, setIsMobileHeroOpen] = useState(false);
 
   /* ── Fetch ALL tasks (no date filter) so intern sees full history ── */
   const fetchTasks = useCallback(async () => {
@@ -251,55 +254,59 @@ const InternLogbook = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16 pt-8 px-2 max-w-4xl mx-auto">
+    <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16 pt-4 md:pt-8 px-3 lg:px-2 max-w-4xl mx-auto">
       {/* ── HERO ── */}
-      <div className="bg-gradient-to-br from-[#0b1437] to-[#111c44] p-8 rounded-[2.5rem] text-white shadow-xl border border-white/5 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-[#0b1437] to-[#111c44] rounded-[1.5rem] md:rounded-[2.5rem] text-white shadow-xl border border-white/5 relative overflow-hidden transition-all duration-500">
         <div className="absolute -top-16 -right-16 w-60 h-60 bg-sky-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-11 h-11 bg-gradient-to-br from-sky-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <i className="fa-solid fa-book-open-reader text-white" />
-              </div>
-              <span className="text-sky-300 text-[10px] font-black uppercase tracking-[0.2em]">
-                Daily Logbook
-              </span>
+        <div className="md:hidden flex items-center justify-between p-4 relative z-20 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-sky-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shrink-0">
+              <i className="fa-solid fa-book-open-reader text-white text-xs" />
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-white mb-1">
-              Riwayat Tugas Saya
-            </h1>
-            <p className="text-sky-100/70 text-sm font-medium">
-              Lihat semua tugas, status ACC, dan kirim laporan.
-            </p>
+            <h1 className="text-lg font-black tracking-tighter text-white">LOGBOOK</h1>
           </div>
-          <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
-            {[
-              {
-                n: counts.approved,
-                lbl: "Di-ACC",
-                cls: "bg-emerald-500/20 border-emerald-500/30 text-emerald-300",
-              },
-              {
-                n: counts.pending,
-                lbl: "Pending",
-                cls: "bg-amber-500/10 border-amber-500/20 text-amber-300",
-              },
-              {
-                n: counts.rejected,
-                lbl: "Revisi",
-                cls: "bg-rose-500/10 border-rose-500/20 text-rose-300",
-              },
-            ].map((c) => (
-              <div
-                key={c.lbl}
-                className={`flex flex-col items-center border rounded-2xl px-4 py-2.5 text-center ${c.cls}`}
-              >
-                <span className="text-2xl font-black">{c.n}</span>
-                <span className="text-[9px] uppercase tracking-widest font-bold mt-0.5">
-                  {c.lbl}
+          <button 
+            type="button"
+            onClick={() => setIsMobileHeroOpen(!isMobileHeroOpen)}
+            className="w-8 h-8 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center transition-all active:scale-95"
+          >
+            <i className={`fa-solid fa-chevron-down text-sm transition-transform duration-300 ${isMobileHeroOpen ? "rotate-180" : ""}`} />
+          </button>
+        </div>
+        
+        <div className={`relative z-10 transition-all duration-500 ease-in-out overflow-hidden md:max-h-[500px] ${
+          isMobileHeroOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0 md:max-h-[500px] md:opacity-100"
+        }`}>
+          <div className="p-5 pt-3 md:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="hidden md:flex items-center gap-3 mb-3">
+                <div className="w-11 h-11 bg-gradient-to-br from-sky-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <i className="fa-solid fa-book-open-reader text-white" />
+                </div>
+                <span className="text-sky-300 text-[10px] font-black uppercase tracking-[0.2em]">
+                  Daily Logbook
                 </span>
               </div>
-            ))}
+              <h1 className="hidden md:block text-3xl font-black tracking-tight text-white mb-1">
+                Riwayat Tugas Saya
+              </h1>
+              <p className="text-sky-100/70 text-xs md:text-sm font-medium border-l-[2px] md:border-0 border-white/30 pl-2 md:pl-0">
+                Lihat semua tugas, status ACC, dan kirim laporan.
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap justify-start sm:justify-end mt-2 sm:mt-0">
+              {[
+                { n: counts.approved, lbl: "Di-ACC", cls: "bg-emerald-500/20 border-emerald-500/30 text-emerald-300" },
+                { n: counts.pending, lbl: "Pending", cls: "bg-amber-500/10 border-amber-500/20 text-amber-300" },
+                { n: counts.rejected, lbl: "Revisi", cls: "bg-rose-500/10 border-rose-500/20 text-rose-300" },
+              ].map((c) => (
+                <div key={c.lbl} className={`flex flex-col items-center border rounded-xl sm:rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5 text-center flex-1 sm:flex-none ${c.cls}`}>
+                  <span className="text-xl sm:text-2xl font-black">{c.n}</span>
+                  <span className="text-[8px] sm:text-[9px] uppercase tracking-widest font-bold mt-0.5">{c.lbl}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
