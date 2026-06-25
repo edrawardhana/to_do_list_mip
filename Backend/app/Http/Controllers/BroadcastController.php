@@ -94,7 +94,7 @@ class BroadcastController extends Controller
             'title'        => $request->title,
             'content'      => $request->content,
             'category'     => $category,
-            'target_label' => $targetLabel, // 🔥 FIX 3: Simpan target label
+            'target_label' => $targetLabel, 
             'expires_at'   => now()->addDays(7),
             'created_at'   => now(),
         ]);
@@ -110,10 +110,11 @@ class BroadcastController extends Controller
                 'type'       => $category === 'urgent' ? 'warning' : 'info',
                 'is_read'    => false,
                 'created_at' => $now,
-                'updated_at' => $now,
             ];
         }
-        Notification::insert($notificationsData); // Insert batch biar optimal
+        if (!empty($notificationsData)) {
+            Notification::insert($notificationsData);
+        }
 
         // ── 4. Send FCM push notifications ────────────────────────────────────
         $fcmResult = ['sent' => 0, 'failed' => 0, 'no_token' => 0, 'skipped' => true];

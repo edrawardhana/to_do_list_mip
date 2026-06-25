@@ -18,14 +18,13 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SuperadminDashboardController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\InternDashboardController;
-use App\Http\Controllers\LogbookAIController; // ← TAMBAHAN 1: Import Controller AI
+use App\Http\Controllers\LogbookAIController; 
 
 // Endpoint publik (Bisa diakses tanpa login)
 Route::get('/divisions', [DivisionController::class, 'index']);
 
 // JWT Auth Endpoints
 Route::prefix('auth')->group(function () {
-    // ⚠️ Registrasi publik DITUTUP — akun hanya dibuat oleh Superadmin
     Route::post('/login', [AuthController::class, 'login']);
 
     Route::middleware('auth:api')->group(function () {
@@ -44,16 +43,16 @@ Route::middleware(['auth:api', \App\Http\Middleware\CheckAccountLock::class])->g
 
     // Daily Task (Logbook) Routes
     // ⚠️ Specific routes MUST be before apiResource to avoid wildcard capture
-    Route::post('/logbook/evaluate', [LogbookAIController::class, 'checkLogbook']); // ← TAMBAHAN 2: Endpoint evaluasi AI (Gatekeeper Llama 4 Scout)
+    Route::post('/logbook/evaluate', [LogbookAIController::class, 'checkLogbook']); 
     Route::post('/daily-tasks/assign', [DailyTaskController::class, 'assignTask']);
     Route::post('/daily-tasks/{id}/submit', [DailyTaskController::class, 'submit']);
-    Route::put('/daily-tasks/{id}/confirm', [DailyTaskController::class, 'confirm']);  // ← Tugas Bersama: ACC
-    Route::put('/daily-tasks/{id}/reject', [DailyTaskController::class, 'reject']);    // ← Tugas Bersama: Tolak
+    Route::put('/daily-tasks/{id}/confirm', [DailyTaskController::class, 'confirm']); 
+    Route::put('/daily-tasks/{id}/reject', [DailyTaskController::class, 'reject']);   
     Route::apiResource('daily-tasks', DailyTaskController::class)->except(['show']);
 
     // Whiteboard Routes
     Route::apiResource('whiteboards', WhiteboardController::class)->except(['show']);
-    Route::post('/whiteboards/breakdown', [WhiteboardAIController::class, 'generateBreakdown']);
+    Route::post('/ai/generate-breakdown', [WhiteboardAIController::class, 'generateBreakdown']);
     Route::post('/whiteboards/ask', [WhiteboardAIController::class, 'askAssistant']);
 
     // Task Template Routes (Admin/Superadmin)

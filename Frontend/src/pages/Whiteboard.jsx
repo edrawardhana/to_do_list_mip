@@ -51,10 +51,11 @@ const Whitebook = () => {
   const isPinkTheme = userTheme === "super_admin";           
   const isDarkBlueTheme = userTheme === "admin"; 
 
-  const [selectedDiv, setSelectedDiv] = useState(canViewAll ? "IT Support" : myDivision);
+  const [selectedDiv, setSelectedDiv] = useState(canViewAll ? "semua" : myDivision);
   const [activeDocId, setActiveDocId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
   const [formData, setFormData] = useState({
     id: null,
@@ -90,14 +91,47 @@ const Whitebook = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: divisionsList = [] } = useQuery({
+    queryKey: ["divisionsList"],
+    queryFn: async () => {
+      const res = await api.get("/divisions");
+      return Array.isArray(res.data) ? res.data : (res.data?.data || []);
+    },
+    enabled: canViewAll, 
+    staleTime: 10 * 60 * 1000,
+  });
+
   const filteredDocs = useMemo(() => {
+    if (!documents || documents.length === 0) return [];
+
     return documents.filter((doc) => {
-      const divName = doc.division?.name || doc.division_name || doc.division || "Unknown";
-      const matchDiv = canViewAll ? divName === selectedDiv : true;
-      const matchSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase());
+      // 1. Tangkep nama dari backend (kalau ada)
+      let rawDiv = doc.category || doc.division?.name || doc.division_name || doc.division;
+
+      // 🔥 2. FIX: Terjemahin ID divisi pake divisionsList dari API!
+      if (!rawDiv && doc.division_id && divisionsList.length > 0) {
+        const matchedDiv = divisionsList.find(d => d.id === doc.division_id);
+        if (matchedDiv) {
+          rawDiv = matchedDiv.name;
+        }
+      }
+
+      rawDiv = rawDiv || "Unknown";
+
+      // 3. Bersihin spasi dan kecilin huruf
+      const docDivName = String(rawDiv).toLowerCase().trim();
+      const selected = String(selectedDiv).toLowerCase().trim();
+
+      let matchDiv = true;
+      if (canViewAll && selected !== "semua" && selected !== "semua divisi") {
+        // 🔥 Pake includes biar kebal typo (IT tembus ke IT Support)
+        matchDiv = docDivName.includes(selected) || selected.includes(docDivName);
+      }
+
+      const matchSearch = (doc.title || "").toLowerCase().includes(searchQuery.toLowerCase());
       return matchDiv && matchSearch;
     });
-  }, [documents, selectedDiv, searchQuery, canViewAll]);
+  }, [documents, selectedDiv, searchQuery, canViewAll, divisionsList]); 
 
   useEffect(() => {
     if (filteredDocs.length > 0 && (!activeDocId || !filteredDocs.find(d => d.id === activeDocId))) {
@@ -105,10 +139,33 @@ const Whitebook = () => {
     }
   }, [filteredDocs, activeDocId]);
 
+  const groupedDocs = useMemo(() => {
+    const groups = {};
+    filteredDocs.forEach(doc => {
+      let rawDiv = doc.category || doc.division?.name || doc.division_name || doc.division;
+      if (!rawDiv && doc.division_id && divisionsList.length > 0) {
+        const matchedDiv = divisionsList.find(d => d.id === doc.division_id);
+        if (matchedDiv) rawDiv = matchedDiv.name;
+      }
+      const divName = rawDiv || "General / Umum";
+      
+      if (!groups[divName]) groups[divName] = [];
+      groups[divName].push(doc);
+    });
+    return groups;
+  }, [filteredDocs, divisionsList]);
+
   const activeDoc = useMemo(() => filteredDocs.find((d) => d.id === activeDocId), [filteredDocs, activeDocId]);
 
   useEffect(() => {
-    setChecklistLogs([]);
+    if (activeDocId) {
+      const savedHistory = localStorage.getItem(`checklist_logs_doc_${activeDocId}`);
+      if (savedHistory) {
+        setChecklistLogs(JSON.parse(savedHistory));
+      } else {
+        setChecklistLogs([]);
+      }
+    }
     setQuestion("");
     setAnswer("");
   }, [activeDocId]);
@@ -130,18 +187,25 @@ const Whitebook = () => {
       });
 
       const newChecklist = res.data?.data || [];
-      setChecklistLogs((prevLogs) => [
-        ...prevLogs, 
-        {
+      setChecklistLogs((prevLogs) => {
+        const newLog = {
           id: Date.now(),
           time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
           items: newChecklist
-        }
-      ]);
+        };
+        const updatedLogs = [...prevLogs, newLog].slice(-3); // Mentok 3 versi
+        
+        localStorage.setItem(`checklist_logs_doc_${activeDocId}`, JSON.stringify(updatedLogs));
+        
+        return updatedLogs;
+      });
 
-      toast.success("Checklist berhasil di-generate!", { id: toastId });
+      toast.success("Checklist berhasil di-generate dan tersimpan di riwayat!", { id: toastId });
+
     } catch (error) {
-      toast.error("AI gagal merespons.", { id: toastId });
+      console.error("AI Error:", error.response?.data || error.message);
+      const errMsg = error.response?.data?.message || "AI gagal merespons. Cek Console F12.";
+      toast.error(errMsg, { id: toastId });
     } finally {
       setIsGenerating(false);
     }
@@ -190,24 +254,59 @@ const Whitebook = () => {
     e.preventDefault();
     const tid = toast.loading("Menyimpan materi...");
     try {
-      const iconMap = { gdrive: "fa-brands fa-google-drive", video: "fa-solid fa-circle-play", link: "fa-solid fa-link", text: "fa-solid fa-align-left" };
-      const payload = {
-        title: formData.title,
-        content: formData.content,       
-        description: formData.content,   
-        icon: iconMap[formData.type] || "fa-solid fa-file", 
-        type: formData.type === "text" || formData.type === "gdrive" || formData.type === "video" ? "link" : formData.type,
-        file_url: formData.type === "text" ? `${window.location.origin}/text-only` : formData.file_url
-      };
+      const isFileUpload = ["pdf", "video", "image"].includes(formData.type);
+      let payload;
+      let headers = {};
 
-      if (formData.id) await api.put(`/whiteboards/${formData.id}`, payload); 
-      else await api.post("/whiteboards", payload); 
-      
+      if (isFileUpload) {
+        payload = new FormData();
+        payload.append("title", formData.title);
+        payload.append("type", formData.type);
+        payload.append("icon", getIconByType(formData.type));
+        
+        if (formData.file_upload) {
+          payload.append("file", formData.file_upload); 
+        }
+        if (formData.id) {
+          payload.append("_method", "PUT");
+        }
+        headers = { "Content-Type": "multipart/form-data" };
+      } else {
+        payload = {
+          title: formData.title,
+          content: formData.content,       
+          description: formData.content,   
+          icon: getIconByType(formData.type), 
+          type: ["text", "gdrive", "youtube"].includes(formData.type) ? "link" : formData.type,
+          file_url: formData.type === "text" ? `${window.location.origin}/text-only` : formData.file_url
+        };
+      }
+
+      // Hit API-nya
+      let res;
+      if (formData.id) {
+        if (isFileUpload) {
+          res = await api.post(`/whiteboards/${formData.id}`, payload, { headers }); 
+        } else {
+          res = await api.put(`/whiteboards/${formData.id}`, payload); 
+        }
+      } else {
+        res = await api.post("/whiteboards", payload, { headers }); 
+      }
+
       toast.success("Materi berhasil disimpan!", { id: tid });
       setIsFormOpen(false);
       queryClient.invalidateQueries(["whitebooksData"]);
+
+      if (res.data?.data?.id) {
+        setActiveDocId(res.data.data.id);
+      }
+
     } catch (error) {
-      toast.error("Gagal memvalidasi data ke server.", { id: tid });
+      const errorMsg = error.response?.data?.errors?.file?.[0] 
+                    || error.response?.data?.message 
+                    || "Gagal memvalidasi data ke server.";
+      toast.error(errorMsg, { id: tid });
     }
   };
 
@@ -275,19 +374,37 @@ const Whitebook = () => {
         <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap gap-2 items-center mb-6">
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2 mr-4">Filter Divisi:</span>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => setSelectedDiv("semua")} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedDiv === "semua" ? (isPinkTheme ? "bg-pink-500 text-white border-pink-500 shadow-md shadow-pink-500/20" : isDarkBlueTheme ? "bg-blue-800 text-white border-blue-800 shadow-md shadow-blue-800/20" : "bg-cyan-600 text-white border-cyan-600 shadow-md shadow-cyan-500/20") : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}>Semua Divisi</button>
-            {["IT Support", "Marketing", "Public Relation", "Design", "Administration", "Media & Production"].map(div => (
-              <button key={div} onClick={() => setSelectedDiv(div)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedDiv === div ? (isPinkTheme ? "bg-pink-500 text-white border-pink-500 shadow-md shadow-pink-500/20" : isDarkBlueTheme ? "bg-blue-800 text-white border-blue-800 shadow-md shadow-blue-800/20" : "bg-cyan-600 text-white border-cyan-600 shadow-md shadow-cyan-500/20") : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}>{div}</button>
+            
+            <button 
+              onClick={() => setSelectedDiv("semua")} 
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedDiv === "semua" ? (isPinkTheme ? "bg-pink-500 text-white border-pink-500 shadow-md shadow-pink-500/20" : isDarkBlueTheme ? "bg-blue-800 text-white border-blue-800 shadow-md shadow-blue-800/20" : "bg-cyan-600 text-white border-cyan-600 shadow-md shadow-cyan-500/20") : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}
+            >
+              Semua Divisi
+            </button>
+            
+            {divisionsList.map(div => (
+              <button 
+                key={div.id} 
+                onClick={() => setSelectedDiv(div.name)} 
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedDiv === div.name ? (isPinkTheme ? "bg-pink-500 text-white border-pink-500 shadow-md shadow-pink-500/20" : isDarkBlueTheme ? "bg-blue-800 text-white border-blue-800 shadow-md shadow-blue-800/20" : "bg-cyan-600 text-white border-cyan-600 shadow-md shadow-cyan-500/20") : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}
+              >
+                {div.name}
+              </button>
             ))}
+
           </div>
         </div>
       )}
 
       {/* CORE LAYOUT GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
-        
+      <div className="flex flex-col lg:flex-row items-start gap-6 md:gap-8 w-full transition-all duration-500 ease-in-out">
+
         {/* SIDEBAR LEFT */}
-        <div className="lg:col-span-4 bg-white border border-slate-200 rounded-[2rem] shadow-sm flex flex-col overflow-hidden max-h-[750px]">
+        <div className={`bg-white border border-slate-200 rounded-[2rem] shadow-sm flex flex-col max-h-[750px] transition-all duration-500 ease-in-out origin-left shrink-0 ${
+          isSidebarOpen 
+            ? "w-full lg:w-[32%] opacity-100 scale-100" 
+            : "w-0 opacity-0 scale-95 overflow-hidden !border-0 !p-0 !m-0 !gap-0" // Paksa hilangin ruang kalau ditutup
+        }`}>
           <div className="p-5 border-b border-slate-100 bg-slate-50/50">
             <div className="relative">
               <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -307,47 +424,85 @@ const Whitebook = () => {
                 <p className="font-black text-slate-500 text-xs">Belum ada materi di divisi ini.</p>
               </div>
             ) : (
-              filteredDocs.map((doc) => {
-                const isActive = activeDocId === doc.id;
-                return (
-                  <div key={doc.id} onClick={() => setActiveDocId(doc.id)} className={`p-4 rounded-2xl cursor-pointer transition-all border group ${isActive ? (isPinkTheme ? "bg-pink-50 border-pink-200 shadow-sm" : "bg-blue-50 border-blue-200 shadow-sm") : "bg-white border-slate-100 hover:border-slate-300 hover:bg-slate-50"}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${isActive ? (isPinkTheme ? "bg-pink-500 text-white border-pink-600" : "bg-blue-600 text-white border-blue-700") : "bg-slate-100 border-slate-200 group-hover:bg-white"}`}><i className={`${doc.icon || getIconByType(doc.type)} ${isActive ? "text-white" : ""} text-base`} /></div>
-                        <div>
-                          <h4 className={`text-[13px] font-black leading-tight mb-1 truncate max-w-[180px] ${isActive ? (isPinkTheme ? "text-pink-700" : "text-blue-800") : "text-slate-700"}`}>{doc.title}</h4>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{doc.type || "materi"}</p>
-                        </div>
+              <>
+                {/* Render pakai groupedDocs biar kepisah per divisi */}
+                {Object.entries(groupedDocs).map(([divName, docsInDiv]) => (
+                  <div key={divName} className="mb-4 last:mb-0">
+                    
+                    {/* Munculin Header Divisi cuma pas milih "semua" */}
+                    {selectedDiv === "semua" && (
+                      <div className="flex items-center gap-3 mb-3 px-1 mt-6 first:mt-0">
+                        <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${isPinkTheme ? "text-pink-500 bg-pink-50 border-pink-200" : "text-blue-500 bg-blue-50 border-blue-200"}`}>
+                          <i className="fa-solid fa-layer-group mr-1"></i> {divName}
+                        </span>
+                        <span className="h-px bg-slate-200 flex-1"></span>
                       </div>
-                      {canEdit && (
-                        <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? "opacity-100" : ""}`}>
-                          <button onClick={(e) => { e.stopPropagation(); handleOpenForm(doc); }} className="w-6 h-6 rounded-lg flex items-center justify-center bg-white border border-slate-200 text-slate-400 hover:text-amber-500 hover:border-amber-200 transition-colors"><i className="fa-solid fa-pen text-[9px]" /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDelete(doc.id, doc.title); }} className="w-6 h-6 rounded-lg flex items-center justify-center bg-white border border-slate-200 text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-colors"><i className="fa-solid fa-trash text-[9px]" /></button>
-                        </div>
-                      )}
+                    )}
+
+                    {/* Render List SOP di dalem divisi tersebut */}
+                    <div className="space-y-2">
+                      {docsInDiv.map((doc) => {
+                        const isActive = activeDocId === doc.id;
+                        return (
+                          <div key={doc.id} onClick={() => setActiveDocId(doc.id)} className={`p-4 rounded-2xl cursor-pointer transition-all border group ${isActive ? (isPinkTheme ? "bg-pink-50 border-pink-200 shadow-sm" : "bg-blue-50 border-blue-200 shadow-sm") : "bg-white border-slate-100 hover:border-slate-300 hover:bg-slate-50"}`}>
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3 min-w-0">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${isActive ? (isPinkTheme ? "bg-pink-500 text-white border-pink-600" : "bg-blue-600 text-white border-blue-700") : "bg-slate-100 border-slate-200 group-hover:bg-white"}`}>
+                                  <i className={`${doc.icon || getIconByType(doc.type)} ${isActive ? "text-white" : ""} text-base`} />
+                                </div>
+                                <div>
+                                  <h4 className={`text-[13px] font-black leading-tight mb-1 truncate max-w-[180px] ${isActive ? (isPinkTheme ? "text-pink-700" : "text-blue-800") : "text-slate-700"}`}>{doc.title}</h4>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{doc.type || "materi"}</p>
+                                </div>
+                              </div>
+                              {canEdit && (
+                                <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? "opacity-100" : ""}`}>
+                                  <button onClick={(e) => { e.stopPropagation(); handleOpenForm(doc); }} className="w-6 h-6 rounded-lg flex items-center justify-center bg-white border border-slate-200 text-slate-400 hover:text-amber-500 hover:border-amber-200 transition-colors"><i className="fa-solid fa-pen text-[9px]" /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDelete(doc.id, doc.title); }} className="w-6 h-6 rounded-lg flex items-center justify-center bg-white border border-slate-200 text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-colors"><i className="fa-solid fa-trash text-[9px]" /></button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                );
-              })
-            )}
+                ))}
+              </>
+            )} 
           </div>
         </div>
-
+    
         {/* KOLOM KANAN: VIEWER & AREA PANEL INTERAKTIF AI */}
-        <div className="lg:col-span-8 bg-white border border-slate-200 rounded-[2rem] shadow-sm flex flex-col h-[750px] overflow-hidden relative">
+        <div className={`bg-white border border-slate-200 rounded-[2rem] shadow-sm flex flex-col h-[750px] relative transition-all duration-500 ease-in-out overflow-hidden ${
+          isSidebarOpen ? "w-full lg:w-[68%]" : "w-full"
+        }`}>
           {activeDoc ? (
-            <div className="flex-1 w-full rounded-[2rem] border shadow-sm flex flex-col overflow-hidden bg-white border-slate-200 min-h-[500px] lg:h-[750px]">
-              
+            <div className="flex-1 w-full flex flex-col overflow-hidden">
+
               {/* Header Konten */}
               <div className="p-5 md:p-8 border-b shrink-0 bg-slate-50/50 border-slate-100 flex flex-col md:flex-row md:items-start justify-between gap-4">
                 <div className="flex items-start md:items-center gap-4">
+
+                  {/* TOMBOL TOGGLE SIDEBAR */}
+                  <button 
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+                    className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white hover:bg-blue-50 text-slate-600 hover:text-blue-600 flex items-center justify-center shrink-0 transition-all border border-slate-200 shadow-sm active:scale-95"
+                    title={isSidebarOpen ? "Tutup Daftar SOP" : "Buka Daftar SOP"}
+                  >
+                    <i className={`fa-solid ${isSidebarOpen ? "fa-outdent" : "fa-indent"} text-lg transition-transform duration-300`}></i>
+                  </button>
+
+                  {/* LOGO ICON DIVISI */}
                   <div className={`w-12 h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center text-2xl md:text-3xl shadow-lg shrink-0 ${
                     isPinkTheme ? "bg-pink-500 text-white shadow-pink-500/20" : 
                     isDarkBlueTheme ? "bg-blue-800 text-white shadow-blue-800/20" : 
                     "bg-blue-500 text-white shadow-blue-500/20"
                   }`}>
-                    <i className={`fa-solid ${activeDoc.icon || getIconByType(activeDoc.type)}`}></i>
+                    <i className={`${activeDoc.icon || getIconByType(activeDoc.type)} !text-white`}></i>
                   </div>
+
+                  {/* JUDUL DOKUMEN SOP */}
                   <div className="min-w-0">
                     <h2 className="text-xl md:text-3xl font-black tracking-tight leading-tight mb-2 text-slate-800 pr-2">
                       {activeDoc.title}
@@ -378,7 +533,7 @@ const Whitebook = () => {
               </div>
 
               {/* 🔥 WRAPPER UTAMA BIAR TEKS, AI, DAN MEDIA PREVIEW BERJAJAR RAPI KE BAWAH */}
-              <div className="p-4 md:p-6 flex-1 overflow-y-auto custom-scrollbar bg-slate-50/20 space-y-6 w-full flex flex-col">
+             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/20 p-4 md:p-6 space-y-6 w-full">
                 
                 {/* 📝 SEKSI 1: KETERANGAN TEKS SOP */}
                 {(activeDoc.content || activeDoc.description) && (
@@ -392,6 +547,38 @@ const Whitebook = () => {
                   </div>
                 )}
 
+                {/* 📄 SEKSI 3: MEDIA PREVIEW DISPLAY IFRAME */}
+                <div className="w-full">
+                  {activeDoc.type === "image" && (
+                    <img src={activeDoc.file_url} alt={activeDoc.title} className="max-w-full h-auto rounded-xl border border-slate-200 shadow-sm mx-auto" />
+                  )}
+                  
+                  {activeDoc.type === "pdf" && (
+                    <iframe src={activeDoc.file_url} className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-xl border border-slate-200 shadow-sm bg-white"></iframe>
+                  )}
+
+                  {/* Render YouTube / G-Drive */}
+                  {activeDoc.type === "link" && isEmbeddable(activeDoc.file_url) && (
+                    <div className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-black">
+                      <iframe src={getEmbedUrl(activeDoc.file_url)} className="w-full h-full border-0" allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+                    </div>
+                  )}
+
+                  {/* Fallback kalau link-nya bukan YouTube/G-Drive (misal link web biasa) */}
+                  {(!activeDoc.type || (activeDoc.type === "link" && !isEmbeddable(activeDoc.file_url))) && !activeDoc.file_url?.includes("/text-only") && (
+                    <div className="text-center py-12 md:py-16 max-w-sm mx-auto animate-in fade-in zoom-in-95 bg-white border border-slate-200 rounded-2xl shadow-sm mt-4">
+                      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-200 shadow-inner">
+                        <i className="fa-solid fa-arrow-up-right-from-square text-2xl text-blue-400"></i>
+                      </div>
+                      <h3 className="text-base font-black text-slate-800 mb-2">Tautan Web Eksternal</h3>
+                      <p className="mb-5 text-xs font-medium text-slate-500 px-4">Dokumen dialihkan ke layanan eksternal.</p>
+                      <a href={activeDoc.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md transition-all">
+                        Buka Dokumen Sekarang <i className="fa-solid fa-arrow-right"></i>
+                      </a>
+                    </div>
+                  )}
+                </div>
+
                 {/* 🤖 SEKSI 2: FITUR AI (KHUSUS INTERN) */}
                 {isIntern && (
                   <div className="flex flex-col gap-6 items-stretch">
@@ -399,13 +586,34 @@ const Whitebook = () => {
                     {/* FITUR 1: ACTIONABLE CHECKLIST (SISTEM HISTORY / APPEND) */}
                     <div className="bg-white border border-slate-200 rounded-[2rem] p-6 sm:p-8 shadow-sm flex flex-col relative overflow-hidden">
                       <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl pointer-events-none"></div>
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-5 flex gap-3 shadow-sm relative z-10 animate-in fade-in">
+                        <i className="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 text-sm shrink-0"></i>
+                        <div className="text-[10px] md:text-[11px] text-amber-800 font-medium leading-relaxed">
+                          <strong className="block text-amber-900 mb-1 tracking-wide">⚠️ Syarat & Ketentuan Generate AI</strong>
+                          Hasil analisis AI akan tersimpan otomatis di riwayat tab ini. Maksimal perombakan SOP adalah <b>3 Versi</b>. Tombol akan dikunci permanen jika batas versi telah penuh.
+                        </div>
+                      </div>
+
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 relative z-10">
                         <div>
                           <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2 mb-1"><i className="fa-solid fa-list-check text-blue-500 text-lg" /> Actionable Checklist</h3>
                           <p className="text-xs text-slate-500 font-medium">Ekstrak prosedur rumit ini menjadi barisan tugas praktis.</p>
                         </div>
-                        <button onClick={handleGenerateBreakdown} disabled={isGenerating} className="px-5 py-3 bg-[#0b1437] hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest rounded-xl disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-md shrink-0">
-                          {isGenerating ? <><i className="fa-solid fa-spinner fa-spin" /> Menganalisis...</> : <><i className="fa-solid fa-wand-magic-sparkles text-amber-400" /> Generate Checklist</>}
+
+                        <button 
+                          onClick={handleGenerateBreakdown} 
+                          disabled={isGenerating || checklistLogs.length >= 3} 
+                          className={`px-5 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 shadow-md shrink-0 
+                            ${checklistLogs.length >= 3 
+                              ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300' 
+                              : 'bg-[#0b1437] hover:bg-blue-700 text-white disabled:opacity-50'}`}
+                        >
+                          {isGenerating 
+                            ? <><i className="fa-solid fa-spinner fa-spin" /> Menganalisis...</> 
+                            : checklistLogs.length >= 3 
+                              ? <><i className="fa-solid fa-lock text-slate-400" /> Limit 3 Versi Penuh</>
+                              : <><i className="fa-solid fa-wand-magic-sparkles text-amber-400" /> Generate Checklist</>
+                          }
                         </button>
                       </div>
 
@@ -497,61 +705,7 @@ const Whitebook = () => {
                       </form>
                     </div>
                   </div>
-                )}
-
-                {/* 📄 SEKSI 3: MEDIA PREVIEW DISPLAY IFRAME */}
-                <div className="p-4 md:p-8 flex-1 overflow-y-auto custom-scrollbar bg-slate-50/20">
-                  {activeDoc.type === "image" && (
-                    <img
-                      src={activeDoc.file_url}
-                      alt={activeDoc.title}
-                      className="max-w-full h-auto rounded-xl border border-slate-200 shadow-sm mx-auto"
-                    />
-                  )}
-                  
-                  {activeDoc.type === "pdf" && (
-                    <iframe
-                      src={activeDoc.file_url}
-                      className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-xl border border-slate-200 shadow-sm bg-white"
-                    ></iframe>
-                  )}
-
-                  {/* 🔥 FIX: Render YouTube / G-Drive langsung di layar! */}
-                  {activeDoc.type === "link" && isEmbeddable(activeDoc.file_url) && (
-                    <div className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-black">
-                      <iframe
-                        src={getEmbedUrl(activeDoc.file_url)}
-                        className="w-full h-full border-0"
-                        allowFullScreen
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      ></iframe>
-                    </div>
-                  )}
-
-                  {/* Fallback kalau link-nya bukan YouTube/G-Drive (misal link web biasa) */}
-                  {(!activeDoc.type || (activeDoc.type === "link" && !isEmbeddable(activeDoc.file_url))) && (
-                    <div className="text-center py-12 md:py-20 max-w-sm mx-auto animate-in fade-in zoom-in-95">
-                      <div className="w-20 h-20 md:w-24 md:h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-5 border border-slate-200 shadow-inner">
-                        <i className="fa-solid fa-arrow-up-right-from-square text-3xl md:text-4xl text-blue-400"></i>
-                      </div>
-                      <h3 className="text-base md:text-lg font-black text-slate-800 mb-2">Tautan Web Eksternal</h3>
-                      <p className="mb-6 text-xs md:text-sm font-medium text-slate-500 leading-relaxed">
-                        Dokumen SOP ini dialihkan ke layanan website luar.
-                      </p>
-                      <a
-                        href={activeDoc.file_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={`inline-flex items-center justify-center gap-2 px-6 py-3 md:py-3.5 text-white rounded-xl text-xs md:text-sm font-black tracking-wide shadow-md hover:-translate-y-0.5 transition-all w-full sm:w-auto
-                          ${isPinkTheme ? "bg-pink-500 hover:bg-pink-600 shadow-pink-500/30" : 
-                            isDarkBlueTheme ? "bg-blue-800 hover:bg-blue-900 shadow-blue-800/30" : 
-                            "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30"}`}
-                      >
-                        Buka Dokumen Sekarang <i className="fa-solid fa-arrow-right"></i>
-                      </a>
-                    </div>
-                  )}
-                </div>        
+                )}  
               </div>
             </div>
           ) : (
@@ -566,12 +720,12 @@ const Whitebook = () => {
 
       {/* MODAL FORM CMS */}
       {isFormOpen && createPortal(
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-[#0b1437]/80 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 border border-slate-200 flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-[#0b1437]/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-xl bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 border border-slate-200 flex flex-col max-h-[90vh]">
             
             {/* HEADER MODAL */}
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
-              <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+            <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+              <h2 className="text-base sm:text-lg font-black text-slate-800 flex items-center gap-2">
                 <i className="fa-solid fa-file-signature text-blue-500" />
                 {formData.id ? "Edit Konten SOP" : "Buat Konten SOP Baru"}
               </h2>
@@ -580,98 +734,132 @@ const Whitebook = () => {
               </button>
             </div>
 
-            {/* BODY MODAL (FORM) */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+            {/* 🔥 FIX SAKTI: <form> ngebungkus scroll area dan footer, ditambah flex-1 min-h-0 */}
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
               
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Judul Materi <span className="text-rose-500">*</span></label>
-                <input type="text" required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Misal: Prosedur Reset Server Database..." className="w-full p-3.5 rounded-xl border outline-none text-sm font-bold text-slate-800 focus:ring-2 focus:ring-blue-500/20 bg-slate-50 border-slate-200 transition-all" />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Tipe Materi</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { id: "text", label: "Teks Artikel", icon: "fa-align-left" },
-                    { id: "gdrive", label: "Google Drive", icon: "fa-google-drive", brand: true },
-                    { id: "youtube", label: "YouTube", icon: "fa-youtube", brand: true },
-                    { id: "link", label: "Link Eksternal", icon: "fa-link" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, type: opt.id })}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all gap-1.5 ${
-                        formData.type === opt.id 
-                          ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
-                          : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
-                      }`}
-                    >
-                      <i className={`${opt.brand ? 'fa-brands' : 'fa-solid'} ${opt.icon} text-lg mb-1 ${formData.type === opt.id ? 'text-blue-500' : 'text-slate-400'}`}></i>
-                      {opt.label}
-                    </button>
-                  ))}
+              {/* AREA INPUT (Bisa di-scroll bebas, ga bakal dorong footer) */}
+              <div className="p-5 sm:p-6 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+                
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Judul Materi <span className="text-rose-500">*</span></label>
+                  <input type="text" required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Misal: Prosedur Reset Server..." className="w-full p-3.5 rounded-xl border outline-none text-sm font-bold text-slate-800 focus:ring-2 focus:ring-blue-500/20 bg-slate-50 border-slate-200 transition-all" />
                 </div>
-              </div>
 
-              {/* RENDER KHUSUS: Teks Artikel */}
-              {formData.type === "text" && (
-                <div className="animate-in fade-in slide-in-from-top-2">
-                  <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest mb-1.5 block text-slate-500">
-                    Isi Artikel / Prosedur <span className="text-rose-500 normal-case tracking-normal">(Wajib)</span>
-                  </label>
-                  <textarea
-                    required
-                    rows="6"
-                    value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                    placeholder="Ketik isi panduan SOP di sini..."
-                    className="w-full p-3.5 rounded-xl border outline-none text-sm font-medium focus:ring-2 focus:ring-blue-500/20 bg-slate-50 border-slate-200 resize-none"
-                  ></textarea>
+               <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Tipe Materi</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { id: "text", label: "Artikel", icon: "fa-align-left" },
+                      { id: "pdf", label: "File PDF", icon: "fa-file-pdf" },
+                      { id: "video", label: "Video", icon: "fa-file-video" }, // 🔥 Opsi Video Ditambahin
+                      { id: "image", label: "Gambar", icon: "fa-image" },
+                      { id: "gdrive", label: "G-Drive", icon: "fa-google-drive", brand: true },
+                      { id: "youtube", label: "YouTube", icon: "fa-youtube", brand: true },
+                      { id: "link", label: "Eksternal", icon: "fa-link" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, type: opt.id })}
+                        className={`flex flex-col items-center justify-center p-3 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all gap-1.5 ${
+                          formData.type === opt.id 
+                            ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
+                            : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+                        }`}
+                      >
+                        <i className={`${opt.brand ? 'fa-brands' : 'fa-solid'} ${opt.icon} text-lg mb-1 ${formData.type === opt.id ? 'text-blue-500' : 'text-slate-400'}`}></i>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              )}
 
-              {/* RENDER KHUSUS: URL & Peringatan TnC */}
-              {formData.type !== "text" && (
-                <div className="animate-in fade-in slide-in-from-top-2">
-                  <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest mb-1.5 block text-slate-500">
-                    URL / Tautan File <span className="text-rose-500 normal-case tracking-normal">(Wajib)</span>
-                  </label>
-                  <input
-                    type="url"
-                    required
-                    value={formData.file_url}
-                    onChange={(e) => setFormData({ ...formData, file_url: e.target.value })}
-                    placeholder="https://..."
-                    className="w-full p-3.5 rounded-xl border outline-none text-sm font-medium focus:ring-2 focus:ring-blue-500/20 bg-slate-50 border-slate-200"
-                  />
+                {/* RENDER KHUSUS: Teks Artikel */}
+                {formData.type === "text" && (
+                  <div className="animate-in fade-in slide-in-from-top-2">
+                    <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest mb-1.5 block text-slate-500">
+                      Isi Artikel / Prosedur <span className="text-rose-500 normal-case tracking-normal">(Wajib)</span>
+                    </label>
+                    <textarea
+                      required
+                      rows="6"
+                      value={formData.content}
+                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                      placeholder="Ketik isi panduan SOP di sini..."
+                      className="w-full p-3.5 rounded-xl border outline-none text-sm font-medium focus:ring-2 focus:ring-blue-500/20 bg-slate-50 border-slate-200 resize-none"
+                    ></textarea>
+                  </div>
+                )}
 
-                  {(formData.type === "gdrive" || formData.type === "youtube") && (
-                    <div className="mt-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex gap-3 shadow-sm">
-                      <i className="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 text-sm shrink-0"></i>
-                      <div className="text-[10px] md:text-[11px] text-amber-800 font-medium leading-relaxed">
-                        <strong className="block text-amber-900 mb-1 tracking-wide">⚠️ Syarat Tautan Web Terbuka</strong>
-                        {formData.type === "gdrive" ? (
-                          <p>Pastikan akses Google Drive diatur ke <b>"Siapa saja yang memiliki tautan" (Public)</b>. Jika tidak, file akan diblokir oleh Google dan gagal tampil di layar.</p>
-                        ) : (
-                          <p>Gunakan link standar YouTube. Pastikan privasi video berstatus <b>Public</b> atau <b>Unlisted</b> agar bisa di-<i>embed</i>.</p>
-                        )}
+                {/* RENDER KHUSUS: URL & Peringatan TnC */}
+                {["pdf", "video", "image"].includes(formData.type) && (
+                  <div className="animate-in fade-in slide-in-from-top-2">
+                    <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest mb-1.5 block text-slate-500">
+                      Upload File {formData.type.toUpperCase()} <span className="text-rose-500 normal-case tracking-normal">(Wajib)</span>
+                    </label>
+                    <input
+                      type="file"
+                      required={!formData.id} // Kalo edit, file kaga wajib diisi ulang
+                      accept={formData.type === "pdf" ? ".pdf" : formData.type === "video" ? "video/mp4,video/webm" : "image/png,image/jpeg,image/webp"}
+                      onChange={(e) => setFormData({ ...formData, file_upload: e.target.files[0] })}
+                      className="w-full p-3 rounded-xl border outline-none text-sm font-medium focus:ring-2 focus:ring-blue-500/20 bg-slate-50 border-slate-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-black file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
+                    />
+
+                    {/* KOTAK TnC WARNING */}
+                    <div className="mt-3 p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex gap-3 shadow-sm">
+                      <i className="fa-solid fa-circle-exclamation text-rose-500 mt-0.5 text-sm shrink-0"></i>
+                      <div className="text-[10px] md:text-[11px] text-rose-800 font-medium leading-relaxed">
+                        <strong className="block text-rose-900 mb-1 tracking-wide">⚠️ Syarat & Ketentuan Upload</strong>
+                        <p>1. Maksimal ukuran file adalah <b>10 MB</b> (Hindari beban server).</p>
+                        <p>2. Pastikan format sesuai ({formData.type === "pdf" ? "Hanya .PDF" : formData.type === "video" ? "Hanya .MP4" : "Hanya .JPG / .PNG"}).</p>
+                        <p>3. File dengan unsur sensitif/berbahaya akan langsung dihapus oleh sistem.</p>
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+
+                {/* RENDER KHUSUS: URL LINK (GDRIVE, YOUTUBE, LINK) */}
+                {["gdrive", "youtube", "link"].includes(formData.type) && (
+                  <div className="animate-in fade-in slide-in-from-top-2">
+                    <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest mb-1.5 block text-slate-500">
+                      URL / Tautan Link <span className="text-rose-500 normal-case tracking-normal">(Wajib)</span>
+                    </label>
+                    <input
+                      type="url"
+                      required
+                      value={formData.file_url}
+                      onChange={(e) => setFormData({ ...formData, file_url: e.target.value })}
+                      placeholder="https://..."
+                      className="w-full p-3.5 rounded-xl border outline-none text-sm font-medium focus:ring-2 focus:ring-blue-500/20 bg-slate-50 border-slate-200"
+                    />
+
+                    {(formData.type === "gdrive" || formData.type === "youtube") && (
+                      <div className="mt-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex gap-3 shadow-sm">
+                        <i className="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 text-sm shrink-0"></i>
+                        <div className="text-[10px] md:text-[11px] text-amber-800 font-medium leading-relaxed">
+                          <strong className="block text-amber-900 mb-1 tracking-wide">⚠️ Syarat Tautan Web Terbuka</strong>
+                          {formData.type === "gdrive" ? (
+                            <p>Pastikan akses Google Drive diatur ke <b>"Siapa saja yang memiliki tautan" (Public)</b>.</p>
+                          ) : (
+                            <p>Pastikan privasi video berstatus <b>Public</b> atau <b>Unlisted</b>.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+              </div> {/* Tutup Scroll Area */}
+
+              {/* FOOTER MODAL (Tombolnya nempel mutlak di bawah, kaga bakal kedorong) */}
+              <div className="px-5 sm:px-6 py-4 border-t border-slate-100 bg-slate-50 flex gap-3 shrink-0">
+                <button type="button" onClick={() => setIsFormOpen(false)} className="flex-1 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-white text-slate-500 hover:bg-slate-100 border border-slate-200 shadow-sm">Batal</button>
+                <button type="submit" className="flex-1 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 shadow-blue-600/30">
+                  <i className="fa-solid fa-cloud-arrow-up" /> Simpan
+                </button>
+              </div>
 
             </form>
-
-            {/* FOOTER MODAL */}
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex gap-3 shrink-0">
-              <button type="button" onClick={() => setIsFormOpen(false)} className="flex-1 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-white text-slate-500 hover:bg-slate-100 border border-slate-200 shadow-sm">Batal</button>
-              <button type="submit" onClick={handleSubmit} className="flex-1 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 shadow-blue-600/30">
-                <i className="fa-solid fa-cloud-arrow-up" /> Simpan Materi
-              </button>
-            </div>
-
           </div>
         </div>,
         document.body
@@ -679,7 +867,7 @@ const Whitebook = () => {
 
       {/* PORTAL CONFIRMATION MODAL CUSTOM */}
       {modalState.isOpen && createPortal(
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-[#0b1437]/60 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-[#0b1437]/60 backdrop-blur-sm animate-in fade-in">
           <ConfirmModal {...modalState} onClose={closeModal} isDark={false} />
         </div>,
         document.body

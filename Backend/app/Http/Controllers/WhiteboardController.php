@@ -20,12 +20,10 @@ class WhiteboardController extends Controller
         $query = Whiteboard::query();
 
         if ($user->role !== 'super_admin') {
-            // Both Admin and User can ONLY see their own division's whiteboard
             $query->where('division_id', $user->division_id);
         }
 
-        // Tidak ada kolom created_at di tabel whiteboards menurut ERD.
-        $whiteboards = $query->get();
+        $whiteboards = $query->orderBy('id', 'desc')->get();
 
         return response()->json([
             'status' => 'success',
@@ -45,17 +43,30 @@ class WhiteboardController extends Controller
         }
 
         $request->validate([
-            'title' => 'required|string',
-            'file_url' => 'required|string',
-            'type' => 'required|in:pdf,image,link',
-            'description' => 'nullable|string'
+            'title'       => 'required|string',
+            'type'        => 'required|string', 
+            'file_url'    => 'nullable|string',
+            'description' => 'nullable|string',
+            'file'        => 'nullable|file|mimes:pdf,mp4,webm,jpg,jpeg,png|max:10240', 
+        ], [
+            'file.max'   => 'Gagal! Ukuran file melebihi batas maksimal 10MB.',
+            'file.mimes' => 'Format file ditolak server. Pastikan format PDF, MP4, WEBM, JPG, atau PNG.'
         ]);
+
+        $file_url = $request->input('file_url'); 
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $filename = 'sop_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('whitebooks', $filename, 'public');
+            $file_url = url('storage/' . $path);
+        }
 
         $whiteboard = Whiteboard::create([
             'division_id' => $user->division_id,
-            'title' => $request->title,
-            'file_url' => $request->file_url,
-            'type' => $request->type,
+            'title'       => $request->title,
+            'file_url'    => $file_url, 
+            'type'        => $request->type,
             'description' => $request->description
         ]);
 
@@ -92,13 +103,31 @@ class WhiteboardController extends Controller
         $old_values = $whiteboard->toArray();
 
         $request->validate([
-            'title' => 'sometimes|string',
-            'file_url' => 'sometimes|string',
-            'type' => 'sometimes|in:pdf,image,link',
-            'description' => 'nullable|string'
+            'title'       => 'sometimes|string',
+            'type'        => 'sometimes|string',
+            'file_url'    => 'nullable|string',
+            'description' => 'nullable|string',
+            'file'        => 'nullable|file|mimes:pdf,mp4,webm,jpg,jpeg,png|max:10240',
+        ], [
+            'file.max'   => 'Gagal! Ukuran file melebihi batas maksimal 10MB.',
+            'file.mimes' => 'Format file ditolak server. Pastikan format PDF, MP4, WEBM, JPG, atau PNG.'
         ]);
 
-        $whiteboard->update($request->only(['title', 'file_url', 'type', 'description']));
+        $dataToUpdate = $request->only(['title', 'type', 'description']);
+
+        if ($request->has('file_url')) {
+            $dataToUpdate['file_url'] = $request->file_url;
+        }
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $filename = 'sop_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('whitebooks', $filename, 'public');
+            $dataToUpdate['file_url'] = url('storage/' . $path);
+        }
+
+        // 🔥 FIX 2: Pake $dataToUpdate yang udah diracik di atas!
+        $whiteboard->update($dataToUpdate);
 
         AuditLog::record(
             $user->id,

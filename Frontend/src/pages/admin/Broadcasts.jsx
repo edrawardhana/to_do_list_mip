@@ -67,9 +67,10 @@ const Broadcasts = () => {
   // Form States (Tetap dipertahankan karena urusan input form lokal)
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [targetType, setTargetType] = useState(isAdmin && !isPinkTheme ? "division_locked" : "global");
+  const [targetType, setTargetType] = useState(isSuperAdmin ? "global" : "division_locked");
   const [selectedTargets, setSelectedTargets] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [category, setCategory] = useState("info");
 
   const { data, isLoading: loading } = useQuery({
     queryKey: ["broadcastsSystemData"],
@@ -117,26 +118,30 @@ const Broadcasts = () => {
 
     try {
       const payload = {
-        title,
+        title: title,
         content: message,
-        type: targetType === "division_locked" ? "division" : targetType,
-        targets: targetType === "global" ? [] : selectedTargets
+        targetType: targetType, 
+        targets: ["global", "division_locked"].includes(targetType) ? [] : selectedTargets,
+        category: category || "info" 
       };
 
       await api.post('/broadcasts', payload);
       
       toast.success("🚀 Broadcast berhasil dikirim secara real-time!", { id: tid });
       
-      // Reset Form Input
       setTitle("");
       setMessage("");
       setSelectedTargets([]);
+      setCategory("info"); 
 
-      // 🔥 MAGIC: Paksa tabel riwayat di bawah update data instan tanpa kedip browser
       queryClient.invalidateQueries(["broadcastsSystemData"]);
 
     } catch (error) {
-      toast.error(error.response?.data?.message || "Gagal mengirim broadcast", { id: tid });
+      const errorMsg = error.response?.data?.errors?.targetType?.[0] || 
+                       error.response?.data?.message || 
+                       "Gagal mengirim broadcast";
+                       
+      toast.error(errorMsg, { id: tid });
     } finally {
       setIsSubmitting(false);
     }
@@ -152,29 +157,55 @@ const Broadcasts = () => {
         <div className={`absolute -top-32 -right-32 w-96 h-96 rounded-full blur-[100px] pointer-events-none ${isPinkTheme ? "bg-white/40" : "bg-blue-500/20"}`} />
         <div className={`absolute -bottom-32 -left-32 w-72 h-72 rounded-full blur-[100px] pointer-events-none ${isPinkTheme ? "bg-rose-100/30" : "bg-sky-500/10"}`} />
 
-        <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-white/10">
+        <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 md:gap-8 border-b border-white/10">
+          
           <div className="lg:max-w-xl">
-            <div className="flex items-center gap-3 mb-5">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner shrink-0 border backdrop-blur-sm ${isPinkTheme ? "bg-white/20 border-white/40" : "bg-white/10 border-white/20"}`}>
-                <i className="fa-solid fa-bullhorn text-xl" />
+            <div className="flex items-center gap-3 mb-4 sm:mb-5">
+              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shadow-inner shrink-0 border backdrop-blur-sm ${isPinkTheme ? "bg-white/20 border-white/40" : "bg-white/10 border-white/20"}`}>
+                <i className="fa-solid fa-bullhorn text-lg sm:text-xl" />
               </div>
-              <span className={`text-[10px] font-black uppercase tracking-[0.25em] px-3 py-1.5 rounded-lg border ${isPinkTheme ? "text-pink-50 bg-white/20 border-pink-200" : "text-blue-200 bg-white/10 border-white/10"}`}>
+              <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] px-3 py-1.5 rounded-lg border ${isPinkTheme ? "text-pink-50 bg-white/20 border-pink-200" : "text-blue-200 bg-white/10 border-white/10"}`}>
                 Broadcast Engine
               </span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight">Pusat Komando.</h1>
-            <p className={`text-sm font-medium leading-relaxed ${isPinkTheme ? "text-pink-50" : "text-blue-100/70"}`}>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tighter mb-2 sm:mb-3 leading-tight">Pusat Komando.</h1>
+            <p className={`text-xs sm:text-sm font-medium leading-relaxed ${isPinkTheme ? "text-pink-50" : "text-blue-100/70"}`}>
               Kirim pengumuman, instruksi darurat, atau informasi penting secara real-time {isPinkTheme ? "ke seluruh divisi" : `ke divisi ${myDivision}`}.
             </p>
           </div>
           
-          <button
-            type="button"
-            onClick={() => queryClient.invalidateQueries(["broadcastsSystemData"])}
-            className="flex items-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all shadow-lg active:scale-95 shrink-0 bg-white/10 hover:bg-white/20 border-white/20 text-white"
-          >
-            <i className="fa-solid fa-arrows-rotate" /> Sync History
-          </button>
+          {/* 🔥 FIX RESPONSIVE: BAGIAN KANAN HERO */}
+          <div className="flex flex-col gap-4 w-full lg:w-auto shrink-0 mt-2 lg:mt-0 lg:items-end">
+            
+            {/* Radio Button Toggle (Info vs Urgent) - Dibuat flex-1 biar merata di HP */}
+            <div className="flex flex-col gap-2 w-full sm:w-auto">
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/70 lg:text-right">Kategori Prioritas:</span>
+              <div className="flex w-full sm:w-auto bg-black/20 p-1.5 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner">
+                
+                <label className={`flex-1 sm:flex-none relative px-3 sm:px-5 py-2.5 rounded-xl cursor-pointer transition-all text-center ${category === 'info' ? 'bg-white/20 text-white shadow-sm' : 'text-white/50 hover:text-white'}`}>
+                  <input type="radio" name="category" value="info" checked={category === 'info'} onChange={(e) => setCategory(e.target.value)} className="hidden" />
+                  <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2"><i className="fa-solid fa-circle-info" /> Info Biasa</span>
+                </label>
+                
+                <label className={`flex-1 sm:flex-none relative px-3 sm:px-5 py-2.5 rounded-xl cursor-pointer transition-all text-center ${category === 'urgent' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/40' : 'text-white/50 hover:text-white hover:bg-white/10'}`}>
+                  <input type="radio" name="category" value="urgent" checked={category === 'urgent'} onChange={(e) => setCategory(e.target.value)} className="hidden" />
+                  <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2"><i className="fa-solid fa-triangle-exclamation fa-beat-fade" /> URGENT</span>
+                </label>
+
+              </div>
+            </div>
+
+            {/* Tombol Sync - Dibuat full width di layar HP */}
+            <button
+              type="button"
+              onClick={() => queryClient.invalidateQueries(["broadcastsSystemData"])}
+              className="flex items-center justify-center gap-2 px-6 py-3.5 sm:py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all shadow-lg active:scale-95 shrink-0 bg-white/10 hover:bg-white/20 border-white/20 text-white w-full sm:w-auto"
+            >
+              <i className="fa-solid fa-arrows-rotate" /> Sync History
+            </button>
+            
+          </div>
+
         </div>
       </div>
 
@@ -189,25 +220,60 @@ const Broadcasts = () => {
 
           <form onSubmit={handleSendBroadcast} className="space-y-5">
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Judul Pengumuman</label>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Misal: Info Maintenance Server MCC" className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 ${theme.primaryRing} transition-all`} />
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-3">Judul Pengumuman</label>
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Misal: Info Maintenance Server" className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 ${theme.primaryRing} transition-all`} />
             </div>
 
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Target Penerima</label>
-              <div className="relative">
-                <select value={targetType} onChange={(e) => setTargetType(e.target.value)} className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-700 focus:ring-2 ${theme.primaryRing} outline-none transition-all appearance-none cursor-pointer`}>
-                  {isPinkTheme && <option value="global">Global (Semua Divisi & Semua Orang)</option>}
-                  {isPinkTheme && <option value="division">Spesifik Divisi tertentu</option>}
-                  <option value={isPinkTheme ? "intern" : "division_locked"}>{isPinkTheme ? "Semua Anak Magang (Intern Global)" : `Internal Divisi (${myDivision})`}</option>
-                  <option value="spesifik_user">Spesifik Individu / Personel</option>
-                </select>
-                <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-3">Target Penerima</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {isSuperAdmin ? (
+                  <>
+                    <label className={`flex flex-col p-4 rounded-xl border cursor-pointer transition-all ${targetType === 'global' ? 'bg-pink-50 border-pink-500 ring-1 ring-pink-500' : 'bg-white border-slate-200 hover:bg-slate-50'} sm:col-span-2`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <input type="radio" name="target" value="global" checked={targetType === 'global'} onChange={(e) => setTargetType(e.target.value)} className={theme.checkbox} />
+                        <span className="text-sm font-black text-slate-800">Global</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-medium pl-6 leading-relaxed">Kirim ke semua divisi & personel</p>
+                    </label>
+                    <label className={`flex flex-col p-4 rounded-xl border cursor-pointer transition-all ${targetType === 'division' ? 'bg-pink-50 border-pink-500 ring-1 ring-pink-500' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <input type="radio" name="target" value="division" checked={targetType === 'division'} onChange={(e) => setTargetType(e.target.value)} className={theme.checkbox} />
+                        <span className="text-sm font-black text-slate-800">Spesifik Divisi</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-medium pl-6 leading-relaxed">Pilih divisi tertentu</p>
+                    </label>
+                    <label className={`flex flex-col p-4 rounded-xl border cursor-pointer transition-all ${targetType === 'personal' ? 'bg-pink-50 border-pink-500 ring-1 ring-pink-500' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <input type="radio" name="target" value="personal" checked={targetType === 'personal'} onChange={(e) => setTargetType(e.target.value)} className={theme.checkbox} />
+                        <span className="text-sm font-black text-slate-800">Personal</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-medium pl-6 leading-relaxed">Pilih individu tertentu</p>
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    <label className={`flex flex-col p-4 rounded-xl border cursor-pointer transition-all ${targetType === 'division_locked' ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <input type="radio" name="target" value="division_locked" checked={targetType === 'division_locked'} onChange={(e) => setTargetType(e.target.value)} className={theme.checkbox} />
+                        <span className="text-sm font-black text-slate-800">Semua Anak {myDivision}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-medium pl-6 leading-relaxed">Kirim ke semua intern di divisi Anda</p>
+                    </label>
+                    <label className={`flex flex-col p-4 rounded-xl border cursor-pointer transition-all ${targetType === 'personal_locked' ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <input type="radio" name="target" value="personal_locked" checked={targetType === 'personal_locked'} onChange={(e) => setTargetType(e.target.value)} className={theme.checkbox} />
+                        <span className="text-sm font-black text-slate-800">Personal ({myDivision})</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-medium pl-6 leading-relaxed">Pilih individu di divisi Anda</p>
+                    </label>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Target Selectors Dinamis */}
-            {targetType === "division" && isPinkTheme && (
+            {targetType === "division" && isSuperAdmin && (
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 max-h-40 overflow-y-auto custom-scrollbar animate-in slide-in-from-top-2">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Pilih Target Divisi</p>
                 <div className="space-y-2">
@@ -220,12 +286,12 @@ const Broadcasts = () => {
               </div>
             )}
 
-            {targetType === "spesifik_user" && (
+            {(targetType === "personal" || targetType === "personal_locked") && (
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 max-h-40 overflow-y-auto custom-scrollbar animate-in slide-in-from-top-2">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Pilih Personel Magang</p>
                 <div className="space-y-2">
                   {allInterns
-                    .filter(i => isPinkTheme || i.division_id === user?.division_id || i.division_name === myDivision)
+                    .filter(i => isSuperAdmin || i.division_id === user?.division_id || i.division_name === myDivision)
                     .map(i => (
                       <label key={i.id} className="flex items-center gap-3 text-xs font-bold text-slate-700 cursor-pointer">
                         <input type="checkbox" checked={selectedTargets.includes(i.id)} onChange={() => handleToggleTarget(i.id)} className={`rounded ${theme.checkbox}`} /> {i.full_name || i.name} ({i.division?.name || i.division_name || 'Intern'})
