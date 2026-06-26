@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('daily_tasks', function (Blueprint $table) {
-            $table->text('assign_note')->nullable()->after('is_archived');
-            $table->foreignUuid('assigned_by')->nullable()->after('assign_note')->constrained('profiles')->nullOnDelete();
+            if (!Schema::hasColumn('daily_tasks', 'assign_note')) {
+                $table->text('assign_note')->nullable()->after('is_archived');
+            }
+            if (!Schema::hasColumn('daily_tasks', 'assigned_by')) {
+                $table->foreignUuid('assigned_by')->nullable()->after('assign_note')->constrained('profiles')->nullOnDelete();
+            }
         });
     }
 

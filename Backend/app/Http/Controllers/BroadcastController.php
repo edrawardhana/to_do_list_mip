@@ -94,7 +94,6 @@ class BroadcastController extends Controller
             'title'        => $request->title,
             'content'      => $request->content,
             'category'     => $category,
-            'target_label' => $targetLabel, 
             'expires_at'   => now()->addDays(7),
             'created_at'   => now(),
         ]);

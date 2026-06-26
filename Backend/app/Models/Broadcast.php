@@ -16,7 +16,6 @@ class Broadcast extends Model
         'title',
         'content',
         'category', // info, urgent
-        'target_label', // 🔥 INI DIA YANG BIKIN NYASAR! Sekarang udah masuk jalur VIP.
         'expires_at',
         'created_at',
     ];

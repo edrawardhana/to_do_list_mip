@@ -122,7 +122,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     logoBorder: "border-white/10",
     logoutBorder: "border-white/10",
     navNormal: "text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200 border border-transparent",
-    navActiveBg: "bg-gradient-to-r from-white/25 to-white/0 backdrop-blur-sm border border-white/10", 
+    navActiveBg: "bg-gradient-to-r from-white/25 to-white/0 backdrop-blur-sm border border-white/10",
     navActiveText: "text-white font-bold tracking-wide drop-shadow-[0_2px_8px_rgba(255,255,255,0.4)]",
     navActiveBorder: "bg-white shadow-[0_0_15px_rgba(255,255,255,1)]",
     isDarkLogo: false,
@@ -232,19 +232,17 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                 end={item.path === "/dashboard"}
                 onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm group relative ${
-                    isActive ? `${resolvedActiveBg} ${resolvedActiveText}` : resolvedNormal
+                  `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm group relative ${isActive ? `${resolvedActiveBg} ${resolvedActiveText}` : resolvedNormal
                   }`
                 }
               >
                 {({ isActive }) => (
                   <>
-                    <div 
-                      className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-300 ease-out ${
-                        isActive ? `h-5 opacity-100 ${resolvedActiveBorder}` : "h-0 opacity-0 bg-transparent"
-                      }`}
+                    <div
+                      className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-300 ease-out ${isActive ? `h-5 opacity-100 ${resolvedActiveBorder}` : "h-0 opacity-0 bg-transparent"
+                        }`}
                     ></div>
-                    
+
                     <i className={`fa-solid ${item.icon} w-5 text-center text-[15px] transition-transform duration-300 ${isActive ? "opacity-100 scale-110" : "opacity-70 group-hover:opacity-100 group-hover:scale-110"}`}></i>
                     <span className="font-medium tracking-wide">
                       {item.label}
@@ -257,25 +255,27 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         </nav>
 
         {/* COLOR PALETTE SELECTOR */}
-        <div className="px-6 pb-2">
-          <div className="flex items-center justify-center gap-3">
-            <button
-              onClick={() => updateProfile({ theme_color: "intern" })}
-              className={`w-6 h-6 rounded-full bg-cyan-400 border-2 transition-all hover:scale-110 ${userTheme === "intern" ? "border-white scale-110 shadow-[0_0_10px_rgba(34,211,238,0.8)]" : "border-white/20 scale-90"}`}
-              title="Intern Theme"
-            />
-            <button
-              onClick={() => updateProfile({ theme_color: "admin" })}
-              className={`w-6 h-6 rounded-full bg-[#162447] border-2 transition-all hover:scale-110 ${userTheme === "admin" ? "border-white scale-110 shadow-[0_0_10px_rgba(22,36,71,0.8)]" : "border-white/20 scale-90"}`}
-              title="Admin Theme"
-            />
-            <button
-              onClick={() => updateProfile({ theme_color: "super_admin" })}
-              className={`w-6 h-6 rounded-full bg-pink-400 border-2 transition-all hover:scale-110 ${userTheme === "super_admin" ? "border-white scale-110 shadow-[0_0_10px_rgba(244,114,182,0.8)]" : "border-white/20 scale-90"}`}
-              title="SuperAdmin Theme"
-            />
+        {isSuperAdmin && (
+          <div className="px-6 pb-2">
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => updateProfile({ theme_color: "intern" })}
+                className={`w-6 h-6 rounded-full bg-cyan-400 border-2 transition-all hover:scale-110 ${userTheme === "intern" ? "border-white scale-110 shadow-[0_0_10px_rgba(34,211,238,0.8)]" : "border-white/20 scale-90"}`}
+                title="Intern Theme"
+              />
+              <button
+                onClick={() => updateProfile({ theme_color: "admin" })}
+                className={`w-6 h-6 rounded-full bg-[#162447] border-2 transition-all hover:scale-110 ${userTheme === "admin" ? "border-white scale-110 shadow-[0_0_10px_rgba(22,36,71,0.8)]" : "border-white/20 scale-90"}`}
+                title="Admin Theme"
+              />
+              <button
+                onClick={() => updateProfile({ theme_color: "super_admin" })}
+                className={`w-6 h-6 rounded-full bg-pink-400 border-2 transition-all hover:scale-110 ${userTheme === "super_admin" ? "border-white scale-110 shadow-[0_0_10px_rgba(244,114,182,0.8)]" : "border-white/20 scale-90"}`}
+                title="SuperAdmin Theme"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* LOGOUT */}
         <div className={`p-4 shrink-0 border-t ${theme.logoutBorder}`}>

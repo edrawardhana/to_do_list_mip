@@ -20,8 +20,10 @@ return new class extends Migration
         DB::statement("UPDATE profiles SET role = 'super_admin' WHERE role = 'developer'");
 
         // Update role CHECK constraint: hapus 'developer'
-        DB::statement("ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check");
-        DB::statement("ALTER TABLE profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('intern', 'admin', 'super_admin'))");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check");
+            DB::statement("ALTER TABLE profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('intern', 'admin', 'super_admin'))");
+        }
 
         // ── 2. task_templates: tambah start_time, end_time, reminder_time ──
         Schema::table('task_templates', function (Blueprint $table) {
@@ -61,15 +63,19 @@ return new class extends Migration
         });
 
         // ── 4. schedules: tambah dukungan shift 'middle' ───────────────────
-        DB::statement("ALTER TABLE schedules DROP CONSTRAINT IF EXISTS schedules_shift_type_check");
-        DB::statement("ALTER TABLE schedules ADD CONSTRAINT schedules_shift_type_check CHECK (shift_type IN ('morning', 'middle', 'afternoon', 'full'))");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE schedules DROP CONSTRAINT IF EXISTS schedules_shift_type_check");
+            DB::statement("ALTER TABLE schedules ADD CONSTRAINT schedules_shift_type_check CHECK (shift_type IN ('morning', 'middle', 'afternoon', 'full'))");
+        }
     }
 
     public function down(): void
     {
         // Restore developer role
-        DB::statement("ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check");
-        DB::statement("ALTER TABLE profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('intern', 'admin', 'super_admin', 'developer'))");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check");
+            DB::statement("ALTER TABLE profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('intern', 'admin', 'super_admin', 'developer'))");
+        }
 
         Schema::table('profiles', function (Blueprint $table) {
             $table->dropColumn('internship_batch');
@@ -84,7 +90,9 @@ return new class extends Migration
             $table->dropColumn(['parent_task_id', 'mention_submitted_at', 'mention_confirmed_at', 'submitted_at']);
         });
 
-        DB::statement("ALTER TABLE schedules DROP CONSTRAINT IF EXISTS schedules_shift_type_check");
-        DB::statement("ALTER TABLE schedules ADD CONSTRAINT schedules_shift_type_check CHECK (shift_type IN ('morning', 'afternoon', 'full'))");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE schedules DROP CONSTRAINT IF EXISTS schedules_shift_type_check");
+            DB::statement("ALTER TABLE schedules ADD CONSTRAINT schedules_shift_type_check CHECK (shift_type IN ('morning', 'afternoon', 'full'))");
+        }
     }
 };

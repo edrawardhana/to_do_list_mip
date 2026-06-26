@@ -63,11 +63,18 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
   };
 
-  const logout = () => {
-    localStorage.removeItem("jwt_token");
-    localStorage.removeItem("user_data");
-    setUser(null);
-    window.location.href = "/login";
+  const logout = async () => {
+    try {
+      // Panggil endpoint backend untuk menghapus session & token FCM
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error("Gagal logout di backend:", error);
+    } finally {
+      localStorage.removeItem("jwt_token");
+      localStorage.removeItem("user_data");
+      setUser(null);
+      window.location.href = "/login";
+    }
   };
 
   const register = async (username, division_id, email, password) => {
