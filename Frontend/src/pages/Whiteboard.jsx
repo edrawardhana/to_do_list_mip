@@ -378,18 +378,23 @@ const Whitebook = () => {
         <div className={`relative z-10 transition-all duration-500 ease-in-out overflow-hidden md:max-h-[500px] ${
           isMobileHeroOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0 md:max-h-[500px] md:opacity-100"
         }`}>
-          <div className="p-5 pt-2 md:p-8 md:pt-10 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/10">
-            <div className="lg:max-w-xl">
-              <div className="hidden md:flex items-center gap-3 mb-5">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner shrink-0 border backdrop-blur-sm ${isPinkTheme ? "bg-white/20 border-white/40" : "bg-white/10 border-white/20"}`}>
-                  <i className="fa-solid fa-book-open text-xl" />
+          <div className="p-5 pt-3 md:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-4 md:gap-8">
+            
+            <div className="flex-1">
+              <div className="hidden md:flex items-center gap-2 md:gap-3 mb-2 md:mb-4">
+                <div className="w-8 h-8 md:w-12 md:h-12 bg-white/10 backdrop-blur-sm text-white rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg border border-white/20 shrink-0">
+                  <i className="fa-solid fa-book-open text-sm md:text-lg"></i>
                 </div>
-                <span className={`text-[10px] font-black uppercase tracking-[0.25em] px-3 py-1.5 rounded-lg border ${isPinkTheme ? "text-pink-50 bg-white/20 border-pink-200" : "text-blue-200 bg-white/10 border-white/10"}`}>
+                <span className="text-sky-50 text-[9px] md:text-[11px] font-black uppercase tracking-widest">
                   Pusat Panduan
                 </span>
               </div>
-              <h1 className="hidden md:block text-4xl md:text-5xl font-black text-white tracking-tighter mb-3 leading-tight">Whitebook.</h1>
-              <p className={`text-xs md:text-sm font-medium leading-relaxed ${isPinkTheme ? "text-pink-50" : "text-blue-100/70"}`}>
+
+              <h1 className="hidden md:block text-2xl md:text-4xl font-black tracking-tight mb-1.5 md:mb-3 text-white">
+                Whitebook.
+              </h1>
+
+              <p className="text-[11px] md:text-[14px] text-sky-50/90 font-medium max-w-xl leading-relaxed border-l-[2px] md:border-l-[3px] border-white/30 pl-2.5 md:pl-4">
                 Baca, pahami, dan patuhi seluruh Standar Operasional Prosedur (SOP) dari divisi <b>{myDivision}</b>. Fitur interaktif Macrecen AI tersedia untuk membedah prosedur rumit.
               </p>
             </div>

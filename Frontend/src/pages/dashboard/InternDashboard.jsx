@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
@@ -74,11 +74,11 @@ const InternDashboard = () => {
 
   // Shift config for calendar coloring
   const shiftStyle = {
-    morning: { bg: "bg-emerald-50/80 border border-emerald-100", text: "text-emerald-600", hover: "hover:bg-emerald-100" },
-    middle: { bg: "bg-yellow-50/80 border border-yellow-100", text: "text-yellow-600", hover: "hover:bg-yellow-100" },
-    afternoon: { bg: "bg-orange-50/80 border border-orange-100", text: "text-orange-600", hover: "hover:bg-orange-100" },
-    off: { bg: "bg-rose-50/80 border border-rose-100", text: "text-rose-600", hover: "hover:bg-rose-100" }
-  };
+  morning: { bg: "bg-emerald-50/80 border border-emerald-100", text: "text-emerald-600", hover: "hover:bg-emerald-100" },
+  middle: { bg: "bg-yellow-50/80 border border-yellow-100", text: "text-yellow-600", hover: "hover:bg-yellow-100" },
+  afternoon: { bg: "bg-orange-50/80 border border-orange-100", text: "text-orange-600", hover: "hover:bg-orange-100" },
+  off: { bg: "bg-rose-50/80 border border-rose-100", text: "text-rose-600", hover: "hover:bg-rose-100" }
+};
 
   const getScheduleForDay = (day) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -86,13 +86,70 @@ const InternDashboard = () => {
   };
 
   const todaySchedule = getScheduleForDay(currentDay);
+  const todayShiftLabel = todaySchedule
+    ? { morning: "Pagi", middle: "Middle", afternoon: "Sore", full: "Cuti" }[todaySchedule.shift_type] || todaySchedule.shift_type
+    : "Libur";
+  const todayShiftTime = todaySchedule
+    ? { morning: "08:00 - 15:00", middle: "10:00 - 17:00", afternoon: "15:00 - 22:00", full: "Hari Cuti" }[todaySchedule.shift_type] || "-"
+    : "-";
 
   const calendarDays = [];
   for (let i = 0; i < startDay; i++) calendarDays.push({ day: null, schedule: null });
   for (let i = 1; i <= daysInMonth; i++) calendarDays.push({ day: i, schedule: getScheduleForDay(i) });
 
+  // 🔥 FIX MESIN CAROUSEL: State & Refs untuk Infinite Auto-Scroll
+  const carouselRef = useRef(null);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const handlePause = () => setIsPaused(true);
+  const handleResume = () => setTimeout(() => setIsPaused(false), 2000);
+
+  useEffect(() => {
+    if (window.innerWidth < 768 && carouselRef.current) {
+      setTimeout(() => {
+        const carousel = carouselRef.current;
+        if (carousel.children.length > 1) {
+          carousel.style.scrollBehavior = "auto";
+          carousel.scrollLeft = carousel.children[1].offsetLeft;
+        }
+      }, 100);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isPaused || window.innerWidth >= 768) return;
+    const interval = setInterval(() => {
+      const carousel = carouselRef.current;
+      if (carousel && carousel.children.length > 0) {
+        carousel.style.scrollBehavior = "smooth";
+        const step = carousel.children[1].offsetLeft - carousel.children[0].offsetLeft;
+        carousel.scrollLeft += step;
+      }
+    }, 3500); 
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
+  const handleScroll = () => {
+    const carousel = carouselRef.current;
+    if (!carousel || window.innerWidth >= 768 || carousel.children.length < 5) return;
+
+    const clone3 = carousel.children[0];
+    const real1 = carousel.children[1];
+    const real3 = carousel.children[3];
+    const clone1 = carousel.children[4];
+
+    if (carousel.scrollLeft <= clone3.offsetLeft + 5) {
+      carousel.style.scrollBehavior = "auto";
+      carousel.scrollLeft = real3.offsetLeft;
+    } 
+    else if (carousel.scrollLeft >= clone1.offsetLeft - 5) {
+      carousel.style.scrollBehavior = "auto";
+      carousel.scrollLeft = real1.offsetLeft;
+    }
+  };
+
   return (
-    <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 px-4 md:px-8 max-w-7xl mx-auto overflow-x-hidden">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 pt-6 px-4 md:px-8 max-w-7xl mx-auto">
       
       {/* HERO SECTION */}
       <div className="py-2 text-black dark:text-slate-800 transition-all duration-300">
@@ -109,15 +166,33 @@ const InternDashboard = () => {
         </p>
       </div>
 
-      {/* 🔥 TOP WIDGET GRID (CAROUSEL DI HP, GRID 3 KOLOM DI DESKTOP) */}
+      {/* TOP WIDGET GRID WITH AUTO-CAROUSEL */}
       <div className="relative">
         <p className="md:hidden text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2.5 pl-1 flex items-center gap-1.5 animate-pulse">
           <i className="fa-solid fa-arrows-left-right"></i> Geser untuk melihat widget
         </p>
-        
-        {/* Kontainer utamanya. Kalau di HP dia display 'flex' dan overflow-x, kalau di md: ke atas dia display 'grid' 3 kolom */}
-        <div className="flex md:grid md:grid-cols-3 gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory pb-4 md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          
+
+        <div 
+          ref={carouselRef}
+          onScroll={handleScroll}
+          onTouchStart={handlePause}
+          onTouchEnd={handleResume}
+          onMouseEnter={handlePause}
+          onMouseLeave={handleResume}
+          className="flex md:grid md:grid-cols-3 gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory pb-4 md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        >
+          {/* CLONE WIDGET 3 (UNTUK SCROLL KE KIRI) */}
+          <div className="md:hidden block min-w-[85%] sm:min-w-[50%] md:min-w-0 snap-center shrink-0 md:shrink bg-white p-5 md:p-7 rounded-[2rem] border border-blue-100 shadow-sm text-center flex flex-col justify-center items-center group hover:shadow-xl hover:shadow-blue-500/10 hover:border-blue-200 transition-all duration-300" aria-hidden="true">
+            <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-blue-50 to-cyan-50 text-blue-500 rounded-2xl flex items-center justify-center text-xl md:text-2xl mb-4 md:mb-5 border border-blue-100 group-hover:scale-105 transition-all duration-300">
+              <i className="fa-solid fa-calendar-check"></i>
+            </div>
+            <h4 className="text-base md:text-lg font-extrabold text-slate-800 mb-2 tracking-tight">Butuh Izin Besok?</h4>
+            <p className="text-xs md:text-[13px] text-slate-500 font-medium leading-relaxed mb-6 md:mb-8 px-2">Pengajuan izin sakit, keluarga, atau tukar shift maksimal H-1.</p>
+            <Link to="/leave-request" className="w-full py-3 bg-gradient-to-br from-blue-500 to-cyan-500 text-white rounded-xl text-xs md:text-sm font-black hover:scale-[1.02] transition-all shadow-md shadow-blue-500/20 border border-blue-400">
+              Ajukan Perizinan
+            </Link>
+          </div>
+
           {/* WIDGET 1: DIVISI */}
           <div className="min-w-[85%] sm:min-w-[50%] md:min-w-0 snap-center shrink-0 md:shrink bg-gradient-to-br from-white via-white to-blue-50/70 p-5 md:p-7 rounded-[2rem] border border-blue-100/50 shadow-lg shadow-blue-500/5 flex flex-col justify-between group relative overflow-hidden transition-all duration-500 hover:shadow-xl hover:shadow-blue-500/10 hover:border-blue-200">
             <i className="fa-solid fa-layer-group absolute -bottom-8 -right-6 text-[7rem] md:text-[8rem] text-blue-600/[0.03] group-hover:text-blue-600/[0.06] transition-all duration-500 -rotate-12 group-hover:-rotate-6 group-hover:scale-110 pointer-events-none"></i>
@@ -136,28 +211,43 @@ const InternDashboard = () => {
             </div>
             <div className="mt-8 pt-5 md:pt-6 border-t border-blue-900/5 relative z-10">
               <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Jadwal Shift Hari Ini</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  Jadwal Shift Hari Ini
+                </p>
                 {scheduleLoading ? (
-                  <p className="text-sm text-slate-400 font-bold"><i className="fa-solid fa-spinner fa-spin mr-1" /> Memuat...</p>
+                  <p className="text-sm text-slate-400 font-bold">
+                    <i className="fa-solid fa-spinner fa-spin mr-1" /> Memuat...
+                  </p>
                 ) : todaySchedule ? (
                   <p className="text-[13px] md:text-[15px] font-bold text-slate-900 flex items-center gap-2">
-                    <span className={`px-2.5 py-1 bg-white rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider border shadow-sm ${
+                    <span
+                      className={`px-2.5 py-1 bg-white rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider border shadow-sm ${
                         todaySchedule.status === 'pending_sakit' ? "text-rose-600 border-rose-300 animate-pulse bg-rose-100" :
                         todaySchedule.status === 'pending_izin' ? "text-amber-600 border-amber-300 animate-pulse bg-amber-100" :
                         todaySchedule.shift_type === "morning" ? "text-emerald-600 border-emerald-100" : 
                         todaySchedule.shift_type === "middle" ? "text-yellow-600 border-yellow-100" : 
                         todaySchedule.shift_type === "afternoon" ? "text-orange-600 border-orange-100" : 
                         "text-rose-600 border-rose-100 bg-rose-50"
-                      }`}>
-                      {todaySchedule.status === 'pending_sakit' ? 'Sakit (Pending)' : todaySchedule.status === 'pending_izin' ? 'Izin (Pending)' : todaySchedule.shift_type === 'morning' ? 'Pagi' : todaySchedule.shift_type === 'middle' ? 'Middle' : todaySchedule.shift_type === 'afternoon' ? 'Sore' : 'Off'}
+                      }`}
+                    >
+                      {todaySchedule.status === 'pending_sakit' ? 'Sakit (Pending)' : 
+                       todaySchedule.status === 'pending_izin' ? 'Izin (Pending)' : 
+                       todaySchedule.shift_type === 'morning' ? 'Pagi' :
+                       todaySchedule.shift_type === 'middle' ? 'Middle' :
+                       todaySchedule.shift_type === 'afternoon' ? 'Sore' : 'Off'}
                     </span>
                     <span className="font-medium text-slate-600">
-                      {todaySchedule.status?.startsWith('pending') ? 'Menunggu ACC...' : (todaySchedule.shift_type === 'morning' ? '08:00 - 15:00' : todaySchedule.shift_type === 'middle' ? '10:00 - 17:00' : todaySchedule.shift_type === 'afternoon' ? '15:00 - 22:00' : 'Istirahat')}
+                      {todaySchedule.status?.startsWith('pending') ? 'Menunggu ACC...' : 
+                      (todaySchedule.shift_type === 'morning' ? '08:00 - 15:00' : 
+                      todaySchedule.shift_type === 'middle' ? '10:00 - 17:00' : 
+                      todaySchedule.shift_type === 'afternoon' ? '15:00 - 22:00' : 'Istirahat')}
                     </span>
                   </p>
                 ) : (
                   <p className="text-sm font-bold text-slate-500 flex items-center gap-2.5">
-                    <span className="px-2.5 py-1 bg-white text-slate-400 rounded-lg text-[10px] font-black uppercase tracking-wider border border-slate-100 shadow-sm">Libur</span>
+                    <span className="px-2.5 py-1 bg-white text-slate-400 rounded-lg text-[10px] font-black uppercase tracking-wider border border-slate-100 shadow-sm">
+                      Libur
+                    </span>
                     Tidak ada jadwal
                   </p>
                 )}
@@ -209,10 +299,71 @@ const InternDashboard = () => {
             </Link>
           </div>
 
+          {/* CLONE WIDGET 1 (UNTUK SCROLL KE KANAN) */}
+          <div className="md:hidden block min-w-[85%] sm:min-w-[50%] md:min-w-0 snap-center shrink-0 md:shrink bg-gradient-to-br from-white via-white to-blue-50/70 p-5 md:p-7 rounded-[2rem] border border-blue-100/50 shadow-lg shadow-blue-500/5 flex flex-col justify-between group relative overflow-hidden transition-all duration-500 hover:shadow-xl hover:shadow-blue-500/10 hover:border-blue-200" aria-hidden="true">
+            <i className="fa-solid fa-layer-group absolute -bottom-8 -right-6 text-[7rem] md:text-[8rem] text-blue-600/[0.03] group-hover:text-blue-600/[0.06] transition-all duration-500 -rotate-12 group-hover:-rotate-6 group-hover:scale-110 pointer-events-none"></i>
+            <div className="relative z-10">
+              <div className="flex justify-between items-start mb-6">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-white text-blue-600 rounded-2xl flex items-center justify-center border border-blue-100 shadow-sm group-hover:scale-110 group-hover:bg-blue-50 transition-all duration-300">
+                  <i className="fa-solid fa-layer-group text-lg md:text-xl"></i>
+                </div>
+                <span className="bg-emerald-50/80 text-emerald-600 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-emerald-100/50 shadow-sm backdrop-blur-sm">
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
+                  ON DUTY
+                </span>
+              </div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Penempatan Divisi</p>
+              <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">{user?.division_name || "IT Support"}</h2>
+            </div>
+            <div className="mt-8 pt-5 md:pt-6 border-t border-blue-900/5 relative z-10">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  Jadwal Shift Hari Ini
+                </p>
+                {scheduleLoading ? (
+                  <p className="text-sm text-slate-400 font-bold">
+                    <i className="fa-solid fa-spinner fa-spin mr-1" /> Memuat...
+                  </p>
+                ) : todaySchedule ? (
+                  <p className="text-[13px] md:text-[15px] font-bold text-slate-900 flex items-center gap-2">
+                    <span
+                      className={`px-2.5 py-1 bg-white rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider border shadow-sm ${
+                        todaySchedule.status === 'pending_sakit' ? "text-rose-600 border-rose-300 animate-pulse bg-rose-100" :
+                        todaySchedule.status === 'pending_izin' ? "text-amber-600 border-amber-300 animate-pulse bg-amber-100" :
+                        todaySchedule.shift_type === "morning" ? "text-emerald-600 border-emerald-100" : 
+                        todaySchedule.shift_type === "middle" ? "text-yellow-600 border-yellow-100" : 
+                        todaySchedule.shift_type === "afternoon" ? "text-orange-600 border-orange-100" : 
+                        "text-rose-600 border-rose-100 bg-rose-50"
+                      }`}
+                    >
+                      {todaySchedule.status === 'pending_sakit' ? 'Sakit (Pending)' : 
+                       todaySchedule.status === 'pending_izin' ? 'Izin (Pending)' : 
+                       todaySchedule.shift_type === 'morning' ? 'Pagi' :
+                       todaySchedule.shift_type === 'middle' ? 'Middle' :
+                       todaySchedule.shift_type === 'afternoon' ? 'Sore' : 'Off'}
+                    </span>
+                    <span className="font-medium text-slate-600">
+                      {todaySchedule.status?.startsWith('pending') ? 'Menunggu ACC...' : 
+                      (todaySchedule.shift_type === 'morning' ? '08:00 - 15:00' : 
+                      todaySchedule.shift_type === 'middle' ? '10:00 - 17:00' : 
+                      todaySchedule.shift_type === 'afternoon' ? '15:00 - 22:00' : 'Istirahat')}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-sm font-bold text-slate-500 flex items-center gap-2.5">
+                    <span className="px-2.5 py-1 bg-white text-slate-400 rounded-lg text-[10px] font-black uppercase tracking-wider border border-slate-100 shadow-sm">
+                      Libur
+                    </span>
+                    Tidak ada jadwal
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* SECTION: STATUS REKAN SHIFT (Layout Tetap Presisi) */}
+      {/* SECTION: STATUS REKAN SHIFT */}
       <div className="bg-white p-5 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3.5 mb-6 md:mb-8">
           <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 text-blue-500 rounded-2xl flex items-center justify-center border border-slate-100 shadow-sm">
@@ -224,7 +375,7 @@ const InternDashboard = () => {
           </div>
         </div>
 
-        {/* 🔥 Layout Grid untuk Rekan Divisi dikunci ke 4 Kolom di Desktop dan 2 Kolom di HP (Agar sejajar sempurna tanpa kotak gajah) */}
+        {/* 🔥 FIX GRID: Di-set mutlak ke 4 Kolom di Desktop & Tab. Kaga ada lagi yang 2 kolom makan tempat! */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
           {/* Pagi */}
           <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-4 md:p-5 hover:border-emerald-200 transition-colors group">
@@ -289,14 +440,14 @@ const InternDashboard = () => {
         <div className="lg:col-span-2 bg-white p-5 md:p-8 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col h-full">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight">Tugas Hari Ini</h3>
-            <Link to="/logbook" className="text-[9px] md:text-[10px] font-black text-blue-600 hover:text-blue-700 bg-blue-50 px-3 md:px-4 py-2 md:py-2.5 rounded-xl transition-colors uppercase tracking-widest">Kerjakan <i className="fa-solid fa-arrow-right ml-1" /></Link>
+            <Link to="/tasks" className="text-[9px] md:text-[10px] font-black text-blue-600 hover:text-blue-700 bg-blue-50 px-3 md:px-4 py-2 md:py-2.5 rounded-xl transition-colors uppercase tracking-widest">Kerjakan <i className="fa-solid fa-arrow-right ml-1" /></Link>
           </div>
           <div className="space-y-3 md:space-y-4 flex-1">
             {loading ? (
               <p className="text-center text-slate-400 text-sm font-bold py-8 mt-4"><i className="fa-solid fa-spinner fa-spin mr-2" /> Memuat Tugas...</p>
             ) : todayTasks.length > 0 ? (
               todayTasks.map((task) => (
-                <Link to="/logbook" key={task.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 md:p-5 bg-white rounded-xl md:rounded-[1.5rem] border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all group gap-3 md:gap-4">
+                <Link to="/tasks" key={task.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 md:p-5 bg-white rounded-xl md:rounded-[1.5rem] border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all group gap-3 md:gap-4">
                   <div className="flex items-center gap-3 md:gap-5 w-full">
                     <div className={`w-10 h-10 md:w-12 md:h-12 rounded-[12px] md:rounded-[14px] flex items-center justify-center shrink-0 transition-colors ${task.status === "approved" ? "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100" : task.status === "rejected" ? "bg-rose-50 text-rose-500 group-hover:bg-rose-100" : "bg-blue-50 text-blue-600 group-hover:bg-blue-100"}`}>
                       <i className={`fa-solid ${task.status === "approved" ? "fa-check-circle" : task.status === "rejected" ? "fa-rotate-left" : "fa-list-check"} text-base md:text-xl`} />
@@ -336,7 +487,6 @@ const InternDashboard = () => {
               {calendarDays.map((d, i) => {
                 if (!d.day) return <div key={i} className="bg-transparent" />;
                 
-                // 🔥 FIX: Logic Inline biar kaga ngerusak shiftStyle yang cuma 4
                 let styleObj = shiftStyle['off'];
                 let extraClass = "";
 
@@ -351,7 +501,6 @@ const InternDashboard = () => {
                     styleObj = shiftStyle[d.schedule.shift_type];
                   }
                 } else if (isPaidDay(d.day)) {
-                  // Otomatis biru kalau tanggal merah nasional/minggu
                   styleObj = { bg: "bg-blue-50/80", text: "text-blue-600", hover: "hover:bg-blue-100" };
                   extraClass = "border border-blue-100";
                 }
@@ -370,7 +519,6 @@ const InternDashboard = () => {
               })}
             </div>
           )}
-          {/* Legend */}
           <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-x-2 gap-y-1 justify-center">
             <span className="flex items-center gap-1 text-[9px] md:text-[10px] font-bold text-emerald-600"><span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-emerald-500 inline-block"></span>Pagi</span>
             <span className="flex items-center gap-1 text-[9px] md:text-[10px] font-bold text-yellow-600"><span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-yellow-500 inline-block"></span>Middle</span>

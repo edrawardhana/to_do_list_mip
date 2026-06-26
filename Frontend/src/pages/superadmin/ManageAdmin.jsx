@@ -113,7 +113,7 @@ const ManageAdmin = () => {
   const closeModal = () => setModalState(s => ({ ...s, isOpen: false }));
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [addMode, setAddMode] = useState("manual"); // 'manual' or 'csv'
+  const [addMode, setAddMode] = useState("manual"); 
   
   // Form State
   const [manualForm, setManualForm] = useState({ full_name: "", username: "", email: "", division_id: "", role: "intern", internship_batch: "" });

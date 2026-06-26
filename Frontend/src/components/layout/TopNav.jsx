@@ -280,7 +280,7 @@ const TopNav = ({ onToggleSidebar }) => {
   const isAdmin = rawRole === "admin";
 
   const fetchNotifications = useCallback(async () => {
-    if (!user || isSuperAdmin) return; 
+    if (!user) return; 
     setNotifLoading(true);
     try {
       const res = await api.get("/notifications");
@@ -290,7 +290,7 @@ const TopNav = ({ onToggleSidebar }) => {
     } finally {
       setNotifLoading(false);
     }
-  }, [user?.id, isSuperAdmin]);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchNotifications();
@@ -446,11 +446,12 @@ const TopNav = ({ onToggleSidebar }) => {
     "/leave-request": "Leave Request",
     "/whitebook": "Whitebook",
     "/approval": "Approval Center",
-    "/manage-admin": "Manajemen Akun",
-    "/manage-intern": "Manajemen Intern",
+    "/manage-admin": "Manage User",
+    "/manage-intern" : "Manage Intern",
+    "/schedule-calendar" : "Schedule Calender",
     "/audit-log": "Audit Log",
     "/division-analytics": "System Analytics",
-    "/broadcasts": "Broadcast Center",
+    "/broadcasts": "Broadcast",
   };
 
   const title = titles[location.pathname] || "MCC Internship";
@@ -494,55 +495,56 @@ const TopNav = ({ onToggleSidebar }) => {
         <div className={`hidden sm:block h-8 w-px ${dividerColor} mx-1`}></div>
 
         {/* NOTIFIKASI */}
-        {!isSuperAdmin && (
-          <div className="relative group">
-            <button className={`relative p-2.5 rounded-xl transition-all cursor-pointer ${btnStyle}`}>
-              <i className="fa-solid fa-bell text-[1.1rem]"></i>
-              {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse shadow-sm"></span>
-              )}
-            </button>
+        <div className="relative group">
+          
+          {/* Tombol Lonceng */}
+          <button className={`relative p-2.5 rounded-xl transition-all cursor-pointer ${btnStyle}`}>
+            <i className="fa-solid fa-bell text-[1.1rem]"></i>
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse shadow-sm"></span>
+            )}
+          </button>
 
-            <div className={`absolute right-0 top-full mt-2 w-80 ${dropdownBg} border ${dropdownBorder} rounded-2xl shadow-2xl overflow-hidden z-50 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out`}>
-              <div className={`px-4 py-3 border-b ${dropdownBorder} flex justify-between items-center bg-black/[0.02]`}>
-                <h3 className={`text-sm font-bold ${modalTextMain}`}>Notifikasi</h3>
-                {unreadCount > 0 && (
-                  <button onClick={markAllAsRead} className="text-[10px] text-sky-500 font-semibold cursor-pointer hover:text-sky-600">
-                    Tandai semua dibaca
-                  </button>
-                )}
-              </div>
-              <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-                {notifLoading ? (
-                  <div className="p-6 text-center">
-                    <i className="fa-solid fa-spinner fa-spin text-slate-400 text-lg"></i>
-                  </div>
-                ) : notifications.length === 0 ? (
-                  <div className={`p-6 text-center ${modalTextMuted} text-xs`}>Belum ada notifikasi.</div>
-                ) : (
-                  notifications.map((notif) => {
-                    const style = getNotifStyle(notif.type);
-                    return (
-                      <div key={notif.id} onClick={() => markAsRead(notif.id)} className={`p-4 border-b ${dropdownBorder} transition-colors cursor-pointer relative ${notif.is_read ? "opacity-60 bg-transparent" : `${dropdownHoverBg}`}`}>
-                        <div className="flex gap-3 pl-2">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${style.color}`}>
-                            <i className={`fa-solid ${style.icon} text-xs`}></i>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-xs ${dropdownText} leading-relaxed`}>
-                              <span className={`font-bold ${modalTextMain}`}>{notif.title}:</span> {notif.message}
-                            </p>
-                            <p className={`text-[10px] ${modalTextMuted} mt-1.5`}>{formatTime(notif.created_at)}</p>
-                          </div>
+          {/* Dropdown Isi Notif */}
+          <div className={`absolute right-0 top-full mt-2 w-80 ${dropdownBg} border ${dropdownBorder} rounded-2xl shadow-2xl overflow-hidden z-50 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out`}>
+            <div className={`px-4 py-3 border-b ${dropdownBorder} flex justify-between items-center bg-black/[0.02]`}>
+              <h3 className={`text-sm font-bold ${modalTextMain}`}>Notifikasi</h3>
+              {unreadCount > 0 && (
+                <button onClick={markAllAsRead} className="text-[10px] text-sky-500 font-semibold cursor-pointer hover:text-sky-600">
+                  Tandai semua dibaca
+                </button>
+              )}
+            </div>
+            <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+              {notifLoading ? (
+                <div className="p-6 text-center">
+                  <i className="fa-solid fa-spinner fa-spin text-slate-400 text-lg"></i>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className={`p-6 text-center ${modalTextMuted} text-xs`}>Belum ada notifikasi.</div>
+              ) : (
+                notifications.map((notif) => {
+                  const style = getNotifStyle(notif.type);
+                  return (
+                    <div key={notif.id} onClick={() => markAsRead(notif.id)} className={`p-4 border-b ${dropdownBorder} transition-colors cursor-pointer relative ${notif.is_read ? "opacity-60 bg-transparent" : `${dropdownHoverBg}`}`}>
+                      <div className="flex gap-3 pl-2">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${style.color}`}>
+                          <i className={`fa-solid ${style.icon} text-xs`}></i>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs ${dropdownText} leading-relaxed`}>
+                            <span className={`font-bold ${modalTextMain}`}>{notif.title}:</span> {notif.message}
+                          </p>
+                          <p className={`text-[10px] ${modalTextMuted} mt-1.5`}>{formatTime(notif.created_at)}</p>
                         </div>
                       </div>
-                    );
-                  })
-                )}
-              </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
-        )}
+        </div>
 
         {/* PROFILE */}
         <div className="relative" ref={profileRef}>

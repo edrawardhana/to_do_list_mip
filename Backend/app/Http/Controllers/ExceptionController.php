@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Exception;
+use App\Models\Notification; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -49,8 +50,7 @@ class ExceptionController extends Controller
     }
 
     /**
-     * Intern submits a new exception (Sakit/Izin/Tugas Luar/Swap)
-     * Supports file upload for evidence (image or PDF), max 2MB after compression
+     * Intern submits a new exception
      */
     public function store(Request $request)
     {
@@ -61,10 +61,9 @@ class ExceptionController extends Controller
             'permission_date'  => 'required|date',
             'replacement_date' => 'nullable|date',
             'description'      => 'required|string|max:1000',
-            'evidence_url'     => 'nullable|file|mimes:jpeg,jpg,png,webp,pdf|max:10240', // 10MB raw, we compress images
+            'evidence_url'     => 'nullable|file|mimes:jpeg,jpg,png,webp,pdf|max:10240',
         ]);
 
-        // Sakit wajib bukti
         if ($request->type === 'sakit' && !$request->hasFile('evidence_url')) {
             return response()->json([
                 'status'  => 'error',
@@ -80,22 +79,17 @@ class ExceptionController extends Controller
             $filename = 'exception_' . $user->id . '_' . time();
 
             if ($mime === 'application/pdf') {
-                // PDF: simpan langsung, max 10MB (sudah divalidasi)
                 $storagePath = $file->storeAs('exception_evidence', $filename . '.pdf', 'public');
             } else {
-                // Image: compress dengan Intervention Image v4
                 $manager = new ImageManager(new Driver());
                 $image   = $manager->read(file_get_contents($file->getRealPath()));
 
-                // Resize jika lebar > 1920px
                 if ($image->width() > 1920) {
                     $image->scaleDown(width: 1920);
                 }
 
-                // Encode ke JPEG 80% quality
                 $encoded = $image->encode(new JpegEncoder(quality: 80));
 
-                // Cek ukuran hasil kompresi — jika masih > 2MB, turunkan quality
                 if (strlen((string) $encoded) > 2 * 1024 * 1024) {
                     $encoded = $image->encode(new JpegEncoder(quality: 60));
                 }
@@ -125,24 +119,55 @@ class ExceptionController extends Controller
         );
 
         try {
-            \DB::table('schedules') // 💡 Sesuaikan dengan nama tabel jadwal/absen lu (misal: 'schedules')
+            \DB::table('schedules') 
                 ->where('user_id', $user->id)
-                ->whereDate('date', $request->permission_date) // 💡 Sesuaikan nama kolom tanggal di tabel jadwal lu
-                ->update(['status' => 'pending_' . $request->type]); // Hasilnya misal: 'pending_sakit' atau 'pending_izin'
+                ->whereDate('date', $request->permission_date) 
+                ->update(['status' => 'pending_' . $request->type]); 
         } catch (\Exception $e) {
             \Log::error("Gagal update Pre-Approval Visibility: " . $e->getMessage());
         }
 
+        // 🔥 FITUR BARU: Trigger Notifikasi ke Admin Divisi
         try {
-            $admins = \App\Models\User::whereIn('role', ['admin', 'super_admin'])
-                ->where('division_id', $user->division_id)
-                ->whereNotNull('fcm_token') 
+            $tanggalOff = \Carbon\Carbon::parse($request->permission_date)->format('d M Y');
+            $jenisIzin = strtoupper(str_replace('_', ' ', $request->type));
+
+            // 1. Notif ke Admin (Divisi Sama) & Super Admin (Global Semua Divisi) biar cepet di-ACC
+            $evaluators = \App\Models\User::where(function ($query) use ($user) {
+                    $query->where('role', 'admin')->where('division_id', $user->division_id);
+                })
+                ->orWhere('role', 'super_admin') // Superadmin pasti dapet
                 ->get();
 
-            foreach ($admins as $admin) {
+            foreach ($evaluators as $eval) {
+                Notification::create([
+                    'user_id'    => $eval->id,
+                    'title'      => 'Butuh Approval ⏳',
+                    'message'    => "{$user->full_name} mengajukan {$jenisIzin} untuk tanggal {$tanggalOff}. Harap segera cek Approval Center.",
+                    'type'       => 'warning',
+                    'is_read'    => false,
+                    'created_at' => now(),
+                ]);
+            }
+
+            // 2. Notif ke Intern Lain (Divisi Sama) biar tau temennya lagi ngajuin izin/sakit
+            $otherInterns = \App\Models\User::where('role', 'intern')
+                ->where('division_id', $user->division_id)
+                ->where('id', '!=', $user->id)
+                ->get();
+
+            foreach ($otherInterns as $intern) {
+                Notification::create([
+                    'user_id'    => $intern->id,
+                    'title'      => 'Info Rekan Divisi 📢',
+                    'message'    => "{$user->full_name} sedang mengajukan {$jenisIzin} untuk tanggal {$tanggalOff} (Status: Pending).",
+                    'type'       => 'info',
+                    'is_read'    => false,
+                    'created_at' => now(),
+                ]);
             }
         } catch (\Exception $e) {
-            \Log::error("Gagal mengirim Push Notification FCM: " . $e->getMessage());
+            \Log::error("Gagal mengirim Notifikasi Pending: " . $e->getMessage());
         }
 
         return response()->json([
@@ -165,7 +190,6 @@ class ExceptionController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Hanya Admin/Superadmin yang berhak memproses pengajuan.'], 403);
         }
 
-        // Mencegah perubahan jika pengajuan sudah selesai atau sudah di-ACC oleh user yang bersangkutan
         if ($exception->status === 'approved' || $exception->status === 'rejected') {
             return response()->json(['status' => 'error', 'message' => 'Pengajuan ini sudah selesai diproses.'], 422);
         }
@@ -190,7 +214,6 @@ class ExceptionController extends Controller
             'password' => $request->status === 'approved' ? 'required|string' : 'nullable|string',
         ]);
 
-        // Verifikasi password jika menyetujui (ACC)
         if ($request->status === 'approved') {
             if (!Hash::check($request->password, $user->password_hash)) {
                 return response()->json(['status' => 'error', 'message' => 'Konfirmasi password salah.'], 422);
@@ -204,7 +227,6 @@ class ExceptionController extends Controller
             $updateData['evaluated_by'] = $user->id;
             $updateData['processed_at'] = now();
         } else {
-            // Status is approved (ACC)
             if ($user->role === 'admin') {
                 $updateData['manager_approved_by'] = $user->id;
                 $updateData['manager_approved_at'] = now();
@@ -213,7 +235,6 @@ class ExceptionController extends Controller
                 $updateData['spv_approved_at'] = now();
             }
 
-            // Reload existing/updated values to check double approval
             $managerApproved = isset($updateData['manager_approved_by']) ? $updateData['manager_approved_by'] : $exception->manager_approved_by;
             $spvApproved     = isset($updateData['spv_approved_by']) ? $updateData['spv_approved_by'] : $exception->spv_approved_by;
 
@@ -222,29 +243,66 @@ class ExceptionController extends Controller
                 $updateData['evaluated_by'] = $user->id;
                 $updateData['processed_at'] = now();
             } else {
-                $updateData['status'] = 'pending'; // keep pending until both approved
+                $updateData['status'] = 'pending'; 
             }
         }
 
         $exception->update($updateData);
         $exception->refresh();
 
-        // Jika disetujui sepenuhnya → generate PDF dan kirim email approve
         if ($exception->status === 'approved') {
             try {
                 $this->generatePdfAndSendEmail($exception);
+
+                // 🔥 FITUR BARU: Trigger Notif 1 (Ke Intern yang ngajuin)
+                Notification::create([
+                    'user_id'    => $exception->user_id,
+                    'title'      => 'Izin Disetujui ✓',
+                    'message'    => "Pengajuan {$exception->type} kamu telah di-ACC sepenuhnya oleh Admin. PDF Surat Izin telah dikirim ke email.",
+                    'type'       => 'success',
+                    'is_read'    => false,
+                    'created_at' => now(),
+                ]);
+
+                // 🔥 FITUR BARU: Trigger Notif 2 (Ke semua rekan Intern se-divisi)
+                $otherInterns = \App\Models\User::where('role', 'intern')
+                    ->where('division_id', $exception->user->division_id)
+                    ->where('id', '!=', $exception->user_id)
+                    ->get();
+
+                $tanggalOff = \Carbon\Carbon::parse($exception->permission_date)->format('d M Y');
+                foreach ($otherInterns as $intern) {
+                    Notification::create([
+                        'user_id'    => $intern->id,
+                        'title'      => 'Info Rekan Divisi',
+                        'message'    => "{$exception->user->full_name} sedang {$exception->type} pada {$tanggalOff}. Harap sesuaikan back up tugas jika diperlukan.",
+                        'type'       => 'info',
+                        'is_read'    => false,
+                        'created_at' => now(),
+                    ]);
+                }
+
             } catch (\Exception $e) {
-                \Log::error('Gagal mengirim email PDF Surat Izin: ' . $e->getMessage());
+                \Log::error('Gagal memproses Notifikasi/Email Surat Izin: ' . $e->getMessage());
             }
         }
 
-        // Jika ditolak oleh SPV (super_admin) → kirim email penolakan
         if ($request->status === 'rejected' && $user->role === 'super_admin') {
             try {
                 $intern = $exception->user;
                 Mail::to($intern->email)->send(new SuratIzinRejectedMail($exception, $intern, $user));
+                
+                // Trigger Notif Penolakan
+                Notification::create([
+                    'user_id'    => $exception->user_id,
+                    'title'      => 'Izin Ditolak ❌',
+                    'message'    => "Pengajuan {$exception->type} kamu ditolak oleh SPV. Silakan cek email untuk alasan detail.",
+                    'type'       => 'danger',
+                    'is_read'    => false,
+                    'created_at' => now(),
+                ]);
             } catch (\Exception $e) {
-                \Log::error('Gagal mengirim email penolakan Surat Izin: ' . $e->getMessage());
+                \Log::error('Gagal mengirim email/notif penolakan Surat Izin: ' . $e->getMessage());
             }
         }
 
@@ -277,9 +335,6 @@ class ExceptionController extends Controller
         ]);
     }
 
-    /**
-     * Helper to get secure pre-signed URL if URL points to Supabase.
-     */
     private function getSignedUrlIfRemote($url)
     {
         if (!$url) return null;
@@ -296,7 +351,6 @@ class ExceptionController extends Controller
         if ($pos !== false) {
             $storagePath = substr($url, $pos + strlen($bucketSegment));
             try {
-                // Generate secure temporary S3 pre-signed URL valid for 10 minutes
                 return Storage::disk('supabase_avatars')->temporaryUrl($storagePath, now()->addMinutes(10));
             } catch (\Exception $e) {
                 return $url;
@@ -306,22 +360,17 @@ class ExceptionController extends Controller
         return $url;
     }
 
-    /**
-     * Generate PDF template and send via email
-     */
     private function generatePdfAndSendEmail(Exception $exception)
     {
         $user = $exception->user;
         $manager = $exception->managerApproval;
         $spv = $exception->spvApproval;
 
-        // Generate signed URLs if bucket is private
         $userSignature    = $this->getSignedUrlIfRemote($user->signature_url);
         $managerSignature = $manager ? $this->getSignedUrlIfRemote($manager->signature_url) : null;
         $spvSignature     = $spv ? $this->getSignedUrlIfRemote($spv->signature_url) : null;
         $spvStamp         = $spv ? $this->getSignedUrlIfRemote($spv->stamp_url) : null;
 
-        // Render PDF menggunakan dompdf facade
         $pdf = Pdf::loadView('pdf.surat_izin', [
             'exception'        => $exception,
             'user'             => $user,
@@ -335,15 +384,9 @@ class ExceptionController extends Controller
         $pdf->setOption('isRemoteEnabled', true);
 
         $pdfContent = $pdf->output();
-
-        // Kirim email
         Mail::to($user->email)->send(new SuratIzinMail($exception, $user, $pdfContent));
     }
 
-    /**
-     * POST /api/exceptions/{id}/resend-email
-     * Resend the approved leave PDF email.
-     */
     public function resendEmail($id)
     {
         $user = Auth::user();
@@ -372,9 +415,6 @@ class ExceptionController extends Controller
         }
     }
 
-    /**
-     * Delete an exception/request (only if pending, or Superadmin)
-     */
     public function destroy($id)
     {
         $user      = Auth::user();
@@ -395,7 +435,6 @@ class ExceptionController extends Controller
             }
         }
 
-        // Hapus file dari storage jika ada
         if ($exception->evidence_url) {
             $path = str_replace(config('app.url') . '/storage/', '', $exception->evidence_url);
             Storage::disk('public')->delete($path);

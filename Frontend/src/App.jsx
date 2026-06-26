@@ -14,7 +14,6 @@ import ChangePasswordForce from "./pages/auth/ChangePasswordForce";
 // Pages - Universal (Semua Role)
 import Dashboard from "./pages/dashboard/Dashboard";
 import Whiteboard from "./pages/Whiteboard"
-import Settings from "./pages/Settings";
 import LockedPage from "./pages/LockedPage";
 
 // Pages - Unified Task (Gerbang Utama)
@@ -22,7 +21,6 @@ import Tasks from "./pages/Tasks";
 
 // Pages - Khusus Intern
 import LeaveRequest from "./pages/intern/LeaveRequest";
-import InternLogbook from "./pages/intern/InternLogbook";
 import MySchedule from "./pages/intern/MySchedule";
 
 // Pages - Manajerial (Admin & Up)
@@ -36,7 +34,7 @@ import Broadcasts from "./pages/admin/Broadcasts";
 import ManageAdmin from "./pages/superadmin/ManageAdmin";
 import DivisionAnalytics from "./pages/superadmin/DivisionAnalytics";
 // 👇 IMPORT KOMPONEN CONFIG
-import AuditLog from './pages/developer/AuditLog';
+import AuditLog from './pages/admin/AuditLog';
 
 function App() {
   return (
@@ -61,9 +59,7 @@ function App() {
 
             {/* --- JALUR KEBAL GEMBOK (selalu bisa diakses intern) --- */}
             <Route path="leave-request" element={<LeaveRequest />} />
-            <Route path="forbidden" element={<LockedPage />} />
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="settings" element={<Settings />} />
             <Route path="my-schedule" element={
               <ProtectedRoute roles={["intern"]}>
                 <MySchedule />
@@ -75,15 +71,8 @@ function App() {
 
               {/* Multi-Role (Tugas) */}
               <Route path="tasks" element={
-                <ProtectedRoute roles={["intern", "admin", "superadmin", "developer"]}>
+                <ProtectedRoute roles={["intern", "admin", "superadmin"]}>
                   <Tasks />
-                </ProtectedRoute>
-              } />
-
-              {/* Khusus Intern: Kerjakan Tugas */}
-              <Route path="logbook" element={
-                <ProtectedRoute roles={["intern"]}>
-                  <InternLogbook />
                 </ProtectedRoute>
               } />
               <Route path="whitebook" element={
@@ -93,48 +82,46 @@ function App() {
               } />
               {/* Manajerial */}
               <Route path="approval" element={
-                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
+                <ProtectedRoute roles={["admin", "superadmin"]}>
                   <Approval />
                 </ProtectedRoute>
               } />
               <Route path="manage-intern" element={
-                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
+                <ProtectedRoute roles={["admin", "superadmin"]}>
                   <ManageAccountIntern />
                 </ProtectedRoute>
               } />
               <Route path="manage-schedules" element={
-                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
+                <ProtectedRoute roles={["admin", "superadmin"]}>
                   <ManageSchedules />
                 </ProtectedRoute>
               } />
               <Route path="schedule-calendar" element={
-                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
+                <ProtectedRoute roles={["admin", "superadmin"]}>
                   <ManageSchedulesCalendar />
                 </ProtectedRoute>
               } />
               <Route path="broadcasts" element={
-                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
+                <ProtectedRoute roles={["admin", "superadmin"]}>
                   <Broadcasts />
                 </ProtectedRoute>
               } />
 
               {/* VVIP & Analytics */}
               <Route path="manage-admin" element={
-                <ProtectedRoute roles={["superadmin", "developer"]}>
+                <ProtectedRoute roles={["superadmin"]}>
                   <ManageAdmin />
                 </ProtectedRoute>
               } />
 
               <Route path="division-analytics" element={
-                <ProtectedRoute roles={["superadmin", "developer"]}>
+                <ProtectedRoute roles={["superadmin"]}>
                   <DivisionAnalytics />
                 </ProtectedRoute>
               } />
 
-              {/* 👇 INI YANG KETINGGALAN: RUTE KHUSUS DEVELOPER */}
-
               <Route path="audit-log" element={
-                <ProtectedRoute roles={["admin", "superadmin", "developer"]}>
+                <ProtectedRoute roles={["admin", "superadmin"]}>
                   <AuditLog />
                 </ProtectedRoute>
               } />

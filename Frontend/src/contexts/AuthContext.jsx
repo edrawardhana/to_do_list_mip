@@ -77,23 +77,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (username, division_id, email, password) => {
-    setLoading(true);
-    try {
-      const response = await api.post('/auth/register', { username, division_id, email, password });
-      const resData = response.data?.data || response.data;
-      if (resData.access_token || resData.token) {
-        login(resData.access_token || resData.token, resData.user || resData.profile);
-      }
-      return { success: true };
-    } catch (error) {
-      const errorMsg = error.response?.data?.message || error.response?.data?.error || Object.values(error.response?.data || {}).flat().join(" ") || "Gagal mendaftar.";
-      return { success: false, error: errorMsg };
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const updateProfile = async (newData) => {
     setLoading(true);
     try {
@@ -141,7 +124,6 @@ export const AuthProvider = ({ children }) => {
       shiftLoading,
       todayShift,
       login,
-      register,
       logout,
       updateProfile,
       isIntern,

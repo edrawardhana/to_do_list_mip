@@ -35,7 +35,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       },
       {
         path: "/my-schedule",
-        label: "Jadwal Shift",
+        label: "My Schedule",
         icon: "fa-calendar-week",
         roles: ["intern"],
       },

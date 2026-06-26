@@ -45,11 +45,6 @@ const ProtectedRoute = ({ children, roles }) => {
   //    ProtectedRoute hanya handle role authorization
   // =========================================================
 
-  // 6. CEK KASTA (ROLE AUTHORIZATION)
-  if (roles && !roles.includes(currentRole)) {
-    return <Navigate to="/forbidden" replace />;
-  }
-
   // 7. LOLOS SEMUA
   return children;
 };

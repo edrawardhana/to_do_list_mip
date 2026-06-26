@@ -5,7 +5,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import InternDashboard from "./InternDashboard";
 import AdminDashboard from "./AdminDashboard";
 import SuperadminDashboard from "./SuperadminDashboard";
-import DeveloperDashboard from "./DeveloperDashboard";
 
 const Dashboard = () => {
   const { user, loading, isIntern, isAdmin, isSuperAdmin, isDeveloper } = useAuth();

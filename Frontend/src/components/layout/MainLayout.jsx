@@ -12,45 +12,6 @@ import ShiftStatusBanner from "../ui/ShiftStatusBanner";
 import toast from "react-hot-toast";
 import api from "../../api/axios";
 
-const HardLockScreen = ({ onLogout }) => {
-
-  useEffect(() => {
-    const checkStatus = setInterval(async () => {
-      try {
-        // Mancing backend narik 1 API ringan
-        const res = await api.get('/profiles'); 
-        
-        if (res.status === 200) {
-          window.location.reload(); 
-        }
-      } catch (error) {
-      }
-    }, 3000); // 3000ms = 3 detik sekali ngeceknya
-
-    return () => clearInterval(checkStatus);
-  }, []);
-
-  return (
-    <div className="fixed inset-0 z-[99999] bg-[#0b1437] flex flex-col items-center justify-center text-center p-6 animate-in fade-in duration-500">
-      <div className="w-24 h-24 rounded-full bg-rose-500/20 flex items-center justify-center mb-6 border border-rose-500/30">
-        <i className="fa-solid fa-ban text-5xl text-rose-500 animate-pulse" />
-      </div>
-      <h1 className="text-3xl sm:text-4xl font-black text-rose-500 mb-3 tracking-tight">
-        Akses Dibekukan!
-      </h1>
-      <p className="text-slate-300 font-medium max-w-md mb-8 leading-relaxed">
-        Akun Anda saat ini dikunci oleh Administrator. Anda tidak dapat melakukan aktivitas apapun di dalam sistem.
-      </p>
-      <button
-        onClick={onLogout}
-        className="px-8 py-3.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black transition-all shadow-lg shadow-rose-600/30 active:scale-95 flex items-center gap-2"
-      >
-        <i className="fa-solid fa-arrow-right-from-bracket" /> Keluar Akun
-      </button>
-    </div>
-  );
-};
-
 const MainLayout = () => {
   const { user, isAdmin, isSuperAdmin, logout, userTheme } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -136,9 +97,6 @@ const MainLayout = () => {
     setupNotifications();
   }, [user?.id]);
 
-  if (user?.is_locked || realtimeLock) {
-    return <HardLockScreen onLogout={logout} />;
-  }
 
   // ================= TEMA BACKGROUND UTAMA UNTUK BACKGROUND NYATU =================
   let bgClass = "bg-gradient-to-tr from-sky-100/40 via-slate-50 to-indigo-50/30 text-slate-900";
