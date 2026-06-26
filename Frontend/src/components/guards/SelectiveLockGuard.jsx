@@ -8,7 +8,6 @@ const ALWAYS_ALLOWED = [
   "/dashboard",
   "/my-schedule",
   "/leave-request",
-  "/forbidden",
 ];
 
 const SelectiveLockGuard = () => {
