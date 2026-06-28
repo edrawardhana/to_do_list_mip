@@ -134,13 +134,29 @@ const Broadcasts = () => {
       setSelectedTargets([]);
       setCategory("info"); 
 
-      queryClient.invalidateQueries(["broadcastsSystemData"]);
+      queryClient.invalidateQueries({ queryKey: ["broadcastsSystemData"] });
 
     } catch (error) {
-      const errorMsg = error.response?.data?.errors?.targetType?.[0] || 
-                       error.response?.data?.message || 
-                       "Gagal mengirim broadcast";
-                       
+      // Debug log untuk melihat error detail
+      console.error('Broadcast Error:', error.response?.data);
+      
+      // Cek validation errors
+      const errors = error.response?.data?.errors;
+      let errorMsg = "Gagal mengirim broadcast";
+      
+      if (errors) {
+        // Ambil error pertama dari field manapun
+        const firstErrorField = Object.keys(errors)[0];
+        if (firstErrorField) {
+          errorMsg = `Error di ${firstErrorField}: ${errors[firstErrorField][0]}`;
+        }
+      } else if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      console.log('Final Error Message:', errorMsg);
       toast.error(errorMsg, { id: tid });
     } finally {
       setIsSubmitting(false);
@@ -303,10 +319,15 @@ const Broadcasts = () => {
 
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Isi Pesan Broadcast</label>
-              <textarea value={message} onChange={(e) => setMessage(e.target.value)} required rows="5" placeholder="Tulis instruksi atau pengumuman Anda di sini secara lugas..." className={`w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-medium text-slate-700 outline-none resize-none focus:ring-2 ${theme.primaryRing} transition-all`} />
+              <div className="relative">
+                <textarea value={message} onChange={(e) => setMessage(e.target.value)} required rows="5" placeholder="Tulis instruksi atau pengumuman Anda di sini secara lugas..." className={`w-full bg-slate-50 border border-slate-200 rounded-xl p-4 pr-12 text-sm font-medium text-slate-700 outline-none resize-none focus:ring-2 ${theme.primaryRing} transition-all`} />
+                <div className={`absolute bottom-3 right-4 text-[11px] font-black ${message.length > 150 ? 'text-red-500' : 'text-slate-400'}`}>
+                  {message.length}/150
+                </div>
+              </div>
             </div>
 
-            <button type="submit" disabled={isSubmitting || loading} className={`w-full py-4 text-white rounded-xl text-sm font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${theme.btnClass}`}>
+            <button type="submit" disabled={isSubmitting || loading || message.length > 150} className={`w-full py-4 text-white rounded-xl text-sm font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${message.length > 150 ? 'bg-slate-400 opacity-50 cursor-not-allowed' : theme.btnClass}`}>
               {isSubmitting ? <i className="fa-solid fa-circle-notch fa-spin" /> : <i className="fa-solid fa-bullhorn" />}
               {isSubmitting ? "Mengirim Pesan..." : "Luncurkan Broadcast"}
             </button>

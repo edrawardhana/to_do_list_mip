@@ -14,7 +14,7 @@ import ChangePasswordForce from "./pages/auth/ChangePasswordForce";
 // Pages - Universal (Semua Role)
 import Dashboard from "./pages/dashboard/Dashboard";
 import Whiteboard from "./pages/Whiteboard"
-import LockedPage from "./pages/LockedPage";
+import HardLockScreen from "./pages/HardLockScreen";
 
 // Pages - Unified Task (Gerbang Utama)
 import Tasks from "./pages/Tasks";

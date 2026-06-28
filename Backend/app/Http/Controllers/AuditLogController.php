@@ -24,7 +24,8 @@ class AuditLogController extends Controller
 
         if ($user->role === 'admin') {
             $query->whereHas('actor', function ($q) use ($user) {
-                $q->where('division_id', $user->division_id);
+                $q->where('division_id', $user->division_id)
+                  ->where('role', '!=', 'super_admin'); // Sesuaikan string 'super_admin' dengan penulisan role di database kamu (misal: 'superadmin')
             });
         }
 
