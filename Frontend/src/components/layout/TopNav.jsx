@@ -3,6 +3,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import MIPTopLogo from "../../assets/images/MIP_toplogo.png";
 
 const TopNav = ({ onToggleSidebar }) => {
   const { user, updateProfile, setUser, userTheme } = useAuth();
@@ -563,11 +564,11 @@ const TopNav = ({ onToggleSidebar }) => {
                   src={user.avatar_url} 
                   alt="avatar" 
                   className="w-full h-full object-cover" 
-                  onError={(e) => { e.target.onerror = null; e.target.src = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/toDoList/MCC-Logo.png`; }}
+                  onError={(e) => { e.target.onerror = null; e.target.src = MIPTopLogo; }}
                 />
               ) : (
                 <img 
-                  src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/toDoList/MCC-Logo.png`} 
+                  src={MIPTopLogo} 
                   alt="MCC Logo" 
                   className="w-full h-full object-contain p-1 bg-white" 
                 />
@@ -588,11 +589,11 @@ const TopNav = ({ onToggleSidebar }) => {
                         src={avatarPreview} 
                         alt="avatar" 
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
-                        onError={(e) => { e.target.onerror = null; e.target.src = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/toDoList/MCC-Logo.png`; }}
+                        onError={(e) => { e.target.onerror = null; e.target.src = MIPTopLogo; }}
                       />
                     ) : (
                       <img 
-                        src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/toDoList/MCC-Logo.png`} 
+                        src={MIPTopLogo} 
                         alt="MCC Logo" 
                         className="w-full h-full object-contain p-2 bg-white group-hover:scale-105 transition-transform" 
                       />

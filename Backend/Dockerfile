@@ -32,8 +32,8 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 COPY . .
 
-# Install dependencies Laravel produksi (tanpa dev/tinker)
-RUN composer install --no-dev --optimize-autoloader
+# Install dependencies Laravel
+RUN composer install --optimize-autoloader
 
 # Atur Izin Folder (Permission) agar Laravel bisa menulis cache & logs
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
@@ -46,5 +46,6 @@ CMD php artisan config:clear && \
     php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache && \
-    php artisan migrate --force && \
+    (php artisan storage:link || true) && \
+    (php artisan migrate --force || true) && \
     apache2-foreground

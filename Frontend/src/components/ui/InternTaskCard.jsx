@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import MIPTopLogo from "../../assets/images/MIP_toplogo.png";
 
 const InternTaskCard = ({ task, index, onOpenCameraModal, currentUserId, onRefresh }) => {
   // Logic Status Utama
@@ -228,7 +229,7 @@ const InternTaskCard = ({ task, index, onOpenCameraModal, currentUserId, onRefre
             {/* Tampilkan Foto Bukti jika ada */}
             {(task.evidence_url || task.photo) && (
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-slate-100 border border-slate-200 shadow-inner overflow-hidden shrink-0 relative">
-                <img src={task.evidence_url || task.photo} alt="bukti" className="w-full h-full object-cover" />
+                <img src={task.evidence_url || task.photo} alt="bukti" onError={(e) => { e.target.onerror = null; e.target.src = MIPTopLogo; }} className="w-full h-full object-cover" />
                 {isRevision && <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-rose-500 rounded-full border border-white animate-pulse"></div>}
               </div>
             )}
@@ -273,7 +274,7 @@ const InternTaskCard = ({ task, index, onOpenCameraModal, currentUserId, onRefre
               <div className="bg-white p-3 rounded-lg border border-slate-100">
                  <p className="text-[9px] text-slate-400 uppercase font-bold mb-1">Bukti Foto:</p>
                  {task.evidence_url ? (
-                   <img src={task.evidence_url} alt="bukti" className="w-full h-24 object-cover rounded shadow-sm border border-slate-200" onClick={() => window.open(task.evidence_url, '_blank')} />
+                   <img src={task.evidence_url} alt="bukti" onError={(e) => { e.target.onerror = null; e.target.src = MIPTopLogo; }} className="w-full h-24 object-cover rounded shadow-sm border border-slate-200" onClick={() => window.open(task.evidence_url, '_blank')} />
                  ) : (
                    <p className="text-xs text-slate-400 italic">Belum ada foto.</p>
                  )}

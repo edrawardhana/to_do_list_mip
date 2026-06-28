@@ -5,6 +5,7 @@ import api from "../../api/axios";
 import toast from "react-hot-toast";
 import { createPortal } from "react-dom";
 import ImageModal from "../../components/ui/ImageModal";
+import MIPTopLogo from "../../assets/images/MIP_toplogo.png";
 
 const PAGE_SIZE = 6;
 
@@ -562,6 +563,7 @@ const Approval = () => {
                               src={task.photo}
                               alt="Bukti"
                               onClick={(e) => openImageModal(e, task.photo)}
+                              onError={(e) => { e.target.onerror = null; e.target.src = MIPTopLogo; }}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer"
                             />
                           ) : (
@@ -760,7 +762,7 @@ const Approval = () => {
                               <img
                                 src={leave.proof}
                                 alt="Bukti"
-                                onError={(e) => { e.target.onerror = null; e.target.src = import.meta.env.VITE_SUPABASE_URL + "/storage/v1/object/public/toDoList/MCC-Logo.png"; }}
+                                onError={(e) => { e.target.onerror = null; e.target.src = MIPTopLogo; }}
                                 className="w-full h-full object-cover opacity-80 group-hover/img:opacity-100 transition-opacity bg-white"
                               />
                               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
@@ -898,7 +900,7 @@ const Approval = () => {
                               <img
                                 src={leave.proof}
                                 alt="Bukti"
-                                onError={(e) => { e.target.onerror = null; e.target.src = import.meta.env.VITE_SUPABASE_URL + "/storage/v1/object/public/toDoList/MCC-Logo.png"; }}
+                                onError={(e) => { e.target.onerror = null; e.target.src = MIPTopLogo; }}
                                 className="w-full h-full object-cover opacity-80 group-hover/img:opacity-100 transition-opacity bg-white"
                               />
                               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">

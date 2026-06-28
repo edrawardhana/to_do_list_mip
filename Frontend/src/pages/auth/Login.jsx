@@ -69,23 +69,7 @@ export default function Login() {
     const loadId = toast.loading("Sedang memverifikasi akun...");
 
     try {
-      // BYPASS AXIOS BUAT TESTING ROLE DUMMY KITA
-      if (email.includes("@mcc.com")) {
-        await new Promise(resolve => setTimeout(resolve, 800)); // Fake delay
-        
-        // Sesuaikan dengan parameter AuthContext baru: login(token, userData)
-        const dummyUser = {
-          id: "dummy-123",
-          full_name: "Rekiel Dummy",
-          email: email,
-          role: email.includes("admin") ? "admin" : "intern",
-          is_locked: false
-        };
-        login("dummy-token-123", dummyUser); 
-        toast.success(`Login Berhasil!`, { id: loadId });
-        navigate("/dashboard");
-        return; // Berhenti di sini, gak usah jalanin axios di bawah
-      }
+
 
       // KODE ASLI LU (Jalan kalau emailnya BUKAN @mcc.com)
       const response = await api.post("/auth/login", { email, password });

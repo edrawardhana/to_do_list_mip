@@ -16,7 +16,7 @@ return new class extends Migration
                     t_record RECORD;
                 BEGIN
                     FOR t_record IN
-                        SELECT id, task_name, start_time, end_time, reminder_time
+                        SELECT id, title, start_time, end_time, reminder_time
                         FROM public.task_templates
                         WHERE division_id = NEW.division_id
                           AND is_active = true

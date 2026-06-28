@@ -24,7 +24,9 @@ return new class extends Migration
         // Also drop if the new ones exist, just in case
         Schema::dropIfExists('audit_logs');
         Schema::dropIfExists('daily_tasks');
-        Schema::dropIfExists('attendance_schedules');
+        Schema::dropIfExists('schedules');
+        Schema::dropIfExists('exceptions');
+        Schema::dropIfExists('system_configs');
         Schema::dropIfExists('whiteboards');
         Schema::dropIfExists('task_templates');
         Schema::dropIfExists('profiles');
@@ -34,24 +36,34 @@ return new class extends Migration
         Schema::create('divisions', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('name');
+            $table->text('description')->nullable();
+            $table->timestampTz('created_at')->useCurrent();
         });
 
         // 3. Create profiles
         Schema::create('profiles', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('division_id')->constrained('divisions')->cascadeOnDelete();
+            $table->foreignUuid('division_id')->nullable()->constrained('divisions')->nullOnDelete();
             $table->string('full_name');
+            $table->string('nickname')->nullable();
             $table->string('email')->unique();
             $table->enum('role', ['intern', 'admin', 'super_admin', 'developer']);
-            $table->enum('shift', ['pagi', 'middle', 'siang']);
+            $table->enum('shift', ['pagi', 'middle', 'siang'])->default('pagi');
+            $table->boolean('is_verified')->default(false);
             $table->boolean('is_locked')->default(false);
+            $table->text('avatar_url')->nullable();
+            $table->string('phone_number', 20)->nullable();
+            $table->timestampsTz();
         });
 
         // 4. Create task_templates
         Schema::create('task_templates', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('division_id')->constrained('divisions')->cascadeOnDelete();
-            $table->string('task_name');
+            $table->string('title');
+            $table->text('description')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestampTz('created_at')->useCurrent();
         });
 
         // 5. Create whiteboards
@@ -83,18 +95,39 @@ return new class extends Migration
             $table->timestampsTz();
         });
 
-        // 7. Create attendance_schedules
-        Schema::create('attendance_schedules', function (Blueprint $table) {
+        // 7. Create schedules
+        Schema::create('schedules', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('user_id')->constrained('profiles')->cascadeOnDelete();
-            $table->enum('type', ['Izin', 'Sakit', 'Swap', 'Libur']);
-            $table->date('start_date');
-            $table->date('end_date');
-            $table->string('proof_url')->nullable();
-            $table->boolean('is_approved')->default(false); // ERD says Default: TRUE for Libur. We'll handle this in logic or default false here.
+            $table->date('shift_date');
+            $table->string('shift_type', 50);
+            $table->timestampTz('created_at')->useCurrent();
+            $table->unique(['user_id', 'shift_date']);
         });
 
-        // 8. Create audit_logs
+        // 8. Create exceptions
+        Schema::create('exceptions', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->foreignUuid('user_id')->constrained('profiles')->cascadeOnDelete();
+            $table->foreignUuid('evaluated_by')->nullable()->constrained('profiles')->nullOnDelete();
+            $table->date('permission_date');
+            $table->date('replacement_date')->nullable();
+            $table->string('type', 50);
+            $table->text('evidence_url')->nullable();
+            $table->text('description');
+            $table->string('status', 50)->default('pending');
+            $table->timestampTz('created_at')->useCurrent();
+            $table->timestampTz('processed_at')->nullable();
+        });
+
+        // 9. Create system_configs
+        Schema::create('system_configs', function (Blueprint $table) {
+            $table->string('key', 100)->primary();
+            $table->text('value');
+            $table->timestampTz('updated_at')->useCurrent();
+        });
+
+        // 10. Create audit_logs
         Schema::create('audit_logs', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('actor_id')->constrained('profiles')->cascadeOnDelete();
@@ -112,7 +145,9 @@ return new class extends Migration
     {
         Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('audit_logs');
-        Schema::dropIfExists('attendance_schedules');
+        Schema::dropIfExists('schedules');
+        Schema::dropIfExists('exceptions');
+        Schema::dropIfExists('system_configs');
         Schema::dropIfExists('daily_tasks');
         Schema::dropIfExists('whiteboards');
         Schema::dropIfExists('task_templates');
