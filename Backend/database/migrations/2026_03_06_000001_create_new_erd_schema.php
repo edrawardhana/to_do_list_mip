@@ -131,9 +131,11 @@ return new class extends Migration
         Schema::create('audit_logs', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('actor_id')->constrained('profiles')->cascadeOnDelete();
-            $table->uuid('target_id'); // Can be any entity ID, not strictly constrained to one table
-            $table->string('action_type');
-            $table->text('details');
+            $table->string('actor_role', 50);
+            $table->foreignUuid('target_user_id')->nullable()->constrained('profiles')->nullOnDelete();
+            $table->string('action', 255);
+            $table->jsonb('old_values')->nullable();
+            $table->jsonb('new_values')->nullable();
             $table->timestampTz('created_at')->useCurrent();
         });
     }
