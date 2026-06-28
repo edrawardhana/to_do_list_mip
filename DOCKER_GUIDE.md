@@ -25,17 +25,17 @@ Jika Anda men-deploy ke PC Server agar bisa diakses oleh PC/HP lain dalam jaring
 
 Buka file `docker-compose.yml`, lalu cari bagian berikut dan sesuaikan dengan IP PC Server Anda:
 ```yaml
-# Contoh menggunakan IP Server: 10.10.20.5
+# Contoh menggunakan IP Server: 10.10.20.70
 backend:
   environment:
     ...
     APP_URL: http://10.10.20.5:8005
-    FRONTEND_URL: http://10.10.20.5:8080,http://localhost:8080
+    FRONTEND_URL: http://10.10.20.70:8080,http://localhost:8080
 
 frontend:
   build:
     args:
-      - VITE_API_URL=http://10.10.20.5:8005/api
+      - VITE_API_URL=http://10.10.20.70:8005/api
 ```
 *(Catatan: Jika hanya untuk dicoba secara offline di PC yang sama, gunakan `localhost` atau biarkan default)*.
 
@@ -68,7 +68,7 @@ Setelah berhasil dijalankan, database lokal Anda akan memiliki akun bawaan sebag
 
 ## 💻 Cara Mengakses Aplikasi
 Buka web browser dan akses alamat berikut:
-* **Akses Frontend (Aplikasi Utama)**: `http://<IP_SERVER_ANDA>:8080` (Contoh: `http://10.10.20.5:8080` atau `http://localhost:8080`).
+* **Akses Frontend (Aplikasi Utama)**: `http://<IP_SERVER_ANDA>:8080` (Contoh: `http://10.10.20.70:8080` atau `http://localhost:8080`).
 * **Akses Backend API**: `http://<IP_SERVER_ANDA>:8005/api` (Contoh: `http://10.10.20.5:8005/api` atau `http://localhost:8005/api`).
 
 ---
