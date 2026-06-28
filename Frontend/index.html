@@ -51,13 +51,16 @@
       .logo-text {
         display: flex;
         align-items: baseline;
+        justify-content: center; 
         gap: 10px;
+        flex-wrap: wrap;       
+        padding: 0 20px;       
       }
 
       .mip {
         font-family: "Yellowtail", cursive;
         color: var(--yellow-mip);
-        font-size: 4.5rem;
+        font-size: clamp(2rem, 10vw, 4.5rem); 
         opacity: 0;
         transform: translateY(15px);
         animation: wordFadeIn 0.8s ease-out 0.5s forwards;
@@ -66,7 +69,7 @@
       .activity {
         font-family: "Inter", sans-serif;
         color: #ffffff;
-        font-size: 3.8rem;
+        font-size: clamp(1.8rem, 8vw, 3.8rem);  
         font-weight: 900;
         letter-spacing: -3px;
         opacity: 0;

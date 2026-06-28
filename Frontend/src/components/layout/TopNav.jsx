@@ -507,7 +507,7 @@ const TopNav = ({ onToggleSidebar }) => {
           </button>
 
           {/* Dropdown Isi Notif */}
-          <div className={`absolute right-0 top-full mt-2 w-80 ${dropdownBg} border ${dropdownBorder} rounded-2xl shadow-2xl overflow-hidden z-50 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out`}>
+          <div className={`absolute -right-[calc(50vw-140px)] md:right-0 top-full mt-3 w-[90vw] md:w-80 max-w-[320px] ${dropdownBg} border ${dropdownBorder} rounded-2xl shadow-2xl overflow-hidden z-50 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out origin-top`}>
             <div className={`px-4 py-3 border-b ${dropdownBorder} flex justify-between items-center bg-black/[0.02]`}>
               <h3 className={`text-sm font-bold ${modalTextMain}`}>Notifikasi</h3>
               {unreadCount > 0 && (
@@ -578,7 +578,7 @@ const TopNav = ({ onToggleSidebar }) => {
 
           {/* EDIT PROFILE MODAL */}
           {isProfileOpen && (
-            <div className={`absolute right-0 mt-3 w-[340px] max-w-[90vw] max-h-[85vh] flex flex-col ${dropdownBg} border ${dropdownBorder} rounded-3xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200`}>
+            <div className={`absolute right-[-50vw] translate-x-[-50%] md:right-0 md:translate-x-0 mt-3 w-[90vw] md:w-[340px] max-h-[85vh] flex flex-col ${dropdownBg} border ${dropdownBorder} rounded-3xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200`}>
               
               {/* Header Modal - Avatar & Live Preview */}
               <div className={`p-6 pb-5 flex flex-col items-center border-b ${dropdownBorder} shrink-0`}>
