@@ -31,7 +31,13 @@ const ManageAdmin = () => {
       tableIcon: "bg-pink-100 text-pink-600 border-pink-200",
       tableCheckbox: "text-pink-500 focus:ring-pink-400",
       tableRowSelected: "bg-pink-50/50",
-      tableBadge: "text-pink-600 bg-pink-50 border-pink-200"
+      tableBadge: "text-pink-600 bg-pink-50 border-pink-200",
+      modalTabActive: "border-pink-500 text-pink-600 bg-pink-50/50",
+      inputFocus: "focus:border-pink-300 focus:ring-pink-400/20",
+      submitBtn: "bg-pink-500 hover:bg-pink-600 shadow-pink-500/30",
+      uploadBorder: "border-pink-200 bg-pink-50/50 hover:border-pink-400 hover:bg-pink-50",
+      uploadText1: "text-pink-700",
+      uploadText2: "text-pink-500"
     },
     admin: {
       bgMain: "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20 shadow-blue-900/30",
@@ -51,7 +57,13 @@ const ManageAdmin = () => {
       tableIcon: "bg-blue-100 text-blue-600 border-blue-200",
       tableCheckbox: "text-blue-600 focus:ring-blue-500",
       tableRowSelected: "bg-blue-50/50",
-      tableBadge: "text-blue-600 bg-blue-50 border-blue-200"
+      tableBadge: "text-blue-600 bg-blue-50 border-blue-200",
+      modalTabActive: "border-blue-500 text-blue-600 bg-blue-50/50",
+      inputFocus: "focus:border-blue-300 focus:ring-blue-400/20",
+      submitBtn: "bg-blue-600 hover:bg-blue-700 shadow-blue-500/30",
+      uploadBorder: "border-blue-200 bg-blue-50/50 hover:border-blue-400 hover:bg-blue-50",
+      uploadText1: "text-blue-700",
+      uploadText2: "text-blue-500"
     },
     intern: {
       bgMain: "bg-gradient-to-br from-blue-600 to-cyan-500 border-cyan-400/20 shadow-cyan-500/30",
@@ -71,7 +83,13 @@ const ManageAdmin = () => {
       tableIcon: "bg-cyan-100 text-cyan-600 border-cyan-200",
       tableCheckbox: "text-cyan-500 focus:ring-cyan-400",
       tableRowSelected: "bg-cyan-50/50",
-      tableBadge: "text-cyan-600 bg-cyan-50 border-cyan-200"
+      tableBadge: "text-cyan-600 bg-cyan-50 border-cyan-200",
+      modalTabActive: "border-cyan-500 text-cyan-600 bg-cyan-50/50",
+      inputFocus: "focus:border-cyan-300 focus:ring-cyan-400/20",
+      submitBtn: "bg-cyan-500 hover:bg-cyan-600 shadow-cyan-500/30",
+      uploadBorder: "border-cyan-200 bg-cyan-50/50 hover:border-cyan-400 hover:bg-cyan-50",
+      uploadText1: "text-cyan-700",
+      uploadText2: "text-cyan-500"
     }
   }[userTheme] || {
       bgMain: "bg-gradient-to-br from-pink-300 to-rose-400 border-pink-200 shadow-pink-200/50",
@@ -91,7 +109,13 @@ const ManageAdmin = () => {
       tableIcon: "bg-pink-100 text-pink-600 border-pink-200",
       tableCheckbox: "text-pink-500 focus:ring-pink-400",
       tableRowSelected: "bg-pink-50/50",
-      tableBadge: "text-pink-600 bg-pink-50 border-pink-200"
+      tableBadge: "text-pink-600 bg-pink-50 border-pink-200",
+      modalTabActive: "border-pink-500 text-pink-600 bg-pink-50/50",
+      inputFocus: "focus:border-pink-300 focus:ring-pink-400/20",
+      submitBtn: "bg-pink-500 hover:bg-pink-600 shadow-pink-500/30",
+      uploadBorder: "border-pink-200 bg-pink-50/50 hover:border-pink-400 hover:bg-pink-50",
+      uploadText1: "text-pink-700",
+      uploadText2: "text-pink-500"
   };
   
   const [users, setUsers] = useState([]);
@@ -821,7 +845,7 @@ const ManageAdmin = () => {
             
             <div className="p-6 md:p-8 flex justify-between items-center border-b border-slate-100 bg-slate-50 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-pink-100 text-pink-600 border border-pink-200 flex items-center justify-center shrink-0 shadow-inner">
+                <div className={`w-10 h-10 rounded-xl ${tClass.tableIcon} flex items-center justify-center shrink-0 shadow-inner`}>
                   <i className="fa-solid fa-user-plus text-sm" />
                 </div>
                 <div>
@@ -836,10 +860,10 @@ const ManageAdmin = () => {
 
             {/* Tabs */}
             <div className="flex border-b border-slate-100 bg-white shrink-0">
-              <button onClick={() => setAddMode("manual")} className={`flex-1 py-3.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 ${addMode === "manual" ? "border-pink-500 text-pink-600 bg-pink-50/50" : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"}`}>
+              <button onClick={() => setAddMode("manual")} className={`flex-1 py-3.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 ${addMode === "manual" ? tClass.modalTabActive : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"}`}>
                 <i className="fa-solid fa-keyboard mr-1.5" /> Input Manual
               </button>
-              <button onClick={() => setAddMode("csv")} className={`flex-1 py-3.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 ${addMode === "csv" ? "border-pink-500 text-pink-600 bg-pink-50/50" : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"}`}>
+              <button onClick={() => setAddMode("csv")} className={`flex-1 py-3.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 ${addMode === "csv" ? tClass.modalTabActive : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"}`}>
                 <i className="fa-solid fa-file-csv mr-1.5" /> Import CSV
               </button>
             </div>
@@ -849,28 +873,28 @@ const ManageAdmin = () => {
                 <form onSubmit={submitManual} className="space-y-4">
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Nama Lengkap</label>
-                    <input type="text" required value={manualForm.full_name} onChange={e => setManualForm({...manualForm, full_name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none" placeholder="Budi Santoso" />
+                    <input type="text" required value={manualForm.full_name} onChange={e => setManualForm({...manualForm, full_name: e.target.value})} className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white transition-all outline-none ${tClass.inputFocus}`} placeholder="Budi Santoso" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Username</label>
-                      <input type="text" required value={manualForm.username} onChange={e => setManualForm({...manualForm, username: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none" placeholder="budi123" />
+                      <input type="text" required value={manualForm.username} onChange={e => setManualForm({...manualForm, username: e.target.value})} className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:bg-white transition-all outline-none ${tClass.inputFocus}`} placeholder="budi123" />
                     </div>
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Email</label>
-                      <input type="email" required value={manualForm.email} onChange={e => setManualForm({...manualForm, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none" placeholder="budi@example.com" />
+                      <input type="email" required value={manualForm.email} onChange={e => setManualForm({...manualForm, email: e.target.value})} className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:bg-white transition-all outline-none ${tClass.inputFocus}`} placeholder="budi@example.com" />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Divisi</label>
-                      <select required value={manualForm.division_id} onChange={e => setManualForm({...manualForm, division_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none appearance-none cursor-pointer">
+                      <select required value={manualForm.division_id} onChange={e => setManualForm({...manualForm, division_id: e.target.value})} className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white transition-all outline-none appearance-none cursor-pointer ${tClass.inputFocus}`}>
                         {divisionsList.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Role</label>
-                      <select required value={manualForm.role} onChange={e => setManualForm({...manualForm, role: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none appearance-none cursor-pointer">
+                      <select required value={manualForm.role} onChange={e => setManualForm({...manualForm, role: e.target.value})} className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white transition-all outline-none appearance-none cursor-pointer ${tClass.inputFocus}`}>
                         <option value="intern">Intern</option>
                         <option value="admin">Admin</option>
                         <option value="super_admin">Super Admin</option>
@@ -880,37 +904,37 @@ const ManageAdmin = () => {
                   {manualForm.role === "intern" && (
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Internship Batch Angkatan (Opsional)</label>
-                      <input type="number" min="1" value={manualForm.internship_batch} onChange={e => setManualForm({...manualForm, internship_batch: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-400/20 transition-all outline-none" placeholder="Contoh: Masukkan angka (misal: 1, 2, 3)" />
+                      <input type="number" min="1" value={manualForm.internship_batch} onChange={e => setManualForm({...manualForm, internship_batch: e.target.value})} className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:bg-white transition-all outline-none ${tClass.inputFocus}`} placeholder="Contoh: Masukkan angka (misal: 1, 2, 3)" />
                     </div>
                   )}
                   <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 flex gap-3 items-start mt-4 shadow-sm">
                     <i className="fa-solid fa-circle-info text-amber-500 mt-0.5 shrink-0" />
                     <p className="text-[11px] text-amber-700 font-medium leading-relaxed">Password akan dibuat otomatis. Kamu akan melihatnya di layar setelah akun berhasil dibuat.</p>
                   </div>
-                  <button type="submit" disabled={isSubmitting} className="w-full mt-6 py-3.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-black text-sm transition-all shadow-lg shadow-pink-500/30 disabled:opacity-50 active:scale-95">
+                  <button type="submit" disabled={isSubmitting} className={`w-full mt-6 py-3.5 rounded-xl text-white font-black text-sm transition-all shadow-lg disabled:opacity-50 active:scale-95 ${tClass.submitBtn}`}>
                     {isSubmitting ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Memproses...</> : "Buat Akun Sekarang"}
                   </button>
                 </form>
               ) : (
                 <form onSubmit={submitCsv} className="space-y-4 text-center">
-                  <div className="border-2 border-dashed border-pink-200 rounded-2xl p-8 bg-pink-50/50 relative group cursor-pointer hover:border-pink-400 hover:bg-pink-50 transition-all">
+                  <div className={`border-2 border-dashed rounded-2xl p-8 relative group cursor-pointer transition-all ${tClass.uploadBorder}`}>
                     <input type="file" accept=".xlsx, .xls, .csv" onChange={e => setCsvFile(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                    <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-4 border border-pink-100 group-hover:scale-110 transition-transform">
+                    <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-4 border group-hover:scale-110 transition-transform">
                       <i className="fa-solid fa-file-excel text-3xl text-emerald-500" />
                     </div>
                     {csvFile ? (
                       <div>
-                        <p className="font-bold text-pink-700 text-sm">{csvFile.name}</p>
-                        <p className="text-xs text-pink-500 mt-1">{(csvFile.size / 1024).toFixed(2)} KB</p>
+                        <p className={`font-bold text-sm ${tClass.uploadText1}`}>{csvFile.name}</p>
+                        <p className={`text-xs mt-1 ${tClass.uploadText2}`}>{(csvFile.size / 1024).toFixed(2)} KB</p>
                       </div>
                     ) : (
                       <div>
-                        <p className="font-bold text-pink-700 text-sm">Klik atau Seret file Excel/CSV ke sini</p>
-                        <p className="text-xs text-pink-500 mt-1">Gunakan template Excel agar format lebih rapi</p>
+                        <p className={`font-bold text-sm ${tClass.uploadText1}`}>Klik atau Seret file Excel/CSV ke sini</p>
+                        <p className={`text-xs mt-1 ${tClass.uploadText2}`}>Gunakan template Excel agar format lebih rapi</p>
                       </div>
                     )}
                   </div>
-                  <button type="submit" disabled={isSubmitting || !csvFile} className="w-full py-3.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-black text-sm transition-all shadow-lg shadow-pink-500/30 disabled:opacity-50 active:scale-95">
+                  <button type="submit" disabled={isSubmitting || !csvFile} className={`w-full py-3.5 rounded-xl text-white font-black text-sm transition-all shadow-lg disabled:opacity-50 active:scale-95 ${tClass.submitBtn}`}>
                     {isSubmitting ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Mengimpor...</> : "Mulai Import Massal"}
                   </button>
                   <button type="button" onClick={downloadExcelTemplate} className="block w-full mt-4 text-[11px] font-bold text-slate-400 hover:text-emerald-500 underline bg-transparent border-none cursor-pointer text-center transition-colors">

@@ -306,11 +306,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         {isSuperAdmin && (
           <div className="px-6 pb-2">
             <div className="flex items-center justify-center gap-3">
-              <button
-                onClick={() => updateProfile({ theme_color: "intern" })}
-                className={`w-6 h-6 rounded-full bg-cyan-400 border-2 transition-all hover:scale-110 ${userTheme === "intern" ? "border-white scale-110 shadow-[0_0_10px_rgba(34,211,238,0.8)]" : "border-white/20 scale-90"}`}
-                title="Intern Theme"
-              />
+
               <button
                 onClick={() => updateProfile({ theme_color: "admin" })}
                 className={`w-6 h-6 rounded-full bg-[#162447] border-2 transition-all hover:scale-110 ${userTheme === "admin" ? "border-white scale-110 shadow-[0_0_10px_rgba(22,36,71,0.8)]" : "border-white/20 scale-90"}`}

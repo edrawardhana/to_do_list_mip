@@ -35,8 +35,12 @@ return new class extends Migration
         // 2. Create divisions
         Schema::create('divisions', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('name');
+            $table->string('name')->unique();
+            $table->string('icon', 50)->nullable()->default('fa-briefcase');
+            $table->string('color', 50)->nullable()->default('#3b82f6');
+            $table->string('head', 100)->nullable();
             $table->text('description')->nullable();
+            $table->jsonb('job_descriptions')->nullable()->default('[]');
             $table->timestampTz('created_at')->useCurrent();
         });
 
@@ -53,6 +57,7 @@ return new class extends Migration
             $table->boolean('is_locked')->default(false);
             $table->text('avatar_url')->nullable();
             $table->string('phone_number', 20)->nullable();
+            $table->timestampTz('deleted_at')->nullable();
             $table->timestampsTz();
         });
 

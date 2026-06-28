@@ -1,4 +1,4 @@
-# SiREKAP MIP - To-Do List & Logbook Intern System
+# MIP Activity - To-Do List & Logbook Intern System
 
 Sistem manajemen tugas harian (*logbook*) dan absensi untuk anak magang di MCC (MIP), yang dilengkapi dengan fitur kolaborasi tugas bersama (*collaborative tasks*), penandaan rekan shift, dan *approval* berdivisi dari Admin.
 
@@ -99,3 +99,28 @@ to_do_list_mip/
 ## Keterangan Teknis Tambahan
 - **Optimasi Caching**: Model `DailyTask.php` menyimpan URL bukti tugas di cache lokal menggunakan `Cache::remember` dengan durasi 900 detik (15 menit). Hal ini mencegah performa drop yang diakibatkan oleh pembuatan S3 signature di dalam perulangan data logbook.
 - **Cronjob / Pemicu Otomatis**: Sistem menggunakan trigger database Postgres untuk generate tugas harian otomatis setiap harinya berdasarkan template divisi.
+
+---
+
+## Panduan Instalasi via Docker (Rekomendasi untuk PC Lain)
+
+Proyek ini telah dikonfigurasi dengan Docker Compose untuk memudahkan instalasi di PC/Server lain (seperti staging/production) tanpa perlu menginstal PHP atau Node.js secara manual.
+
+### Persyaratan
+- **Docker Desktop** (jika menggunakan Windows/Mac) atau **Docker Engine & Docker Compose** (jika di Linux).
+
+### Langkah-langkah
+1. Klon repository ini ke PC baru.
+2. Salin `.env.example` ke `.env` pada folder `Backend` (pastikan kredensial Supabase/database telah disesuaikan jika ingin menggunakan database terpisah, atau biarkan default jika menggunakan Postgres dari docker).
+3. Di dalam direktori root proyek (folder yang berisi `docker-compose.yml`), jalankan perintah:
+   ```bash
+   docker compose up --build -d
+   ```
+4. Setelah kontainer berjalan, jalankan migrasi dan seeder database untuk pertama kalinya dengan cara masuk ke kontainer backend:
+   ```bash
+   docker compose exec backend php artisan migrate:fresh --seed
+   ```
+5. Frontend dapat diakses di `http://localhost:5173` (atau IP yang diset di `docker-compose.yml`).
+6. Backend API dapat diakses di `http://localhost:8000/api`.
+
+> **Note**: Pastikan IP lokal jaringan dikonfigurasi dengan benar pada `APP_URL` di Backend `.env` dan `VITE_API_URL` di Frontend `.env` jika aplikasi diakses dari perangkat lain dalam satu jaringan (contoh: `10.10.20.5`).

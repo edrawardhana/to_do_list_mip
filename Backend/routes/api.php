@@ -13,8 +13,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BroadcastController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\SystemConfigController;
-use App\Http\Controllers\ReportController;
+// use App\Http\Controllers\SystemConfigController;
+// use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SuperadminDashboardController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\InternDashboardController;
@@ -89,7 +89,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\CheckAccountLock::class])->g
     Route::apiResource('broadcasts', BroadcastController::class)->except(['show']);
 
     // System Configs (Superadmin/Admin View)
-    Route::apiResource('system-configs', SystemConfigController::class)->except(['show']);
+    // Route::apiResource('system-configs', SystemConfigController::class)->except(['show']);
 
     // Administrasi Divisi (Superadmin/Admin View)
     Route::get('/divisions/analytics', [DivisionController::class, 'analytics']);
@@ -101,7 +101,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\CheckAccountLock::class])->g
     Route::get('/dashboard/intern', [InternDashboardController::class, 'index']);
 
     // Reports & Analytics
-    Route::get('/reports/monthly', [ReportController::class, 'monthly']);
+    // Route::get('/reports/monthly', [ReportController::class, 'monthly']);
 
     // ⚠️ Housekeeping routes DIHAPUS — data cleanup berjalan otomatis via scheduler
 });

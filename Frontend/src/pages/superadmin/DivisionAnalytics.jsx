@@ -195,7 +195,22 @@ const DivisionAnalytics = () => {
       cardIcon: "text-pink-500",
       cardActionHover: "hover:text-pink-600 hover:border-pink-300 hover:bg-pink-50",
       cardTitleHover: "group-hover:text-pink-600",
-      cardArrow: "bg-pink-50 border-pink-200 text-pink-500 group-hover:bg-pink-600 group-hover:text-white group-hover:shadow-md"
+      cardArrow: "bg-pink-50 border-pink-200 text-pink-500 group-hover:bg-pink-600 group-hover:text-white group-hover:shadow-md",
+      modalBorder: "border-pink-200",
+      modalHeaderBg: "bg-gradient-to-r from-pink-500 to-rose-500",
+      modalSubText: "text-pink-100",
+      inputFocus: "focus:ring-pink-400 focus:border-pink-300",
+      iconBox: "bg-pink-50 border-pink-200 text-pink-500",
+      iconActive: "bg-pink-500 text-white border-pink-600 shadow-sm",
+      detailHeaderIconBg: "bg-pink-500 shadow-pink-500/30",
+      detailSubText: "text-pink-400",
+      detailCloseBtn: "bg-pink-50 text-pink-600 hover:bg-rose-500 hover:border-rose-500 border-pink-200",
+      detailBoxBorder: "border-pink-100",
+      detailIcon: "text-pink-500",
+      detailJobBox: "bg-pink-50/50 border-pink-100 hover:border-pink-300",
+      detailCountBadge: "text-pink-600 bg-pink-50 border-pink-200",
+      detailMemberHover: "hover:border-pink-200",
+      detailMemberAvatar: "bg-gradient-to-br from-pink-400 to-pink-500"
     },
     admin: {
       bgMain: "bg-gradient-to-b from-[#162447] to-[#1a3a6c] border-blue-400/20 shadow-blue-900/30",
@@ -212,7 +227,22 @@ const DivisionAnalytics = () => {
       cardIcon: "text-blue-500",
       cardActionHover: "hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50",
       cardTitleHover: "group-hover:text-blue-600",
-      cardArrow: "bg-blue-50 border-blue-200 text-blue-500 group-hover:bg-blue-600 group-hover:text-white group-hover:shadow-md"
+      cardArrow: "bg-blue-50 border-blue-200 text-blue-500 group-hover:bg-blue-600 group-hover:text-white group-hover:shadow-md",
+      modalBorder: "border-blue-200",
+      modalHeaderBg: "bg-gradient-to-r from-blue-600 to-[#1a3a6c]",
+      modalSubText: "text-blue-100",
+      inputFocus: "focus:ring-blue-400 focus:border-blue-300",
+      iconBox: "bg-blue-50 border-blue-200 text-blue-500",
+      iconActive: "bg-blue-600 text-white border-blue-700 shadow-sm",
+      detailHeaderIconBg: "bg-blue-600 shadow-blue-500/30",
+      detailSubText: "text-blue-400",
+      detailCloseBtn: "bg-blue-50 text-blue-600 hover:bg-rose-500 hover:border-rose-500 border-blue-200",
+      detailBoxBorder: "border-blue-100",
+      detailIcon: "text-blue-500",
+      detailJobBox: "bg-blue-50/50 border-blue-100 hover:border-blue-300",
+      detailCountBadge: "text-blue-600 bg-blue-50 border-blue-200",
+      detailMemberHover: "hover:border-blue-200",
+      detailMemberAvatar: "bg-gradient-to-br from-blue-400 to-blue-500"
     },
     intern: {
       bgMain: "bg-gradient-to-br from-blue-600 to-cyan-500 border-cyan-400/20 shadow-cyan-500/30",
@@ -229,7 +259,22 @@ const DivisionAnalytics = () => {
       cardIcon: "text-cyan-500",
       cardActionHover: "hover:text-cyan-600 hover:border-cyan-300 hover:bg-cyan-50",
       cardTitleHover: "group-hover:text-cyan-600",
-      cardArrow: "bg-cyan-50 border-cyan-200 text-cyan-500 group-hover:bg-cyan-600 group-hover:text-white group-hover:shadow-md"
+      cardArrow: "bg-cyan-50 border-cyan-200 text-cyan-500 group-hover:bg-cyan-600 group-hover:text-white group-hover:shadow-md",
+      modalBorder: "border-cyan-200",
+      modalHeaderBg: "bg-gradient-to-r from-cyan-500 to-blue-500",
+      modalSubText: "text-cyan-100",
+      inputFocus: "focus:ring-cyan-400 focus:border-cyan-300",
+      iconBox: "bg-cyan-50 border-cyan-200 text-cyan-500",
+      iconActive: "bg-cyan-500 text-white border-cyan-600 shadow-sm",
+      detailHeaderIconBg: "bg-cyan-500 shadow-cyan-500/30",
+      detailSubText: "text-cyan-400",
+      detailCloseBtn: "bg-cyan-50 text-cyan-600 hover:bg-rose-500 hover:border-rose-500 border-cyan-200",
+      detailBoxBorder: "border-cyan-100",
+      detailIcon: "text-cyan-500",
+      detailJobBox: "bg-cyan-50/50 border-cyan-100 hover:border-cyan-300",
+      detailCountBadge: "text-cyan-600 bg-cyan-50 border-cyan-200",
+      detailMemberHover: "hover:border-cyan-200",
+      detailMemberAvatar: "bg-gradient-to-br from-cyan-400 to-cyan-500"
     }
   }[userTheme] || {
       bgMain: "bg-gradient-to-br from-pink-300 to-rose-400 border-pink-200 shadow-pink-200/50",
@@ -246,7 +291,22 @@ const DivisionAnalytics = () => {
       cardIcon: "text-pink-500",
       cardActionHover: "hover:text-pink-600 hover:border-pink-300 hover:bg-pink-50",
       cardTitleHover: "group-hover:text-pink-600",
-      cardArrow: "bg-pink-50 border-pink-200 text-pink-500 group-hover:bg-pink-600 group-hover:text-white group-hover:shadow-md"
+      cardArrow: "bg-pink-50 border-pink-200 text-pink-500 group-hover:bg-pink-600 group-hover:text-white group-hover:shadow-md",
+      modalBorder: "border-pink-200",
+      modalHeaderBg: "bg-gradient-to-r from-pink-500 to-rose-500",
+      modalSubText: "text-pink-100",
+      inputFocus: "focus:ring-pink-400 focus:border-pink-300",
+      iconBox: "bg-pink-50 border-pink-200 text-pink-500",
+      iconActive: "bg-pink-500 text-white border-pink-600 shadow-sm",
+      detailHeaderIconBg: "bg-pink-500 shadow-pink-500/30",
+      detailSubText: "text-pink-400",
+      detailCloseBtn: "bg-pink-50 text-pink-600 hover:bg-rose-500 hover:border-rose-500 border-pink-200",
+      detailBoxBorder: "border-pink-100",
+      detailIcon: "text-pink-500",
+      detailJobBox: "bg-pink-50/50 border-pink-100 hover:border-pink-300",
+      detailCountBadge: "text-pink-600 bg-pink-50 border-pink-200",
+      detailMemberHover: "hover:border-pink-200",
+      detailMemberAvatar: "bg-gradient-to-br from-pink-400 to-pink-500"
   };
 
   return (
@@ -422,9 +482,9 @@ const DivisionAnalytics = () => {
       {/* ================================================================= */}
       {isFormOpen && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-[#0b1437]/80 backdrop-blur-sm animate-in fade-in p-4 sm:p-6">
-          <div className="w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-in zoom-in-95 border bg-white border-pink-200">
+          <div className={`w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-in zoom-in-95 border bg-white ${tClass.modalBorder}`}>
             
-            <div className="p-5 sm:p-6 md:p-8 flex justify-between items-center shrink-0 bg-gradient-to-r from-pink-500 to-rose-500 text-white">
+            <div className={`p-5 sm:p-6 md:p-8 flex justify-between items-center shrink-0 text-white ${tClass.modalHeaderBg}`}>
               <div>
                 <h2 className="text-xl sm:text-2xl font-black flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center border border-white/30 backdrop-blur-sm">
@@ -432,7 +492,7 @@ const DivisionAnalytics = () => {
                   </div>
                   {formData.id ? "Edit Divisi" : "Tambah Divisi Baru"}
                 </h2>
-                <p className="text-[10px] sm:text-xs font-medium mt-2 text-pink-100">
+                <p className={`text-[10px] sm:text-xs font-medium mt-2 ${tClass.modalSubText}`}>
                   Lengkapi informasi divisi operasional di bawah ini.
                 </p>
               </div>
@@ -451,15 +511,15 @@ const DivisionAnalytics = () => {
                   <div>
                     <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest mb-2 block text-slate-500">Nama Divisi <span className="text-rose-500">*</span></label>
                     <div className="relative">
-                      <i className="fa-solid fa-signature absolute left-4 top-1/2 -translate-y-1/2 text-pink-400" />
-                      <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required placeholder="Misal: IT Support" className="w-full rounded-xl pl-11 pr-4 py-3 text-sm font-bold outline-none focus:ring-2 transition-all border bg-slate-50 border-slate-200 text-slate-700 focus:bg-white focus:ring-pink-400 focus:border-pink-300" />
+                      <i className={`fa-solid fa-signature absolute left-4 top-1/2 -translate-y-1/2 ${tClass.detailIcon}`} />
+                      <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required placeholder="Misal: IT Support" className={`w-full rounded-xl pl-11 pr-4 py-3 text-sm font-bold outline-none focus:ring-2 transition-all border bg-slate-50 border-slate-200 text-slate-700 focus:bg-white ${tClass.inputFocus}`} />
                     </div>
                   </div>
 
                   {/* DROP PENANGGUNG JAWAB (WAJIB) */}
                   <div>
                     <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest mb-2 block text-slate-500">Penanggung Jawab <span className="text-rose-500">*</span></label>
-                    <select required value={formData.head} onChange={e => setFormData({ ...formData, head: e.target.value })} className="w-full rounded-xl px-4 py-3 h-12 text-sm font-bold outline-none focus:ring-2 transition-all cursor-pointer border bg-slate-50 border-slate-200 text-slate-700 focus:bg-white focus:ring-pink-400 focus:border-pink-300">
+                    <select required value={formData.head} onChange={e => setFormData({ ...formData, head: e.target.value })} className={`w-full rounded-xl px-4 py-3 h-12 text-sm font-bold outline-none focus:ring-2 transition-all cursor-pointer border bg-slate-50 border-slate-200 text-slate-700 focus:bg-white ${tClass.inputFocus}`}>
                       <option value="" disabled>-- Pilih Admin Terdaftar --</option>
                       {availableAdmins.map((admin, idx) => (
                         <option key={idx} value={admin.name}>{admin.name} (Dari {admin.divName})</option>
@@ -471,7 +531,7 @@ const DivisionAnalytics = () => {
                     {/* WARNA TEMA */}
                     <div>
                       <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest mb-2 block text-slate-500">Warna Tema</label>
-                      <select value={formData.color} onChange={e => setFormData({ ...formData, color: e.target.value })} className="w-full rounded-xl px-4 py-3 h-12 text-sm font-bold outline-none focus:ring-2 transition-all cursor-pointer border bg-slate-50 border-slate-200 text-slate-700 focus:bg-white focus:ring-pink-400 focus:border-pink-300">
+                      <select value={formData.color} onChange={e => setFormData({ ...formData, color: e.target.value })} className={`w-full rounded-xl px-4 py-3 h-12 text-sm font-bold outline-none focus:ring-2 transition-all cursor-pointer border bg-slate-50 border-slate-200 text-slate-700 focus:bg-white ${tClass.inputFocus}`}>
                         <option value="blue">Biru (Blue)</option>
                         <option value="purple">Ungu (Purple)</option>
                         <option value="emerald">Hijau (Emerald)</option>
@@ -484,12 +544,12 @@ const DivisionAnalytics = () => {
                     <div>
                       <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest mb-2 block text-slate-500">Pilih Ikon</label>
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center text-lg border bg-pink-50 border-pink-200 text-pink-500 shadow-sm">
+                        <div className={`w-12 h-12 shrink-0 rounded-xl flex items-center justify-center text-lg border shadow-sm ${tClass.iconBox}`}>
                           <i className={`fa-solid ${formData.icon}`} />
                         </div>
                         <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
                           {ICON_CHOICES.map(icon => (
-                            <button key={icon} type="button" onClick={() => setFormData({ ...formData, icon })} className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center text-sm border transition-all ${formData.icon === icon ? 'bg-pink-500 text-white border-pink-600 shadow-sm' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'}`}>
+                            <button key={icon} type="button" onClick={() => setFormData({ ...formData, icon })} className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center text-sm border transition-all ${formData.icon === icon ? tClass.iconActive : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'}`}>
                               <i className={`fa-solid ${icon}`} />
                             </button>
                           ))}
@@ -501,7 +561,7 @@ const DivisionAnalytics = () => {
                   {/* DESKRIPSI */}
                   <div>
                     <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest mb-2 block text-slate-500">Deskripsi Tugas</label>
-                    <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows="3" placeholder="Jelaskan peran divisi ini..." className="w-full rounded-xl p-4 text-sm font-medium outline-none focus:ring-2 resize-none transition-all border bg-slate-50 border-slate-200 text-slate-700 focus:bg-white focus:ring-pink-400 focus:border-pink-300" />
+                    <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows="3" placeholder="Jelaskan peran divisi ini..." className={`w-full rounded-xl p-4 text-sm font-medium outline-none focus:ring-2 resize-none transition-all border bg-slate-50 border-slate-200 text-slate-700 focus:bg-white ${tClass.inputFocus}`} />
                   </div>
                 </div>
               </div>
@@ -511,7 +571,7 @@ const DivisionAnalytics = () => {
                 <button type="button" onClick={() => setIsFormOpen(false)} disabled={isSubmitting} className="w-full sm:w-1/3 py-3.5 sm:py-4 font-bold rounded-xl transition-colors border text-sm bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50">
                   Batal
                 </button>
-                <button type="submit" disabled={isSubmitting} className="w-full sm:w-2/3 py-3.5 sm:py-4 text-white font-black tracking-wide rounded-xl shadow-lg flex items-center justify-center gap-3 transition-all text-sm bg-pink-500 hover:bg-pink-600 shadow-pink-500/30 disabled:opacity-50 disabled:cursor-wait">
+                <button type="submit" disabled={isSubmitting} className={`w-full sm:w-2/3 py-3.5 sm:py-4 text-white font-black tracking-wide rounded-xl shadow-lg flex items-center justify-center gap-3 transition-all text-sm disabled:opacity-50 disabled:cursor-wait ${tClass.addBtn}`}>
                   {isSubmitting ? (
                     <><i className="fa-solid fa-spinner fa-spin" /> Memproses...</>
                   ) : (
@@ -529,17 +589,17 @@ const DivisionAnalytics = () => {
       {/* MODAL 2: FULL-SCREEN PROFILE DETAIL DIVISI */}
       {selectedDivision && createPortal(
         <div className="fixed inset-0 z-[999999] flex flex-col animate-in fade-in zoom-in-95 duration-300 bg-slate-50 overflow-hidden m-0">
-          <div className="px-4 sm:px-6 md:px-10 py-4 sm:py-5 border-b shadow-sm flex flex-row justify-between items-center gap-4 shrink-0 bg-white border-pink-100">
+          <div className={`px-4 sm:px-6 md:px-10 py-4 sm:py-5 border-b shadow-sm flex flex-row justify-between items-center gap-4 shrink-0 bg-white ${tClass.detailBoxBorder}`}>
             <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-lg sm:text-xl text-white shadow-lg shrink-0 bg-pink-500 shadow-pink-500/30">
+              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-lg sm:text-xl text-white shadow-lg shrink-0 ${tClass.detailHeaderIconBg}`}>
                 <i className={`fa-solid ${selectedDivision.icon}`} />
               </div>
               <div className="min-w-0">
                 <h2 className="text-lg sm:text-2xl font-black leading-tight truncate text-slate-800">{selectedDivision.name}</h2>
-                <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest mt-0.5 sm:mt-1 truncate text-pink-400">Profil Lengkap Divisi</p>
+                <p className={`text-[9px] sm:text-[10px] font-black uppercase tracking-widest mt-0.5 sm:mt-1 truncate ${tClass.detailSubText}`}>Profil Lengkap Divisi</p>
               </div>
             </div>
-            <button onClick={() => setSelectedDivision(null)} className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-black text-[10px] sm:text-xs transition-all shrink-0 bg-pink-50 text-pink-600 hover:bg-rose-500 hover:text-white border border-pink-200 hover:border-rose-500 shadow-sm">
+            <button onClick={() => setSelectedDivision(null)} className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-black text-[10px] sm:text-xs transition-all shrink-0 border ${tClass.detailCloseBtn}`}>
               <i className="fa-solid fa-arrow-left" /> <span className="hidden sm:inline">Tutup Panel</span>
             </button>
           </div>
@@ -547,11 +607,11 @@ const DivisionAnalytics = () => {
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 custom-scrollbar">
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 pb-12">
               <div className="lg:col-span-8 space-y-6 sm:space-y-8">
-                <div className="rounded-[2.5rem] p-6 sm:p-8 md:p-10 border shadow-sm bg-white border-pink-100">
+                <div className={`rounded-[2.5rem] p-6 sm:p-8 md:p-10 border shadow-sm bg-white ${tClass.detailBoxBorder}`}>
                   <h3 className="text-base sm:text-lg font-black mb-4 text-slate-800">Tentang Divisi</h3>
                   <p className="text-sm sm:text-[15px] font-medium leading-relaxed text-slate-600">{selectedDivision.description}</p>
                   <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t flex items-center gap-3 sm:gap-4 border-slate-100">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-base sm:text-lg font-black border shadow-sm shrink-0 bg-pink-50 text-pink-500 border-pink-200">
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-base sm:text-lg font-black border shadow-sm shrink-0 ${tClass.iconBox}`}>
                       {selectedDivision.head ? selectedDivision.head.charAt(0) : <i className="fa-solid fa-user-slash" />}
                     </div>
                     <div className="min-w-0">
@@ -561,15 +621,15 @@ const DivisionAnalytics = () => {
                   </div>
                 </div>
 
-                <div className="rounded-[2.5rem] p-6 sm:p-8 md:p-10 border shadow-sm bg-white border-pink-100">
+                <div className={`rounded-[2.5rem] p-6 sm:p-8 md:p-10 border shadow-sm bg-white ${tClass.detailBoxBorder}`}>
                   <h3 className="text-base sm:text-lg font-black mb-5 sm:mb-6 flex items-center gap-3 text-slate-800">
-                    <i className="fa-solid fa-clipboard-check text-lg sm:text-xl text-pink-500" /> Tanggung Jawab Utama
+                    <i className={`fa-solid fa-clipboard-check text-lg sm:text-xl ${tClass.detailIcon}`} /> Tanggung Jawab Utama
                   </h3>
                   {selectedDivision.jobDescriptions?.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                       {selectedDivision.jobDescriptions.map((job, idx) => (
-                        <div key={idx} className="flex items-start gap-3 p-4 sm:p-5 rounded-2xl border bg-pink-50/50 border-pink-100 hover:border-pink-300 transition-colors">
-                          <i className="fa-solid fa-circle-check mt-1 shrink-0 text-pink-500" />
+                        <div key={idx} className={`flex items-start gap-3 p-4 sm:p-5 rounded-2xl border transition-colors ${tClass.detailJobBox}`}>
+                          <i className={`fa-solid fa-circle-check mt-1 shrink-0 ${tClass.detailIcon}`} />
                           <span className="text-xs sm:text-[13px] font-bold leading-relaxed text-slate-700">{job.task}</span>
                         </div>
                       ))}
@@ -583,20 +643,20 @@ const DivisionAnalytics = () => {
               </div>
 
               <div className="lg:col-span-4 space-y-6 sm:space-y-8">
-                <div className="rounded-[2.5rem] p-5 sm:p-6 md:p-8 border shadow-sm bg-white border-pink-100">
+                <div className={`rounded-[2.5rem] p-5 sm:p-6 md:p-8 border shadow-sm bg-white ${tClass.detailBoxBorder}`}>
                   <div className="flex justify-between items-center mb-5 sm:mb-6 border-b border-slate-100 pb-4">
                     <h3 className="text-xs sm:text-sm font-black flex items-center gap-2 sm:gap-3 text-slate-800">
-                      <i className="fa-solid fa-users text-base sm:text-lg text-pink-500" /> Anggota Tim
+                      <i className={`fa-solid fa-users text-base sm:text-lg ${tClass.detailIcon}`} /> Anggota Tim
                     </h3>
-                    <span className="text-[10px] sm:text-xs font-black px-3 py-1.5 rounded-lg text-pink-600 bg-pink-50 border border-pink-200">
+                    <span className={`text-[10px] sm:text-xs font-black px-3 py-1.5 rounded-lg border ${tClass.detailCountBadge}`}>
                       {selectedDivision.internCount} User
                     </span>
                   </div>
                   <div className="space-y-2.5 sm:space-y-3">
                     {selectedDivision.members?.length > 0 ? (
                       selectedDivision.members.map((member, idx) => (
-                        <div key={idx} className="flex items-center gap-3 sm:gap-4 p-3 sm:p-3.5 rounded-2xl transition-colors border bg-slate-50 border-slate-100 hover:border-pink-200">
-                          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-xs sm:text-sm font-black text-white shadow-sm shrink-0 bg-gradient-to-br from-pink-400 to-pink-500">
+                        <div key={idx} className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-3.5 rounded-2xl transition-colors border bg-slate-50 border-slate-100 ${tClass.detailMemberHover}`}>
+                          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-xs sm:text-sm font-black text-white shadow-sm shrink-0 ${tClass.detailMemberAvatar}`}>
                             {member.avatar}
                           </div>
                           <div className="min-w-0">
@@ -613,14 +673,14 @@ const DivisionAnalytics = () => {
                   </div>
                 </div>
 
-                <div className="rounded-[2.5rem] p-5 sm:p-6 md:p-8 border shadow-sm bg-white border-pink-100">
+                <div className={`rounded-[2.5rem] p-5 sm:p-6 md:p-8 border shadow-sm bg-white ${tClass.detailBoxBorder}`}>
                   <h3 className="text-xs sm:text-sm font-black mb-5 sm:mb-6 border-b border-slate-100 pb-4 flex items-center gap-2 sm:gap-3 text-slate-800">
                     <i className="fa-solid fa-fire text-orange-500 text-base sm:text-lg" /> Top Interns
                   </h3>
                   <div className="space-y-2.5 sm:space-y-3">
                     {selectedDivision.leaderboard?.length > 0 ? selectedDivision.leaderboard.map((intern, idx) => (
                       <div key={idx} className={`flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border transition-colors ${
-                        idx === 0 ? "bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 shadow-sm" : "bg-white border-slate-100 hover:border-pink-200"
+                        idx === 0 ? "bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 shadow-sm" : `bg-white border-slate-100 ${tClass.detailMemberHover}`
                         }`}>
                         <div className="flex items-center gap-3.5 min-w-0 w-full">
                           <div className={`w-9 h-9 flex items-center justify-center rounded-xl font-black text-xs sm:text-sm shrink-0 ${
