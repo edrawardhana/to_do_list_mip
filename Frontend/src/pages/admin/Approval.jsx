@@ -4,6 +4,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
 import { createPortal } from "react-dom";
+import ImageModal from "../../components/ui/ImageModal";
 
 const PAGE_SIZE = 6;
 
@@ -70,6 +71,15 @@ const Approval = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [resendingId, setResendingId] = useState(null);
+  
+  const [modalImage, setModalImage] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openImageModal = (e, url) => {
+    e.preventDefault();
+    setModalImage(url);
+    setIsModalOpen(true);
+  };
 
   // ── 1. MESIN BARU: TanStack Query (Bakar useEffect lu!) ──
   const { data, isLoading: loading, isFetching } = useQuery({
@@ -551,7 +561,8 @@ const Approval = () => {
                             <img
                               src={task.photo}
                               alt="Bukti"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              onClick={(e) => openImageModal(e, task.photo)}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer"
                             />
                           ) : (
                             <a
@@ -741,11 +752,10 @@ const Approval = () => {
                       <div className="w-full sm:w-44 bg-slate-50/50 p-5 flex flex-col shrink-0 justify-between">
                         <div className="flex-1 flex flex-col items-center justify-center mb-4">
                           {leave.proof ? (
-                            <a
-                              href={leave.proof}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="w-full h-24 rounded-xl border border-slate-200 overflow-hidden block relative group/img shadow-inner"
+                            <button
+                              type="button"
+                              onClick={(e) => openImageModal(e, leave.proof)}
+                              className="w-full h-24 rounded-xl border border-slate-200 overflow-hidden block relative group/img shadow-inner cursor-pointer"
                             >
                               <img
                                 src={leave.proof}
@@ -756,7 +766,7 @@ const Approval = () => {
                               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
                                 <i className="fa-solid fa-magnifying-glass-plus text-white text-xl" />
                               </div>
-                            </a>
+                            </button>
                           ) : (
                             <div className="text-center text-slate-300">
                               <i className="fa-solid fa-file-circle-xmark text-3xl mb-1 block" />
@@ -880,11 +890,10 @@ const Approval = () => {
                       <div className="w-full sm:w-44 bg-slate-50/50 p-5 flex flex-col shrink-0 justify-between">
                         <div className="flex-1 flex flex-col items-center justify-center mb-4">
                           {leave.proof ? (
-                            <a
-                              href={leave.proof}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="w-full h-24 rounded-xl border border-slate-200 overflow-hidden block relative group/img shadow-inner"
+                            <button
+                              type="button"
+                              onClick={(e) => openImageModal(e, leave.proof)}
+                              className="w-full h-24 rounded-xl border border-slate-200 overflow-hidden block relative group/img shadow-inner cursor-pointer"
                             >
                               <img
                                 src={leave.proof}
@@ -895,7 +904,7 @@ const Approval = () => {
                               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
                                 <i className="fa-solid fa-magnifying-glass-plus text-white text-xl" />
                               </div>
-                            </a>
+                            </button>
                           ) : (
                             <div className="text-center text-slate-300">
                               <i className="fa-solid fa-file-circle-xmark text-3xl mb-1 block" />
@@ -1033,6 +1042,8 @@ const Approval = () => {
         </div>,
         document.body // Ini yang bikin modal lu nembus full layar!
       )}
+
+      <ImageModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} imageUrl={modalImage} />
     </div>
   );
 };

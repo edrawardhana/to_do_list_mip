@@ -79,7 +79,14 @@ class ExceptionController extends Controller
             $filename = 'exception_' . $user->id . '_' . time();
 
             if ($mime === 'application/pdf') {
-                $storagePath = $file->storeAs('exception_evidence', $filename . '.pdf', 'public');
+                if (env('SUPABASE_STORAGE_KEY')) {
+                    $storagePath = 'exception_evidence/' . $filename . '.pdf';
+                    Storage::disk('supabase')->put($storagePath, file_get_contents($file->getRealPath()));
+                    $evidenceUrl = env('SUPABASE_STORAGE_URL') . '/' . env('SUPABASE_STORAGE_BUCKET', 'evidences') . '/' . $storagePath;
+                } else {
+                    $storagePath = $file->storeAs('exception_evidence', $filename . '.pdf', 'public');
+                    $evidenceUrl = config('app.url') . Storage::url($storagePath);
+                }
             } else {
                 $manager = new ImageManager(new Driver());
                 $image   = $manager->read(file_get_contents($file->getRealPath()));
@@ -95,10 +102,15 @@ class ExceptionController extends Controller
                 }
 
                 $storagePath = 'exception_evidence/' . $filename . '.jpg';
-                Storage::disk('public')->put($storagePath, (string) $encoded);
+                
+                if (env('SUPABASE_STORAGE_KEY')) {
+                    Storage::disk('supabase')->put($storagePath, (string) $encoded);
+                    $evidenceUrl = env('SUPABASE_STORAGE_URL') . '/' . env('SUPABASE_STORAGE_BUCKET', 'evidences') . '/' . $storagePath;
+                } else {
+                    Storage::disk('public')->put($storagePath, (string) $encoded);
+                    $evidenceUrl = config('app.url') . Storage::url($storagePath);
+                }
             }
-
-            $evidenceUrl = config('app.url') . Storage::url($storagePath);
         }
 
         $exception = Exception::create([
@@ -436,8 +448,17 @@ class ExceptionController extends Controller
         }
 
         if ($exception->evidence_url) {
-            $path = str_replace(config('app.url') . '/storage/', '', $exception->evidence_url);
-            Storage::disk('public')->delete($path);
+            if (str_contains($exception->evidence_url, '/storage/')) {
+                $path = str_replace(config('app.url') . '/storage/', '', $exception->evidence_url);
+                Storage::disk('public')->delete($path);
+            } else {
+                $baseUrl = env('SUPABASE_STORAGE_URL');
+                if ($baseUrl) {
+                    $bucket = env('SUPABASE_STORAGE_BUCKET', 'evidences');
+                    $oldPath = str_replace($baseUrl . '/' . $bucket . '/', '', $exception->evidence_url);
+                    Storage::disk('supabase')->delete($oldPath);
+                }
+            }
         }
 
         $old_values = $exception->toArray();

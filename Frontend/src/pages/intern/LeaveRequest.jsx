@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import ImageModal from "../../components/ui/ImageModal";
 
 // ── Client-side image compression ────────────────────────────────────────────
 const compressImage = (file, maxSizeMB = 2, quality = 0.8) => {
@@ -86,6 +87,13 @@ const LeaveRequest = () => {
   const [compressing, setCompressing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMobileHeroOpen, setIsMobileHeroOpen] = useState(false);
+  const [modalImage, setModalImage] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openImageModal = (url) => {
+    setModalImage(url);
+    setIsModalOpen(true);
+  };
 
   useEffect(() => {
     return () => {
@@ -436,9 +444,9 @@ const LeaveRequest = () => {
                             <p className="text-[9px] md:text-[11px] font-medium text-slate-400 leading-none mt-0.5">{item.date}</p>
                             <p className="text-[10px] md:text-xs font-medium text-slate-600 mt-1.5 md:mt-2 italic line-clamp-2">"{item.note}"</p>
                             {item.proof && (
-                              <a href={item.proof} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 mt-1.5 px-2 py-1 rounded-md bg-blue-50 text-[8px] md:text-[10px] font-bold text-blue-600 hover:bg-blue-100 transition-colors">
+                              <button onClick={() => openImageModal(item.proof)} type="button" className="inline-flex items-center gap-1 mt-1.5 px-2 py-1 rounded-md bg-blue-50 text-[8px] md:text-[10px] font-bold text-blue-600 hover:bg-blue-100 transition-colors">
                                 <i className="fa-solid fa-image" /> Lihat Bukti
-                              </a>
+                              </button>
                             )}
                           </div>
                         </div>
@@ -454,6 +462,7 @@ const LeaveRequest = () => {
           </div>
         </div>
       </div>
+      <ImageModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} imageUrl={modalImage} />
     </div>
   );
 };

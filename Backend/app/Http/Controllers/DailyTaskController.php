@@ -755,7 +755,7 @@ class DailyTaskController extends Controller
 
         if (env('SUPABASE_STORAGE_KEY')) {
             Storage::disk('supabase')->put($storagePath, (string) $encodedImage);
-            return env('SUPABASE_STORAGE_URL') . '/' . env('SUPABASE_STORAGE_BUCKET', 'daily-tasks') . '/' . $storagePath;
+            return env('SUPABASE_STORAGE_URL') . '/' . env('SUPABASE_STORAGE_BUCKET', 'evidences') . '/' . $storagePath;
         } else {
             Storage::disk('public')->put($storagePath, (string) $encodedImage);
             return config('app.url') . Storage::url($storagePath);
@@ -775,7 +775,7 @@ class DailyTaskController extends Controller
         } else {
             $baseUrl = env('SUPABASE_STORAGE_URL');
             if ($baseUrl) {
-                $bucket = env('SUPABASE_STORAGE_BUCKET', 'daily-tasks');
+                $bucket = env('SUPABASE_STORAGE_BUCKET', 'evidences');
                 $oldPath = str_replace($baseUrl . '/' . $bucket . '/', '', $url);
                 Storage::disk('supabase')->delete($oldPath);
             }
