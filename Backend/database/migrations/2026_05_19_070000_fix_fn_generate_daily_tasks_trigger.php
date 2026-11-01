@@ -10,6 +10,8 @@ return new class extends Migration
         // Update the fn_generate_daily_tasks trigger function to copy start_time, end_time, and reminder_time
         if (DB::getDriverName() !== 'sqlite') {
             DB::unprepared("
+                DROP FUNCTION IF EXISTS fn_generate_daily_tasks() CASCADE;
+                
                 CREATE OR REPLACE FUNCTION fn_generate_daily_tasks()
                 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
                 DECLARE
